@@ -8,17 +8,15 @@ import sqlite3
 conn_nube = st.connection("gsheets", type=GSheetsConnection)
 
 def traer_datos_historial():
-    # Usamos la URL limpia para ambas funciones
-    url_g = "https://docs.google.com/spreadsheets/d/1Nvxs3KhSuTBwJ24SIXh__KenLU_PXbRDec3bZjmMYLU/edit"
-    return conn_nube.read(spreadsheet=url_g, worksheet="ventas", ttl="0s")
+    # Dejamos que Streamlit use la conexión interna configurada en Secrets
+    return conn_nube.read(worksheet="ventas", ttl="0s")
 
 def guardar_presupuesto_nube(cliente, mueble, total):
     try:
-        # 1. URL limpia sin #gid al final
-        url_g = "https://docs.google.com/spreadsheets/d/1Nvxs3KhSuTBwJ24SIXh__KenLU_PXbRDec3bZjmMYLU/edit"
-        df_actual = conn_nube.read(spreadsheet=url_g, worksheet="ventas", ttl="0s")
+        # 1. Lectura usando solo el nombre de la pestaña
+        df_actual = conn_nube.read(worksheet="ventas", ttl="0s")
         
-        # 2. Lógica de ID robusta
+        # 2. Lógica de ID
         nuevo_id = 1 if df_actual.empty else int(df_actual["id"].max()) + 1
         
         nueva_fila = pd.DataFrame([{
@@ -30,11 +28,11 @@ def guardar_presupuesto_nube(cliente, mueble, total):
             "estado": "Pendiente"
         }])
         
-        # 3. Concatenamos y limpiamos vacíos
+        # 3. Combinar datos
         df_final = pd.concat([df_actual, nueva_fila], ignore_index=True).fillna("")
         
-        # 4. Impactamos en la nube
-        conn_nube.update(spreadsheet=url_g, worksheet="ventas", data=df_final)
+        # 4. Update usando la conexión nativa
+        conn_nube.update(worksheet="ventas", data=df_final)
         
         st.success(f"✅ ¡Impactado en la Nube! Cliente: {cliente}")
         st.balloons() 
@@ -175,3 +173,4 @@ else:
     except Exception as e:
 
         st.error(f"Error de conexión: {e}")
+
