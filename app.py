@@ -8,15 +8,15 @@ import sqlite3
 conn_nube = st.connection("gsheets", type=GSheetsConnection)
 
 def traer_datos_historial():
-    # Dejamos que Streamlit use la conexión interna configurada en Secrets
+    # Usamos la conexión configurada en Secrets
     return conn_nube.read(worksheet="ventas", ttl="0s")
 
 def guardar_presupuesto_nube(cliente, mueble, total):
     try:
-        # 1. Lectura usando solo el nombre de la pestaña
+        # 1. Leemos usando el nombre de la pestaña (sin URL larga)
         df_actual = conn_nube.read(worksheet="ventas", ttl="0s")
         
-        # 2. Lógica de ID
+        # 2. Generamos el nuevo ID
         nuevo_id = 1 if df_actual.empty else int(df_actual["id"].max()) + 1
         
         nueva_fila = pd.DataFrame([{
@@ -28,17 +28,16 @@ def guardar_presupuesto_nube(cliente, mueble, total):
             "estado": "Pendiente"
         }])
         
-        # 3. Combinar datos
+        # 3. Concatenamos
         df_final = pd.concat([df_actual, nueva_fila], ignore_index=True).fillna("")
         
-        # 4. Update usando la conexión nativa
+        # 4. Actualizamos la pestaña
         conn_nube.update(worksheet="ventas", data=df_final)
         
         st.success(f"✅ ¡Impactado en la Nube! Cliente: {cliente}")
         st.balloons() 
     except Exception as e:
         st.error(f"❌ Error de comunicación con Google: {e}")
-
 # --- 2. CONECTIVIDAD LOCAL ---
 def ejecutar_query(query, params=(), fetch=False):
     with sqlite3.connect('carpinteria.db') as conn:
@@ -173,4 +172,5 @@ else:
     except Exception as e:
 
         st.error(f"Error de conexión: {e}")
+
 
