@@ -8,16 +8,21 @@ import sqlite3
 conn_nube = st.connection("gsheets", type=GSheetsConnection)
 
 def traer_datos_historial():
-    # Usamos la URL larga CON el gid=0 para que Google no tenga dudas
-    url_larga = "https://docs.google.com/spreadsheets/d/1Nvxs3KhSuTBwJ24SIXh__KenLU_PXbRDec3bZjmMYLU/edit#gid=0"
-    return conn_nube.read(spreadsheet=url_larga, worksheet="ventas", ttl="0s")
+    # Usamos la URL limpia para ambas funciones
+    url_g = "https://docs.google.com/spreadsheets/d/1Nvxs3KhSuTBwJ24SIXh__KenLU_PXbRDec3bZjmMYLU/edit"
+    return conn_nube.read(spreadsheet=url_g, worksheet="ventas", ttl="0s")
+
 def guardar_presupuesto_nube(cliente, mueble, total):
     try:
-        url_larga = "https://docs.google.com/spreadsheets/d/1Nvxs3KhSuTBwJ24SIXh__KenLU_PXbRDec3bZjmMYLU/edit#gid=0"
-        df_actual = conn_nube.read(spreadsheet=url_larga, worksheet="ventas", ttl="0s")
+        # 1. URL limpia sin #gid al final
+        url_g = "https://docs.google.com/spreadsheets/d/1Nvxs3KhSuTBwJ24SIXh__KenLU_PXbRDec3bZjmMYLU/edit"
+        df_actual = conn_nube.read(spreadsheet=url_g, worksheet="ventas", ttl="0s")
+        
+        # 2. Lógica de ID robusta
+        nuevo_id = 1 if df_actual.empty else int(df_actual["id"].max()) + 1
         
         nueva_fila = pd.DataFrame([{
-            "id": len(df_actual) + 1,
+            "id": nuevo_id,
             "fecha": datetime.now().strftime("%Y-%m-%d %H:%M"),
             "cliente": cliente,
             "mueble": mueble,
@@ -25,9 +30,11 @@ def guardar_presupuesto_nube(cliente, mueble, total):
             "estado": "Pendiente"
         }])
         
-        df_final = pd.concat([df_actual, nueva_fila], ignore_index=True)
-        # Forzamos el update con la url directa
-        conn_nube.update(spreadsheet=url_larga, worksheet="ventas", data=df_final)
+        # 3. Concatenamos y limpiamos vacíos
+        df_final = pd.concat([df_actual, nueva_fila], ignore_index=True).fillna("")
+        
+        # 4. Impactamos en la nube
+        conn_nube.update(spreadsheet=url_g, worksheet="ventas", data=df_final)
         
         st.success(f"✅ ¡Impactado en la Nube! Cliente: {cliente}")
         st.balloons() 
@@ -166,4 +173,5 @@ else:
                 conn_nube.update(worksheet="ventas", data=df_editado)
                 st.success("Sincronizado.")
     except Exception as e:
+
         st.error(f"Error de conexión: {e}")
