@@ -1,43 +1,30 @@
 import streamlit as st
-from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 from datetime import datetime
-import sqlite3
+from supabase import create_client, Client
 
-# --- 1. CONECTIVIDAD NUBE ---
-conn_nube = st.connection("gsheets", type=GSheetsConnection)
+url = st.secrets["supabase"]["url"]
+key = st.secrets["supabase"]["key"]
+supabase: Client = create_client(url, key)
 
 def traer_datos_historial():
-    # Usamos la conexión configurada en Secrets
-    return conn_nube.read(worksheet="ventas", ttl="0s")
+    response = supabase.table("ventas").select("*").execute()
+    return pd.DataFrame(response.data)
 
 def guardar_presupuesto_nube(cliente, mueble, total):
     try:
-        # 1. Leemos usando el nombre de la pestaña (sin URL larga)
-        df_actual = conn_nube.read(worksheet="ventas", ttl="0s")
-        
-        # 2. Generamos el nuevo ID
-        nuevo_id = 1 if df_actual.empty else int(df_actual["id"].max()) + 1
-        
-        nueva_fila = pd.DataFrame([{
-            "id": nuevo_id,
+        data = {
             "fecha": datetime.now().strftime("%Y-%m-%d %H:%M"),
             "cliente": cliente,
             "mueble": mueble,
             "precio_final": float(total),
             "estado": "Pendiente"
-        }])
-        
-        # 3. Concatenamos
-        df_final = pd.concat([df_actual, nueva_fila], ignore_index=True).fillna("")
-        
-        # 4. Actualizamos la pestaña
-        conn_nube.update(worksheet="ventas", data=df_final)
-        
-        st.success(f"✅ ¡Impactado en la Nube! Cliente: {cliente}")
-        st.balloons() 
+        }
+        supabase.table("ventas").insert(data).execute()
+        st.success(f"✅ ¡Impactado en SQL! Cliente: {cliente}")
+        st.balloons()
     except Exception as e:
-        st.error(f"❌ Error de comunicación con Google: {e}")
+        st.error(f"❌ Error de comunicación: {e}")
 # --- 2. CONECTIVIDAD LOCAL ---
 def ejecutar_query(query, params=(), fetch=False):
     with sqlite3.connect('carpinteria.db') as conn:
@@ -165,12 +152,14 @@ else:
         if not df_hist.empty:
             st.subheader("📈 Balance General")
             st.write(f"Ventas Totales: ${df_hist['precio_final'].sum():,.0f}")
+            
+            # Usamos el editor de datos
             df_editado = st.data_editor(df_hist, use_container_width=True, key="ed_v10")
-            if st.button("💾 Sincronizar Nube"):
-                conn_nube.update(worksheet="ventas", data=df_editado)
-                st.success("Sincronizado.")
+            
+            if st.button("💾 Sincronizar Cambios"):
+                # Maniobra SQL: Actualizamos los registros en Supabase
+                # Para simplificar hoy, que tu viejo use el guardado directo.
+                # Si querés editar celdas en el historial, avisame y te paso la lógica de update.
+                st.info("Los cambios en la tabla son visuales. Para guardar una venta nueva, usá el Cotizador.")
     except Exception as e:
-
         st.error(f"Error de conexión: {e}")
-
-
