@@ -1,13 +1,26 @@
 import streamlit as st
 import pandas as pd
 import sqlite3
+import os
 from datetime import datetime
 from supabase import create_client, Client
+from dotenv import load_dotenv
 
-url = st.secrets["supabase"]["url"]
-key = st.secrets["supabase"]["key"]
-supabase: Client = create_client(url, key)
+# Carga el .env si estás en tu PC
+load_dotenv()
 
+# Intenta leer de Secrets (Nube) o de Variables de Entorno (Local)
+try:
+    url = st.secrets["supabase"]["url"]
+    key = st.secrets["supabase"]["key"]
+except:
+    url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_KEY")
+
+if url and key:
+    supabase: Client = create_client(url, key)
+else:
+    st.error("No se pudieron cargar las credenciales de Supabase.")
 def traer_datos_historial():
     response = supabase.table("ventas").select("*").execute()
     return pd.DataFrame(response.data)
@@ -164,4 +177,5 @@ else:
                 st.info("Los cambios en la tabla son visuales. Para guardar una venta nueva, usá el Cotizador.")
     except Exception as e:
         st.error(f"Error de conexión: {e}")
+
 
