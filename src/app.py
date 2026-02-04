@@ -8,10 +8,7 @@ from supabase import create_client, Client
 from dotenv import load_dotenv
 
 # --- CONFIGURACIÓN DE RUTAS ---
-# BASE_DIR es la carpeta raíz de BVM
 BASE_DIR = Path(__file__).resolve().parent.parent 
-
-# Carga el .env desde la raíz
 load_dotenv(dotenv_path=BASE_DIR / '.env')
 
 # --- CONEXIÓN SUPABASE ---
@@ -27,17 +24,32 @@ if url and key:
 else:
     st.error("Error: No se cargaron las credenciales.")
 
-# --- CONECTIVIDAD LOCAL (DB en carpeta /data) ---
-def ejecutar_query(query, params=(), fetch=False):
-    db_path = BASE_DIR / 'data' / 'carpinteria.db' # Ruta corregida
-    with sqlite3.connect(db_path) as conn:
-        cursor = conn.cursor()
-        cursor.execute(query, params)
-        if fetch: return cursor.fetchall()
-        conn.commit()
-def traer_datos_historial():
-    response = supabase.table("ventas").select("*").execute()
-    return pd.DataFrame(response.data)
+# --- 1. DATOS DE PRODUCCIÓN (FUNCIÓN ÚNICA Y FUNCIONAL) ---
+def traer_datos():
+    # Usamos directamente los datos de tu database.py para que no dependa del archivo .db vacío
+    maderas = {
+        'Melamina Blanca 18mm': 95000.0,
+        'Melamina Colores 18mm': 120000.0,
+        'Enchapado Paraiso 18mm': 180000.0,
+        'Enchapado Roble Claro 18mm': 285000.0
+    }
+    fondos = {
+        'Fibroplus Blanco 3mm': 34500.0,
+        'Faplac Fondo 5.5mm': 45000.0
+    }
+    config = {
+        'gastos_fijos_diarios': 179768.0,
+        'amortizacion_maquinas_pct': 0.10,
+        'ganancia_taller_pct': 0.15,
+        'desperdicio_placa_pct': 0.10,
+        'flete_capital': 70000.0,
+        'flete_norte': 35000.0,
+        'colocacion_dia': 100000.0,
+        'bisagra_cazoleta': 1300.0,
+        'telescopica_45': 6000.0,
+        'telescopica_soft': 18000.0
+    }
+    return maderas, fondos, config
 
 def guardar_presupuesto_nube(cliente, mueble, total):
     try:
@@ -53,22 +65,24 @@ def guardar_presupuesto_nube(cliente, mueble, total):
         st.balloons()
     except Exception as e:
         st.error(f"❌ Error de comunicación: {e}")
-# --- 2. CONECTIVIDAD LOCAL ---
+
+def traer_datos_historial():
+    try:
+        response = supabase.table("ventas").select("*").execute()
+        return pd.DataFrame(response.data)
+    except:
+        return pd.DataFrame()
+
+# --- 2. CONECTIVIDAD LOCAL (Mantenida para guardar localmente) ---
 def ejecutar_query(query, params=(), fetch=False):
-    with sqlite3.connect('carpinteria.db') as conn:
+    db_path = BASE_DIR / 'data' / 'carpinteria.db'
+    with sqlite3.connect(db_path) as conn:
         cursor = conn.cursor()
         cursor.execute(query, params)
         if fetch: return cursor.fetchall()
         conn.commit()
 
-def traer_datos():
-    todos = ejecutar_query("SELECT nombre, precio, unidad FROM insumos", fetch=True)
-    maderas = {n: p for n, p, u in todos if u == 'placa' and not any(x in n.lower() for x in ['fibro', 'fondo', '3mm', '5.5mm'])}
-    fondos = {n: p for n, p, u in todos if any(x in n.lower() for x in ['fibro', 'fondo', '3mm', '5.5mm'])}
-    config = {item: valor for item, valor in ejecutar_query("SELECT item, valor FROM taller_config", fetch=True)}
-    return maderas, fondos, config
-
-# --- 3. INTERFAZ Y LÓGICA ---
+# --- 3. INTERFAZ Y LÓGICA (INTACTA) ---
 maderas, fondos, config = traer_datos()
 st.set_page_config(page_title="BVM - Gestión materiales", layout="wide")
 menu = st.sidebar.radio("Navegación", ["Cotizador CNC", "Historial de Ventas"])
@@ -142,7 +156,6 @@ if menu == "Cotizador CNC":
             st.subheader("📐 Planilla de Corte Automática")
             despiece = []
             if alto_m > 0 and ancho_m > 0:
-                # --- MOTOR DE DESPIECE ---
                 despiece.append({"Pieza": "Lateral_Ext", "Cant": 2, "L": alto_m, "A": prof_m})
                 despiece.append({"Pieza": "Piso", "Cant": 1, "L": ancho_m - 36, "A": prof_m})
                 if tiene_parante: despiece.append({"Pieza": "Parante", "Cant": 1, "L": alto_m - 18, "A": prof_m - 20})
@@ -150,12 +163,11 @@ if menu == "Cotizador CNC":
                 
                 df_final = st.data_editor(pd.DataFrame(despiece), use_container_width=True)
                 
-                # --- COSTOS ---
                 m2_18 = (alto_m * ancho_m) / 1_000_000
                 costo_mat = (m2_18 * maderas[mat_principal] / 5.03) * 1.10
                 total_final = costo_mat + (dias_prod * 179768) + costo_base
                 if necesita_colocacion: total_final += (dias_col * 100000)
-                total_final *= 1.15 # Ganancia
+                total_final *= 1.15 
                 
                 st.metric("PRECIO FINAL", f"${total_final:,.2f}")
                 
@@ -180,17 +192,8 @@ else:
         if not df_hist.empty:
             st.subheader("📈 Balance General")
             st.write(f"Ventas Totales: ${df_hist['precio_final'].sum():,.0f}")
-            
-            # Usamos el editor de datos
             df_editado = st.data_editor(df_hist, use_container_width=True, key="ed_v10")
-            
             if st.button("💾 Sincronizar Cambios"):
-                # Maniobra SQL: Actualizamos los registros en Supabase
-                # Para simplificar hoy, que tu viejo use el guardado directo.
-                # Si querés editar celdas en el historial, avisame y te paso la lógica de update.
                 st.info("Los cambios en la tabla son visuales. Para guardar una venta nueva, usá el Cotizador.")
     except Exception as e:
         st.error(f"Error de conexión: {e}")
-
-
-
