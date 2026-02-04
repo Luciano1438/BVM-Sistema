@@ -2,14 +2,19 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 import os
+from pathlib import Path
 from datetime import datetime
 from supabase import create_client, Client
 from dotenv import load_dotenv
 
-# Carga el .env si estás en tu PC
-load_dotenv()
+# --- CONFIGURACIÓN DE RUTAS ---
+# BASE_DIR es la carpeta raíz de BVM
+BASE_DIR = Path(__file__).resolve().parent.parent 
 
-# Intenta leer de Secrets (Nube) o de Variables de Entorno (Local)
+# Carga el .env desde la raíz
+load_dotenv(dotenv_path=BASE_DIR / '.env')
+
+# --- CONEXIÓN SUPABASE ---
 try:
     url = st.secrets["supabase"]["url"]
     key = st.secrets["supabase"]["key"]
@@ -20,7 +25,16 @@ except:
 if url and key:
     supabase: Client = create_client(url, key)
 else:
-    st.error("No se pudieron cargar las credenciales de Supabase.")
+    st.error("Error: No se cargaron las credenciales.")
+
+# --- CONECTIVIDAD LOCAL (DB en carpeta /data) ---
+def ejecutar_query(query, params=(), fetch=False):
+    db_path = BASE_DIR / 'data' / 'carpinteria.db' # Ruta corregida
+    with sqlite3.connect(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute(query, params)
+        if fetch: return cursor.fetchall()
+        conn.commit()
 def traer_datos_historial():
     response = supabase.table("ventas").select("*").execute()
     return pd.DataFrame(response.data)
@@ -177,5 +191,6 @@ else:
                 st.info("Los cambios en la tabla son visuales. Para guardar una venta nueva, usá el Cotizador.")
     except Exception as e:
         st.error(f"Error de conexión: {e}")
+
 
 
