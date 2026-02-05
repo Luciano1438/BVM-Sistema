@@ -7,6 +7,7 @@ from datetime import datetime
 from supabase import create_client, Client
 from dotenv import load_dotenv
 
+
 # --- CONFIGURACIÓN DE RUTAS ---
 BASE_DIR = Path(__file__).resolve().parent.parent 
 load_dotenv(dotenv_path=BASE_DIR / '.env')
@@ -23,6 +24,30 @@ if url and key:
     supabase: Client = create_client(url, key)
 else:
     st.error("Error: No se cargaron las credenciales.")
+
+# --- 0. SEGURIDAD DE ACCESO (VALOR PRO) ---
+def verificar_password():
+    if "autenticado" not in st.session_state:
+        st.session_state["autenticado"] = False
+
+    if not st.session_state["autenticado"]:
+        with st.sidebar:
+            st.title("🔐 Acceso BVM Pro")
+            usuario = st.text_input("Usuario")
+            clave = st.text_input("Contraseña", type="password")
+            if st.button("Ingresar"):
+                # Aquí podrías validar contra Supabase, por ahora usamos hardcoded para tu viejo
+                if usuario == "bvm_admin" and clave == "Lucho15k": # Cambiá esta clave
+                    st.session_state["autenticado"] = True
+                    st.rerun()
+                else:
+                    st.error("Credenciales incorrectas")
+        return False
+    return True
+
+if not verificar_password():
+    st.info("Por favor, ingrese sus credenciales para operar el sistema.")
+    st.stop() # Detiene la ejecución del resto de la app
 
 # --- 1. DATOS DE PRODUCCIÓN (FUNCIÓN ÚNICA Y FUNCIONAL) ---
 # --- 1. MOTOR DE INTELIGENCIA DE NEGOCIO (BVM PRO) ---
@@ -286,6 +311,7 @@ else:
                 st.info("Los cambios en la tabla son visuales. Para guardar una venta nueva, usá el Cotizador.")
     except Exception as e:
         st.error(f"Error de conexión: {e}")
+
 
 
 
