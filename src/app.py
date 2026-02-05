@@ -25,18 +25,26 @@ else:
     st.error("Error: No se cargaron las credenciales.")
 
 # --- 1. DATOS DE PRODUCCIÓN (FUNCIÓN ÚNICA Y FUNCIONAL) ---
+# --- 1. MOTOR DE INTELIGENCIA DE NEGOCIO (BVM PRO) ---
 def traer_datos():
-    # Usamos directamente los datos de tu database.py para que no dependa del archivo .db vacío
-    maderas = {
+    # Precios Base (se mantienen como respaldo)
+    maderas_base = {
         'Melamina Blanca 18mm': 95000.0,
         'Melamina Colores 18mm': 120000.0,
         'Enchapado Paraiso 18mm': 180000.0,
         'Enchapado Roble Claro 18mm': 285000.0
     }
+    
+    # Inyectamos el Multiplicador de Inflación dinámico
+    # Esto permite al dueño actualizar TODO el taller con un solo clic en el futuro
+    factor_ajuste = st.sidebar.number_input("Factor de Ajuste Inflacionario", value=1.0, step=0.05)
+    maderas = {k: v * factor_ajuste for k, v in maderas_base.items()}
+
     fondos = {
-        'Fibroplus Blanco 3mm': 34500.0,
-        'Faplac Fondo 5.5mm': 45000.0
+        'Fibroplus Blanco 3mm': 34500.0 * factor_ajuste,
+        'Faplac Fondo 5.5mm': 45000.0 * factor_ajuste
     }
+    
     config = {
         'gastos_fijos_diarios': 179768.0,
         'amortizacion_maquinas_pct': 0.10,
@@ -197,3 +205,4 @@ else:
                 st.info("Los cambios en la tabla son visuales. Para guardar una venta nueva, usá el Cotizador.")
     except Exception as e:
         st.error(f"Error de conexión: {e}")
+
