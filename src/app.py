@@ -294,12 +294,15 @@ if menu == "Cotizador CNC":
                                 st.write(f"**Mueble:** {mueble_nom}")
                                 st.code(f"PIEZA N°: {index+1}\nDIM: {int(row['L'])} x {int(row['A'])} mm")
                                 st.caption("📋 Lados a tapacantear: Largos.")
+            # --- CIERRE DEL COTIZADOR CNC ---
             else:
                 st.warning("Ingrese dimensiones.")
-    except Exception as e: 
+
+    except Exception as e:
         st.error(f"Error en el Cotizador: {e}")
 
-else:
+# --- PESTAÑA: HISTORIAL DE VENTAS ---
+elif menu == "Historial de Ventas":
     st.title("📊 Gestión y Seguimiento de Ventas")
     try:
         df_hist = traer_datos_historial()
@@ -311,13 +314,13 @@ else:
                 st.info("Los cambios en la tabla son visuales. Para guardar una venta nueva, usá el Cotizador.")
     except Exception as e:
         st.error(f"Error de conexión: {e}")
-       
+
+# --- PESTAÑA: CONFIGURACIÓN DE PRECIOS (VALOR PRO) ---
 elif menu == "⚙️ Configuración de Precios":
     st.title("⚙️ Administración de Insumos y Costos")
     st.info("Desde aquí podés actualizar los valores base. Los cambios impactarán en todos los nuevos presupuestos.")
 
     with st.expander("🪵 Precios de Placas (18mm)"):
-        # Editamos los precios que vienen de traer_datos()
         for madera, precio in maderas.items():
             maderas[madera] = st.number_input(f"Precio {madera}", value=float(precio), step=1000.0)
 
@@ -329,7 +332,7 @@ elif menu == "⚙️ Configuración de Precios":
 
     with st.expander("🚛 Gastos Fijos y Logística"):
         f1, f2 = st.columns(2)
-        config['gastos_fijos_diarios'] = f1.number_input("Gasto Diario Taller (Luz/Sueldos)", value=float(config['gastos_fijos_diarios']), step=5000.0)
+        config['gastos_fijos_diarios'] = f1.number_input("Gasto Diario Taller", value=float(config['gastos_fijos_diarios']), step=5000.0)
         config['flete_capital'] = f2.number_input("Flete Capital", value=float(config['flete_capital']), step=1000.0)
         config['flete_norte'] = f1.number_input("Flete Zona Norte", value=float(config['flete_norte']), step=1000.0)
         config['colocacion_dia'] = f2.number_input("Costo Día de Colocación", value=float(config['colocacion_dia']), step=5000.0)
@@ -339,15 +342,4 @@ elif menu == "⚙️ Configuración de Precios":
         st.write(f"Margen actual: {config['ganancia_taller_pct']*100}%")
 
     if st.button("💾 Aplicar Cambios Temporales"):
-        st.success("Precios actualizados para la sesión actual. Para cambios permanentes, actualizá el archivo .env o la base de datos.")
-
-
-
-
-
-
-
-
-
-
-
+        st.success("Precios actualizados para la sesión actual.")
