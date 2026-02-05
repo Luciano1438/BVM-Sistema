@@ -160,33 +160,56 @@ if menu == "Cotizador CNC":
             flete_sel = st.selectbox("Zona Envío", ["Ninguno", "Capital", "Zona Norte"])
             dias_col = st.number_input("Días de obra", value=0) if necesita_colocacion else 0
 
-        with col_out:
-            st.subheader("📐 Planilla de Corte Automática")
+       with col_out:
+            st.subheader("📐 Planilla de Corte e Inteligencia de Materiales")
             despiece = []
             if alto_m > 0 and ancho_m > 0:
+                # --- MOTOR DE DESPIECE ---
                 despiece.append({"Pieza": "Lateral_Ext", "Cant": 2, "L": alto_m, "A": prof_m})
                 despiece.append({"Pieza": "Piso", "Cant": 1, "L": ancho_m - 36, "A": prof_m})
                 if tiene_parante: despiece.append({"Pieza": "Parante", "Cant": 1, "L": alto_m - 18, "A": prof_m - 20})
                 for i, t in enumerate(medidas_travesaños): despiece.append({"Pieza": f"T_{i+1}", "Cant": 1, "L": t["L"], "A": t["A"]})
                 
-                df_final = st.data_editor(pd.DataFrame(despiece), use_container_width=True)
+                df_corte = pd.DataFrame(despiece)
+                st.data_editor(df_corte, use_container_width=True)
                 
-                m2_18 = (alto_m * ancho_m) / 1_000_000
-                costo_mat = (m2_18 * maderas[mat_principal] / 5.03) * 1.10
-                total_final = costo_mat + (dias_prod * 179768) + costo_base
-                if necesita_colocacion: total_final += (dias_col * 100000)
-                total_final *= 1.15 
+                # --- ANÁLISIS DE EFICIENCIA (VALOR PRO) ---
+                # Calculamos el área total neta de las piezas
+                area_neta_m2 = (df_corte['L'] * df_corte['A'] * df_corte['Cant']).sum() / 1_000_000
+                area_placa_m2 = 5.03  # Placa estándar 1830x2750
                 
-                st.metric("PRECIO FINAL", f"${total_final:,.2f}")
+                # Coeficiente de Aprovechamiento Real
+                uso_real_pct = (area_neta_m2 / area_placa_m2) * 100
+                desperdicio_real = 100 - uso_real_pct
                 
+                # --- VISUALIZACIÓN DE MÉTRICAS ---
+                c1, c2, c3 = st.columns(3)
+                c1.metric("Uso de Placa", f"{uso_real_pct:.1f}%")
+                c2.metric("Desperdicio", f"{desperdicio_real:.1f}%", delta=f"{desperdicio_real - 10:.1f}%", delta_color="inverse")
+                
+                # --- COSTEO DINÁMICO ---
+                costo_mat = (area_neta_m2 * maderas[mat_principal] / area_placa_m2) * (1 + config['desperdicio_placa_pct'])
+                costo_operativo = (dias_prod * config['gastos_fijos_diarios'])
+                
+                total_final = (costo_mat + costo_operativo + costo_base)
+                if necesita_colocacion: total_final += (dias_col * config['colocacion_dia'])
+                
+                # Aplicamos el margen de utilidad sobre el costo total
+                utilidad_estimada = total_final * config['ganancia_taller_pct']
+                precio_venta = total_final + utilidad_estimada
+                
+                c3.metric("Utilidad Bruta", f"${utilidad_estimada:,.0f}")
+                st.subheader(f"PRECIO FINAL: ${precio_venta:,.2f}")
+                
+                # --- BOTONES DE GUARDADO ---
                 c_save1, c_save2 = st.columns(2)
                 with c_save1:
                     if st.button("💾 Guardar Local"):
-                        ejecutar_query("INSERT INTO presupuestos_guardados (cliente, mueble, precio_final, estado) VALUES (?, ?, ?, ?)", (cliente, mueble_nom, total_final, "Pendiente"))
+                        ejecutar_query("INSERT INTO presupuestos_guardados (cliente, mueble, precio_final, estado) VALUES (?, ?, ?, ?)", (cliente, mueble_nom, precio_venta, "Pendiente"))
                         st.success("Guardado Local.")
                 with c_save2:
                     if st.button("💾 Guardar en Nube"):
-                        guardar_presupuesto_nube(cliente, mueble_nom, total_final)
+                        guardar_presupuesto_nube(cliente, mueble_nom, precio_venta)
             else:
                 st.warning("Ingrese dimensiones.")
 
@@ -205,4 +228,5 @@ else:
                 st.info("Los cambios en la tabla son visuales. Para guardar una venta nueva, usá el Cotizador.")
     except Exception as e:
         st.error(f"Error de conexión: {e}")
+
 
