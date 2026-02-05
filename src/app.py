@@ -118,8 +118,8 @@ def ejecutar_query(query, params=(), fetch=False):
 # --- 3. INTERFAZ Y LÓGICA (INTACTA) ---
 maderas, fondos, config = traer_datos()
 st.set_page_config(page_title="BVM - Gestión materiales", layout="wide")
-menu = st.sidebar.radio("Navegación", ["Cotizador CNC", "Historial de Ventas"])
-
+# --- ACTUALIZACIÓN DE MENÚ (VALOR PRO) ---
+menu = st.sidebar.radio("Navegación", ["Cotizador CNC", "Historial de Ventas", "⚙️ Configuración de Precios"])
 if menu == "Cotizador CNC":
     try:
         st.title("🏭 BVM | Control de Producción Industrial")
@@ -311,6 +311,35 @@ else:
                 st.info("Los cambios en la tabla son visuales. Para guardar una venta nueva, usá el Cotizador.")
     except Exception as e:
         st.error(f"Error de conexión: {e}")
+       
+elif menu == "⚙️ Configuración de Precios":
+    st.title("⚙️ Administración de Insumos y Costos")
+    st.info("Desde aquí podés actualizar los valores base. Los cambios impactarán en todos los nuevos presupuestos.")
+
+    with st.expander("🪵 Precios de Placas (18mm)"):
+        # Editamos los precios que vienen de traer_datos()
+        for madera, precio in maderas.items():
+            maderas[madera] = st.number_input(f"Precio {madera}", value=float(precio), step=1000.0)
+
+    with st.expander("🛠️ Herrajes y Accesorios"):
+        c1, c2 = st.columns(2)
+        config['bisagra_cazoleta'] = c1.number_input("Precio Bisagra Cazoleta", value=float(config['bisagra_cazoleta']), step=100.0)
+        config['telescopica_45'] = c2.number_input("Precio Guía Telescópica 45cm", value=float(config['telescopica_45']), step=100.0)
+        config['telescopica_soft'] = c1.number_input("Precio Guía Cierre Suave", value=float(config['telescopica_soft']), step=100.0)
+
+    with st.expander("🚛 Gastos Fijos y Logística"):
+        f1, f2 = st.columns(2)
+        config['gastos_fijos_diarios'] = f1.number_input("Gasto Diario Taller (Luz/Sueldos)", value=float(config['gastos_fijos_diarios']), step=5000.0)
+        config['flete_capital'] = f2.number_input("Flete Capital", value=float(config['flete_capital']), step=1000.0)
+        config['flete_norte'] = f1.number_input("Flete Zona Norte", value=float(config['flete_norte']), step=1000.0)
+        config['colocacion_dia'] = f2.number_input("Costo Día de Colocación", value=float(config['colocacion_dia']), step=5000.0)
+
+    with st.expander("💰 Margen de Ganancia"):
+        config['ganancia_taller_pct'] = st.slider("Porcentaje de Utilidad Bruta", 0.0, 1.0, float(config['ganancia_taller_pct']), 0.05)
+        st.write(f"Margen actual: {config['ganancia_taller_pct']*100}%")
+
+    if st.button("💾 Aplicar Cambios Temporales"):
+        st.success("Precios actualizados para la sesión actual. Para cambios permanentes, actualizá el archivo .env o la base de datos.")
 
 
 
