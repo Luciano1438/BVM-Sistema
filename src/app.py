@@ -326,6 +326,17 @@ if menu == "Cotizador CNC":
                 with c_save2:
                     if st.button("💾 Guardar en Nube"):
                         guardar_presupuesto_nube(cliente, mueble_nom, precio_final)
+                st.write("---")
+                with st.expander("➕ Registrar Nuevo Retazo en Depósito"):
+                    c_ret1, c_ret2 = st.columns(2)
+                    ancho_r = c_ret1.number_input("Ancho (mm)", value=0, key="anc_r")
+                    largo_r = c_ret2.number_input("Largo (mm)", value=0, key="lar_r")
+    
+                    if st.button("💾 Guardar en Inventario de Retazos"):
+                        if ancho_r >= 300 and largo_r >= 300:
+                            registrar_retazo(mat_principal, largo_r, ancho_r)
+                       else:
+                           st.warning("El retazo es muy chico para ser útil (mínimo 300x300).")
 
                 # 6. --- GENERACIÓN DE ETIQUETAS (VALOR PRO) ---
                 st.write("---") # Una línea divisoria para separar administración de taller
@@ -389,4 +400,5 @@ elif menu == "⚙️ Configuración de Precios":
 
     if st.button("💾 Aplicar Cambios Temporales"):
         st.success("Precios actualizados para la sesión actual.")
+
 
