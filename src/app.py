@@ -224,7 +224,26 @@ if menu == "Cotizador CNC":
                 c1.metric("Costo Herrajes", f"${costo_herrajes:,.0f}")
                 c2.metric("M2 Melamina", f"{m2_18mm:.2f} m²")
                 c3.metric("Utilidad Bruta", f"${utilidad:,.0f}")
+                # 5. --- ANÁLISIS FINANCIERO VISUAL (VALOR PRO) ---
+                st.write("---")
+                st.subheader("📊 Desglose de Inversión y Rentabilidad")
                 
+                # Preparamos los datos para el gráfico
+                datos_grafico = {
+                    "Categoría": ["Madera/Fondo", "Herrajes", "Operativo/Taller", "Logística/Flete", "Ganancia Neta"],
+                    "Monto": [costo_madera + costo_fondo, costo_herrajes, costo_operativo + costo_base, costo_flete, utilidad]
+                }
+                df_grafico = pd.DataFrame(datos_grafico)
+                
+                # Mostramos un gráfico de barras horizontal para comparar pesos
+                st.bar_chart(data=df_grafico, x="Categoría", y="Monto", color="#2e7d32")
+
+                # Alerta de Rentabilidad Estilo Burry
+                pct_utilidad_real = (utilidad / precio_final) * 100
+                if pct_utilidad_real < 12:
+                    st.error(f"⚠️ ALERTA DE MARGEN: La rentabilidad es del {pct_utilidad_real:.1f}%. Revisar costos fijos.")
+                else:
+                    st.success(f"✅ OPERACIÓN RENTABLE: Margen del {pct_utilidad_real:.1f}%")
                 st.subheader(f"PRECIO FINAL: ${precio_final:,.2f}")
 
                 # Botones de guardado... (mantener igual que antes)
@@ -255,6 +274,7 @@ else:
                 st.info("Los cambios en la tabla son visuales. Para guardar una venta nueva, usá el Cotizador.")
     except Exception as e:
         st.error(f"Error de conexión: {e}")
+
 
 
 
