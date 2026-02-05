@@ -162,46 +162,72 @@ if menu == "Cotizador CNC":
         with col_out:
             st.subheader("📐 Planilla de Corte e Inteligencia de Materiales")
             despiece = []
+            
             if alto_m > 0 and ancho_m > 0:
-                # --- MOTOR DE DESPIECE ---
-                despiece.append({"Pieza": "Lateral_Ext", "Cant": 2, "L": alto_m, "A": prof_m})
-                despiece.append({"Pieza": "Piso", "Cant": 1, "L": ancho_m - 36, "A": prof_m})
-                if tiene_parante: 
-                    despiece.append({"Pieza": "Parante", "Cant": 1, "L": alto_m - 18, "A": prof_m - 20})
-                for i, t in enumerate(medidas_travesaños): 
-                    despiece.append({"Pieza": f"T_{i+1}", "Cant": 1, "L": t["L"], "A": t["A"]})
+                # 1. --- MOTOR DE DESPIECE (Suma de todas las piezas) ---
+                despiece.append({"Pieza": "Lateral Exterior", "Cant": 2, "L": alto_m, "A": prof_m})
+                despiece.append({"Pieza": "Piso/Techo", "Cant": 2, "L": ancho_m - 36, "A": prof_m})
                 
+                if tiene_parante:
+                    despiece.append({"Pieza": "Parante Divisor", "Cant": 1, "L": alto_m - 36, "A": prof_m - 20})
+                
+                for i, t in enumerate(medidas_travesaños):
+                    despiece.append({"Pieza": f"Travesaño {i+1}", "Cant": 1, "L": t["L"], "A": t["A"]})
+
+                # AGREGAMOS PUERTAS AL DESPIECE Y PRECIO
+                for i, p_ancho in enumerate(medidas_puertas):
+                    if p_ancho > 0:
+                        despiece.append({"Pieza": f"Puerta {i+1}", "Cant": 1, "L": alto_m - 10, "A": p_ancho})
+
+                # AGREGAMOS ESTANTES AL DESPIECE Y PRECIO
+                for i, e_ancho in enumerate(medidas_estantes):
+                    if e_ancho > 0:
+                        despiece.append({"Pieza": f"Estante {i+1}", "Cant": 1, "L": e_ancho, "A": prof_m - 20})
+
+                # AGREGAMOS CAJONES (Frentes)
+                if cant_cajones > 0:
+                    despiece.append({"Pieza": "Frentes de Cajón", "Cant": cant_cajones, "L": 200, "A": ancho_hueco_cajon - 10})
+
+                # AGREGAMOS EL FONDO (Pieza separada)
+                despiece.append({"Pieza": "Fondo Mueble", "Cant": 1, "L": alto_m - 5, "A": ancho_m - 5, "Tipo": "Fondo"})
+
                 df_corte = pd.DataFrame(despiece)
                 st.data_editor(df_corte, use_container_width=True)
+
+                # 2. --- CÁLCULO DE COSTOS REALES ---
+                # Separamos materiales por tipo (18mm vs Fondo)
+                m2_18mm = (df_corte[df_corte.get('Tipo') != 'Fondo']['L'] * df_corte['A'] * df_corte['Cant']).sum() / 1_000_000
+                m2_fondo = (df_corte[df_corte.get('Tipo') == 'Fondo']['L'] * df_corte['A'] * df_corte['Cant']).sum() / 1_000_000
+
+                costo_madera = (m2_18mm * maderas[mat_principal] / 5.03)
+                costo_fondo = (m2_fondo * fondos[mat_fondo_sel] / 5.03)
                 
-                # --- ANÁLISIS DE EFICIENCIA (VALOR PRO) ---
-                area_neta_m2 = (df_corte['L'] * df_corte['A'] * df_corte['Cant']).sum() / 1_000_000
-                area_placa_m2 = 5.03  # Placa estándar 1830x2750
+                # 3. --- HERRAJES Y LOGÍSTICA (Afectan el precio final) ---
+                costo_herrajes = (cant_puertas * 2 * precio_bisagra) + (cant_cajones * precio_guia)
                 
-                uso_real_pct = (area_neta_m2 / area_placa_m2) * 100
-                desperdicio_real = 100 - uso_real_pct
-                
-                # --- VISUALIZACIÓN DE MÉTRICAS ---
-                c1, c2, c3 = st.columns(3)
-                c1.metric("Uso de Placa", f"{uso_real_pct:.1f}%")
-                c2.metric("Desperdicio", f"{desperdicio_real:.1f}%", delta=f"{desperdicio_real - 10:.1f}%", delta_color="inverse")
-                
-                # --- COSTEO DINÁMICO ---
-                costo_mat = (area_neta_m2 * maderas[mat_principal] / area_placa_m2) * (1 + config['desperdicio_placa_pct'])
+                costo_flete = 0
+                if flete_sel == "Capital": costo_flete = config['flete_capital']
+                elif flete_sel == "Zona Norte": costo_flete = config['flete_norte']
+
                 costo_operativo = (dias_prod * config['gastos_fijos_diarios'])
                 
-                total_final = (costo_mat + costo_operativo + costo_base)
-                if necesita_colocacion: 
-                    total_final += (dias_col * config['colocacion_dia'])
+                # SUMATORIA TOTAL DE COSTOS
+                total_costo = costo_madera + costo_fondo + costo_herrajes + costo_operativo + costo_base + costo_flete
+                if necesita_colocacion: total_costo += (dias_col * config['colocacion_dia'])
+
+                # MARGEN Y PRECIO FINAL
+                utilidad = total_costo * config['ganancia_taller_pct']
+                precio_final = total_costo + utilidad
+
+                # 4. --- MÉTRICAS ---
+                c1, c2, c3 = st.columns(3)
+                c1.metric("Costo Herrajes", f"${costo_herrajes:,.0f}")
+                c2.metric("M2 Melamina", f"{m2_18mm:.2f} m²")
+                c3.metric("Utilidad Bruta", f"${utilidad:,.0f}")
                 
-                utilidad_estimada = total_final * config['ganancia_taller_pct']
-                precio_venta = total_final + utilidad_estimada
-                
-                c3.metric("Utilidad Bruta", f"${utilidad_estimada:,.0f}")
-                st.subheader(f"PRECIO FINAL: ${precio_venta:,.2f}")
-                
-                # --- BOTONES DE GUARDADO ---
-                c_save1, c_save2 = st.columns(2)
+                st.subheader(f"PRECIO FINAL: ${precio_final:,.2f}")
+
+                # Botones de guardado... (mantener igual que antes)
                 with c_save1:
                     if st.button("💾 Guardar Local"):
                         # Nota: Asegurate que esta tabla exista en tu carpinteria.db
@@ -228,6 +254,7 @@ else:
                 st.info("Los cambios en la tabla son visuales. Para guardar una venta nueva, usá el Cotizador.")
     except Exception as e:
         st.error(f"Error de conexión: {e}")
+
 
 
 
