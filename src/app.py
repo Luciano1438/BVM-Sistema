@@ -102,8 +102,8 @@ if menu == "Cotizador CNC":
 
         with col_in:
             st.subheader("📋 Datos del Proyecto")
-            cliente = st.text_input("Cliente", "Cliente Nuevo")
-            mueble_nom = st.text_input("Mueble", "Ingrese el tipo de mueble")
+            cliente = st.text_input("Cliente", "")
+            mueble_nom = st.text_input("Mueble", "")
             c1, c2, c3 = st.columns(3)
             ancho_m = c1.number_input("Ancho Total (mm)", min_value=0, value=0)
             alto_m = c2.number_input("Alto Total (mm)", min_value=0, value=0)
@@ -114,27 +114,27 @@ if menu == "Cotizador CNC":
             st.write("---")
             st.subheader("🏗️ Configuración de Módulos")
             esp, luz_e, luz_i = 18, 2, 3
-            tipo_bisagra = st.selectbox("Tipo de Bisagra", ["Cazoleta C0 Cierre Suave ($1.300)", "Especial"])
-            precio_bisagra = 1300 
-            tipo_corredera = st.radio("Tipo de Corredera", ["Telescópica 45cm ($6.000)", "Cierre Suave Pesada ($18.000)"])
-            precio_guia = 6000 if "45cm" in tipo_corredera else 18000
+            tipo_bisagra = st.selectbox("Tipo de Bisagra", ["Cazoleta C0 Cierre Suave", "Especial"])
+            precio_bisagra = config['bisagra_cazoleta']
+            tipo_corredera = st.radio("Tipo de Corredera", ["Telescópica 45cm", "Cierre Suave Pesada"])
+            precio_guia = config['telescopica_45'] if "45cm" in tipo_corredera else config['telescopica_soft']
             
             c_caj, c_hue = st.columns(2)
             cant_cajones = c_caj.number_input("Cant. Cajones", value=0, min_value=0)
             ancho_hueco_cajon = c_hue.number_input("Ancho Hueco Cajonera (mm)", value=0)
-            tiene_parante = st.checkbox("¿Lleva parante divisor?", value=True)
+            tiene_parante = st.checkbox("¿Lleva parante divisor?", value=False) # Ahora arranca en False
             esp_parante = 18 if tiene_parante else 0
             
-            alturas_cajones = []
             if cant_cajones > 0:
                 for i in range(int(cant_cajones)):
-                    alturas_cajones.append(st.number_input(f"Altura Frente {i+1} (mm)", value=150))
+                    st.number_input(f"Altura Frente Cajón {i+1} (mm)", value=150, key=f"h_caj_{i}")
 
             c_pue, c_est = st.columns(2)
             cant_puertas = c_pue.number_input("Cant. Puertas", value=0, min_value=0, key="cant_pue_p")
             cant_estantes = c_est.number_input("Cant. Estantes", value=0, min_value=0, key="cant_est_p")
 
-            if cant_puertas > 0:
+            # --- Lógica de Simetría Original Restaurada ---
+            if cant_puertas > 0 and ancho_m > 0:
                 ancho_disp_p = ancho_m - (esp * 2) - ancho_hueco_cajon - esp_parante
                 total_luces = (luz_e * 2) + (luz_i * (cant_puertas - 1))
                 ancho_sugerido = (ancho_disp_p - total_luces) / cant_puertas
@@ -143,23 +143,22 @@ if menu == "Cotizador CNC":
             medidas_puertas = [st.number_input(f"Ancho Puerta {i+1} (mm)", value=0, key=f"pue_{i}") for i in range(int(cant_puertas))]
             medidas_estantes = [st.number_input(f"Ancho Estante {i+1} (mm)", value=0, key=f"est_{i}") for i in range(int(cant_estantes))]
             
-            cant_travesaños = st.number_input("Cantidad de Travesaños", value=2, min_value=0)
+            cant_travesaños = st.number_input("Cantidad de Travesaños", value=0, min_value=0)
             medidas_travesaños = []
             for i in range(int(cant_travesaños)):
                 ct1, ct2 = st.columns(2)
-                l_t = ct1.number_input(f"Largo T_{i+1}", value=int(ancho_m-36 if ancho_m>36 else 0), key=f"lt_{i}")
-                a_t = ct2.number_input(f"Ancho T_{i+1}", value=100, key=f"at_{i}")
+                l_t = ct1.number_input(f"Largo Travesaño {i+1}", value=int(ancho_m-36 if ancho_m>36 else 0), key=f"lt_{i}")
+                a_t = ct2.number_input(f"Ancho Travesaño {i+1}", value=100, key=f"at_{i}")
                 medidas_travesaños.append({"L": l_t, "A": a_t})
 
             st.write("---")
             st.subheader("💰 Parámetros Financieros")
             tipo_base = st.selectbox("Soporte", ["Zócalo Madera", "Patas Plásticas", "Nada"])
             costo_base = 5000 if tipo_base == "Patas Plásticas" else 0
-            dias_prod = st.number_input("Días de taller", value=1.0, step=0.5)
+            dias_prod = st.number_input("Días de taller", value=0.0, step=0.5) # Arranca en 0
             necesita_colocacion = st.checkbox("¿Requiere Colocación?")
             flete_sel = st.selectbox("Zona Envío", ["Ninguno", "Capital", "Zona Norte"])
             dias_col = st.number_input("Días de obra", value=0) if necesita_colocacion else 0
-
         with col_out:
             st.subheader("📐 Planilla de Corte e Inteligencia de Materiales")
             despiece = []
@@ -229,6 +228,7 @@ else:
                 st.info("Los cambios en la tabla son visuales. Para guardar una venta nueva, usá el Cotizador.")
     except Exception as e:
         st.error(f"Error de conexión: {e}")
+
 
 
 
