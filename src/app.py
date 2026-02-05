@@ -271,6 +271,7 @@ if menu == "Cotizador CNC":
                                 st.caption("📋 Lados a tapacantear: Largos.")
             else:
                 st.warning("Ingrese dimensiones.")
+    except Exception as e: 
         st.error(f"Error en el Cotizador: {e}")
 
 else:
@@ -285,6 +286,7 @@ else:
                 st.info("Los cambios en la tabla son visuales. Para guardar una venta nueva, usá el Cotizador.")
     except Exception as e:
         st.error(f"Error de conexión: {e}")
+
 
 
 
