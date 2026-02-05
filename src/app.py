@@ -246,20 +246,31 @@ if menu == "Cotizador CNC":
                     st.success(f"✅ OPERACIÓN RENTABLE: Margen del {pct_utilidad_real:.1f}%")
                 st.subheader(f"PRECIO FINAL: ${precio_final:,.2f}")
 
-                # Botones de guardado... (mantener igual que antes)
+              # --- BOTONES DE GUARDADO ---
                 c_save1, c_save2 = st.columns(2)
                 with c_save1:
                     if st.button("💾 Guardar Local"):
-                        # Nota: Asegurate que esta tabla exista en tu carpinteria.db
-                        ejecutar_query("INSERT INTO presupuestos_guardados (cliente, mueble, precio_final, estado) VALUES (?, ?, ?, ?)", (cliente, mueble_nom, precio_venta, "Pendiente"))
+                        ejecutar_query("INSERT INTO presupuestos_guardados (cliente, mueble, precio_final, estado) VALUES (?, ?, ?, ?)", (cliente, mueble_nom, precio_final, "Pendiente"))
                         st.success("Guardado Local.")
                 with c_save2:
                     if st.button("💾 Guardar en Nube"):
-                        guardar_presupuesto_nube(cliente, mueble_nom, precio_venta)
+                        guardar_presupuesto_nube(cliente, mueble_nom, precio_final)
+
+                # 6. --- GENERACIÓN DE ETIQUETAS (VALOR PRO) ---
+                st.write("---") # Una línea divisoria para separar administración de taller
+                if st.button("🖨️ Generar Etiquetas de Taller"):
+                    st.info(f"Generando etiquetas para las {len(df_corte)} piezas...")
+                    # Creamos una cuadrícula para que las etiquetas no ocupen toda la pantalla hacia abajo
+                    cols_etiquetas = st.columns(2) 
+                    for index, row in df_corte.iterrows():
+                        with cols_etiquetas[index % 2]: # Esto las ordena en 2 columnas visuales
+                            with st.expander(f"📍 {row['Pieza']} ({int(row['L'])}x{int(row['A'])})"):
+                                st.write(f"**Cliente:** {cliente}")
+                                st.write(f"**Mueble:** {mueble_nom}")
+                                st.code(f"PIEZA N°: {index+1}\nDIM: {int(row['L'])} x {int(row['A'])} mm")
+                                st.caption("📋 Lados a tapacantear: Largos.")
             else:
                 st.warning("Ingrese dimensiones.")
-
-    except Exception as e:
         st.error(f"Error en el Cotizador: {e}")
 
 else:
@@ -274,6 +285,7 @@ else:
                 st.info("Los cambios en la tabla son visuales. Para guardar una venta nueva, usá el Cotizador.")
     except Exception as e:
         st.error(f"Error de conexión: {e}")
+
 
 
 
