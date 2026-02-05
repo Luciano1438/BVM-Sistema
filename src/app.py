@@ -167,18 +167,18 @@ if menu == "Cotizador CNC":
                 # --- MOTOR DE DESPIECE ---
                 despiece.append({"Pieza": "Lateral_Ext", "Cant": 2, "L": alto_m, "A": prof_m})
                 despiece.append({"Pieza": "Piso", "Cant": 1, "L": ancho_m - 36, "A": prof_m})
-                if tiene_parante: despiece.append({"Pieza": "Parante", "Cant": 1, "L": alto_m - 18, "A": prof_m - 20})
-                for i, t in enumerate(medidas_travesaños): despiece.append({"Pieza": f"T_{i+1}", "Cant": 1, "L": t["L"], "A": t["A"]})
+                if tiene_parante: 
+                    despiece.append({"Pieza": "Parante", "Cant": 1, "L": alto_m - 18, "A": prof_m - 20})
+                for i, t in enumerate(medidas_travesaños): 
+                    despiece.append({"Pieza": f"T_{i+1}", "Cant": 1, "L": t["L"], "A": t["A"]})
                 
                 df_corte = pd.DataFrame(despiece)
                 st.data_editor(df_corte, use_container_width=True)
                 
                 # --- ANÁLISIS DE EFICIENCIA (VALOR PRO) ---
-                # Calculamos el área total neta de las piezas
                 area_neta_m2 = (df_corte['L'] * df_corte['A'] * df_corte['Cant']).sum() / 1_000_000
                 area_placa_m2 = 5.03  # Placa estándar 1830x2750
                 
-                # Coeficiente de Aprovechamiento Real
                 uso_real_pct = (area_neta_m2 / area_placa_m2) * 100
                 desperdicio_real = 100 - uso_real_pct
                 
@@ -192,9 +192,9 @@ if menu == "Cotizador CNC":
                 costo_operativo = (dias_prod * config['gastos_fijos_diarios'])
                 
                 total_final = (costo_mat + costo_operativo + costo_base)
-                if necesita_colocacion: total_final += (dias_col * config['colocacion_dia'])
+                if necesita_colocacion: 
+                    total_final += (dias_col * config['colocacion_dia'])
                 
-                # Aplicamos el margen de utilidad sobre el costo total
                 utilidad_estimada = total_final * config['ganancia_taller_pct']
                 precio_venta = total_final + utilidad_estimada
                 
@@ -205,6 +205,7 @@ if menu == "Cotizador CNC":
                 c_save1, c_save2 = st.columns(2)
                 with c_save1:
                     if st.button("💾 Guardar Local"):
+                        # Nota: Asegurate que esta tabla exista en tu carpinteria.db
                         ejecutar_query("INSERT INTO presupuestos_guardados (cliente, mueble, precio_final, estado) VALUES (?, ?, ?, ?)", (cliente, mueble_nom, precio_venta, "Pendiente"))
                         st.success("Guardado Local.")
                 with c_save2:
@@ -228,5 +229,6 @@ else:
                 st.info("Los cambios en la tabla son visuales. Para guardar una venta nueva, usá el Cotizador.")
     except Exception as e:
         st.error(f"Error de conexión: {e}")
+
 
 
