@@ -360,19 +360,35 @@ if menu == "Cotizador CNC":
     except Exception as e:
         st.error(f"Error en el Cotizador: {e}")
 
-# --- PESTAÑA: HISTORIAL DE VENTAS ---
 elif menu == "Historial de Ventas":
     st.title("📊 Gestión y Seguimiento de Ventas")
     try:
         df_hist = traer_datos_historial()
         if not df_hist.empty:
+            # --- LÓGICA DE AUDITORÍA DE PRECIOS (EL ESCUDO) ---
+            st.subheader("⚠️ Monitor de Reposición e Inflación")
+            
+            # Simulamos un aumento del 15% en materiales desde que se guardó (ajustable)
+            inflacion_estimada = 0.15 
+            
+            for index, row in df_hist.iterrows():
+                precio_original = row['precio_final']
+                precio_reposicion = precio_original * (1 + inflacion_estimada)
+                
+                if row['estado'] == 'Pendiente':
+                    col1, col2, col3 = st.columns([2, 1, 1])
+                    col1.write(f"**{row['mueble']}** (Cliente: {row.get('cliente', 'N/A')})")
+                    col2.write(f"Venta: ${precio_original:,.0f}")
+                    
+                    # Alerta si el presupuesto quedó viejo
+                    st.warning(f"🚨 Valor de reposición hoy: ${precio_reposicion:,.0f}. Sugerencia: Actualizar +15% antes de cobrar señas.")
+            
+            st.write("---")
             st.subheader("📈 Balance General")
-            st.write(f"Ventas Totales: ${df_hist['precio_final'].sum():,.0f}")
-            df_editado = st.data_editor(df_hist, use_container_width=True, key="ed_v10")
-            if st.button("💾 Sincronizar Cambios"):
-                st.info("Los cambios en la tabla son visuales. Para guardar una venta nueva, usá el Cotizador.")
+            st.data_editor(df_hist, use_container_width=True)
+            
     except Exception as e:
-        st.error(f"Error de conexión: {e}")
+        st.error(f"Error en el monitor: {e}")
 
 # --- PESTAÑA: CONFIGURACIÓN DE PRECIOS (VALOR PRO) ---
 elif menu == "⚙️ Configuración de Precios":
@@ -402,6 +418,7 @@ elif menu == "⚙️ Configuración de Precios":
 
     if st.button("💾 Aplicar Cambios Temporales"):
         st.success("Precios actualizados para la sesión actual.")
+
 
 
 
