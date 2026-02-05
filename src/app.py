@@ -228,6 +228,7 @@ if menu == "Cotizador CNC":
                 st.subheader(f"PRECIO FINAL: ${precio_final:,.2f}")
 
                 # Botones de guardado... (mantener igual que antes)
+                c_save1, c_save2 = st.columns(2)
                 with c_save1:
                     if st.button("💾 Guardar Local"):
                         # Nota: Asegurate que esta tabla exista en tu carpinteria.db
@@ -254,6 +255,7 @@ else:
                 st.info("Los cambios en la tabla son visuales. Para guardar una venta nueva, usá el Cotizador.")
     except Exception as e:
         st.error(f"Error de conexión: {e}")
+
 
 
 
