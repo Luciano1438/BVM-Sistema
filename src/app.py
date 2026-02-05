@@ -317,15 +317,16 @@ if menu == "Cotizador CNC":
                     st.success(f"✅ OPERACIÓN RENTABLE: Margen del {pct_utilidad_real:.1f}%")
                 st.subheader(f"PRECIO FINAL: ${precio_final:,.2f}")
 
-              # --- BOTONES DE GUARDADO ---
+             # --- BOTONES DE GUARDADO ---
                 c_save1, c_save2 = st.columns(2)
                 with c_save1:
                     if st.button("💾 Guardar Local"):
-                        ejecutar_query("INSERT INTO presupuestos_guardados (cliente, mueble, precio_final, estado) VALUES (?, ?, ?, ?)", (cliente, mueble_nom, precio_final, "Pendiente"))
+                        ejecutar_query("INSERT INTO ventas (mueble, precio_final, estado) VALUES (?, ?, ?)", (mueble_nom, precio_final, "Pendiente"))
                         st.success("Guardado Local.")
                 with c_save2:
                     if st.button("💾 Guardar en Nube"):
                         guardar_presupuesto_nube(cliente, mueble_nom, precio_final)
+
                 st.write("---")
                 with st.expander("➕ Registrar Nuevo Retazo en Depósito"):
                     c_ret1, c_ret2 = st.columns(2)
@@ -335,9 +336,10 @@ if menu == "Cotizador CNC":
                     if st.button("💾 Guardar en Inventario de Retazos"):
                         if ancho_r >= 300 and largo_r >= 300:
                             registrar_retazo(mat_principal, largo_r, ancho_r)
-                       else:
-                           st.warning("El retazo es muy chico para ser útil (mínimo 300x300).")
+                        else:
+                            st.warning("El retazo es muy chico para ser útil (mínimo 300x300).")
 
+            
                 # 6. --- GENERACIÓN DE ETIQUETAS (VALOR PRO) ---
                 st.write("---") # Una línea divisoria para separar administración de taller
                 if st.button("🖨️ Generar Etiquetas de Taller"):
@@ -400,5 +402,6 @@ elif menu == "⚙️ Configuración de Precios":
 
     if st.button("💾 Aplicar Cambios Temporales"):
         st.success("Precios actualizados para la sesión actual.")
+
 
 
