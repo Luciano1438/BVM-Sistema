@@ -25,6 +25,24 @@ if url and key:
 else:
     st.error("Error: No se cargaron las credenciales.")
 
+# --- FUNCIONES DE BASE DE DATOS (FUERA DEL IF/ELSE) ---
+def consultar_retazos_disponibles(material):
+    try:
+        # Traemos todos los retazos de ese material
+        res = supabase.table("retazos").select("*").eq("material", material).execute()
+        return res.data
+    except Exception as e:
+        st.error(f"Error al consultar retazos: {e}")
+        return []
+
+def registrar_retazo(material, largo, ancho):
+    try:
+        if largo >= 300 and ancho >= 300: 
+            data = {"material": material, "largo": largo, "ancho": ancho}
+            supabase.table("retazos").insert(data).execute()
+            st.toast(f"♻️ Retazo de {material} ({int(largo)}x{int(ancho)}) guardado")
+    except Exception as e:
+        st.error(f"Error al registrar retazo: {e}")
 # --- 0. SEGURIDAD DE ACCESO (VALOR PRO) ---
 def verificar_password():
     if "autenticado" not in st.session_state:
@@ -239,10 +257,38 @@ if menu == "Cotizador CNC":
                 # SUMATORIA TOTAL DE COSTOS
                 total_costo = costo_madera + costo_fondo + costo_herrajes + costo_operativo + costo_base + costo_flete
                 if necesita_colocacion: total_costo += (dias_col * config['colocacion_dia'])
+                # 8. --- INTELIGENCIA DE AHORRO (RETAZOS) ---
+                st.write("---")
+                retazos_en_stock = consultar_retazos_disponibles(mat_principal)
+                ahorro_madera = 0 # Inicializamos el ahorro en 0
+                
+                if retazos_en_stock:
+                    st.subheader("♻️ Oportunidades de Ahorro")
+                    piezas_que_encajan = 0
+                    for ret in retazos_en_stock:
+                        for index, row in df_corte.iterrows():
+                            # Lógica de encaje: largo y ancho (considerando que se pueden rotar)
+                            if (ret['largo'] >= row['L'] and ret['ancho'] >= row['A']) or \
+                               (ret['largo'] >= row['A'] and ret['ancho'] >= row['L']):
+                                
+                                piezas_que_encajan += 1
+                                # Calculamos cuánto dinero representa ese retazo
+                                m2_pieza = (row['L'] * row['A']) / 1_000_000
+                                ahorro_pieza = (m2_pieza * maderas[mat_principal] / 5.03)
+                                ahorro_madera += ahorro_pieza
+                                
+                                st.success(f"¡Match! '{row['Pieza']}' entra en Retazo ID-{ret['id']}. Ahorro: ${ahorro_pieza:,.0f}")
+                                break 
+                    
+                    if piezas_que_encajan > 0:
+                        st.info(f"💡 Ahorro total estimado en materiales: ${ahorro_madera:,.0f}")
+                
+                # APLICAMOS EL AHORRO AL COSTO TOTAL
+                total_costo_real = total_costo - ahorro_madera
 
-                # MARGEN Y PRECIO FINAL
-                utilidad = total_costo * config['ganancia_taller_pct']
-                precio_final = total_costo + utilidad
+                # MARGEN Y PRECIO FINAL SOBRE EL COSTO REAL
+                utilidad = total_costo_real * config['ganancia_taller_pct']
+                precio_final = total_costo_real + utilidad
 
                 # 4. --- MÉTRICAS ---
                 c1, c2, c3 = st.columns(3)
@@ -343,3 +389,4 @@ elif menu == "⚙️ Configuración de Precios":
 
     if st.button("💾 Aplicar Cambios Temporales"):
         st.success("Precios actualizados para la sesión actual.")
+
