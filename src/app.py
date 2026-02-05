@@ -160,7 +160,7 @@ if menu == "Cotizador CNC":
             flete_sel = st.selectbox("Zona Envío", ["Ninguno", "Capital", "Zona Norte"])
             dias_col = st.number_input("Días de obra", value=0) if necesita_colocacion else 0
 
-       with col_out:
+        with col_out:
             st.subheader("📐 Planilla de Corte e Inteligencia de Materiales")
             despiece = []
             if alto_m > 0 and ancho_m > 0:
@@ -229,6 +229,7 @@ else:
                 st.info("Los cambios en la tabla son visuales. Para guardar una venta nueva, usá el Cotizador.")
     except Exception as e:
         st.error(f"Error de conexión: {e}")
+
 
 
 
