@@ -6,7 +6,52 @@ from pathlib import Path
 from datetime import datetime
 from supabase import create_client, Client
 from dotenv import load_dotenv
+from fpdf import FPDF
 
+def generar_pdf_presupuesto(datos):
+    pdf = FPDF()
+    pdf.add_page()
+    
+    # Diseño de Cabecera Profesional
+    pdf.set_font("Arial", 'B', 20)
+    pdf.set_text_color(46, 125, 50) # Verde BVM
+    pdf.cell(200, 20, "PRESUPUESTO COMERCIAL - BVM", ln=True, align='C')
+    
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_font("Arial", '', 10)
+    pdf.cell(200, 10, f"Fecha de emisión: {datetime.now().strftime('%d/%m/%Y')}", ln=True, align='R')
+    pdf.ln(10)
+
+    # Cuerpo del Presupuesto
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 10, "DETALLES DEL PROYECTO", ln=True)
+    pdf.set_font("Arial", '', 11)
+    
+    # Información Clave Solicitada
+    pdf.cell(0, 8, f"Cliente: {datos['cliente']}", ln=True)
+    pdf.cell(0, 8, f"Proyecto: {datos['mueble']}", ln=True)
+    pdf.cell(0, 8, f"Dimensiones Generales: {datos['ancho']} x {datos['alto']} x {datos['prof']} mm", ln=True)
+    pdf.cell(0, 8, f"Material Principal: {datos['material']}", ln=True)
+    pdf.ln(5)
+    
+    # Condiciones Comerciales
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 10, "CONDICIONES Y ENTREGA", ln=True)
+    pdf.set_font("Arial", '', 11)
+    pdf.cell(0, 8, f"Tiempo estimado de entrega: {datos['entrega']} días hábiles.", ln=True)
+    pdf.cell(0, 8, f"Monto de Seña (50%): ${datos['precio'] * 0.5:,.2f}", ln=True)
+    pdf.ln(10)
+
+    # Precio Final Destacado
+    pdf.set_font("Arial", 'B', 16)
+    pdf.set_fill_color(240, 240, 240)
+    pdf.cell(0, 15, f"VALOR TOTAL: ${datos['precio']:,.2f}", ln=True, align='C', fill=True)
+    
+    pdf.ln(10)
+    pdf.set_font("Arial", 'I', 9)
+    pdf.multi_cell(0, 5, "Nota: Los precios están sujetos a cambios por volatilidad de insumos si no se abona la seña dentro de las 48hs.")
+
+    return pdf.output(dest='S').encode('latin-1')    
 
 # --- CONFIGURACIÓN DE RUTAS ---
 BASE_DIR = Path(__file__).resolve().parent.parent 
@@ -303,7 +348,8 @@ if menu == "Cotizador CNC":
                     st.success(f"✅ OPERACIÓN RENTABLE: Margen del {pct_utilidad_real:.1f}%")
                 st.subheader(f"PRECIO FINAL: ${precio_final:,.2f}")
 
-             # --- BOTONES DE GUARDADO ---
+            # --- 1. GESTIÓN DE GUARDADO (ADMINISTRACIÓN) ---
+                st.write("---")
                 c_save1, c_save2 = st.columns(2)
                 with c_save1:
                     if st.button("💾 Guardar Local"):
@@ -313,8 +359,9 @@ if menu == "Cotizador CNC":
                     if st.button("💾 Guardar en Nube"):
                         guardar_presupuesto_nube(cliente, mueble_nom, precio_final)
 
-                st.write("---")
+                # --- 2. GESTIÓN DE INVENTARIO (RETAZOS) ---
                 with st.expander("➕ Registrar Nuevo Retazo en Depósito"):
+                    st.write("Cargá sobrantes útiles (>300mm) para que el sistema los detecte en futuras cotizaciones.")
                     c_ret1, c_ret2 = st.columns(2)
                     ancho_r = c_ret1.number_input("Ancho (mm)", value=0, key="anc_r")
                     largo_r = c_ret2.number_input("Largo (mm)", value=0, key="lar_r")
@@ -325,6 +372,28 @@ if menu == "Cotizador CNC":
                         else:
                             st.warning("El retazo es muy chico para ser útil (mínimo 300x300).")
 
+                # --- 3. GESTIÓN COMERCIAL (PDF PRO) ---
+                st.write("---")
+                st.subheader("📄 Generar Propuesta para Cliente")
+                dias_entrega = st.number_input("Días estimados de entrega", value=15, step=1)
+                
+                # Preparamos el paquete de datos para el PDF
+                datos_pdf = {
+                    'cliente': cliente, 'mueble': mueble_nom, 
+                    'precio': precio_final, 'material': mat_principal,
+                    'ancho': ancho_m, 'alto': alto_m, 'prof': prof_m,
+                    'entrega': dias_entrega
+                }
+                
+                # Botón de PDF con lógica de generación inmediata
+                pdf_bytes = generar_pdf_presupuesto(datos_pdf)
+                st.download_button(
+                    label="📥 Descargar Presupuesto Profesional",
+                    data=pdf_bytes,
+                    file_name=f"Presupuesto_{cliente}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True # Lo hacemos destacar
+                )
             
                 # 6. --- GENERACIÓN DE ETIQUETAS (VALOR PRO) ---
                 st.write("---") # Una línea divisoria para separar administración de taller
@@ -415,6 +484,7 @@ elif menu == "⚙️ Configuración de Precios":
         actualizar_precio_nube('colocacion_dia', config['colocacion_dia'])
         
         st.success("Configuración blindada en Supabase para todos los parámetros.")
+
 
 
 
