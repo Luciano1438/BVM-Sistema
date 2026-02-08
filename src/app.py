@@ -70,53 +70,39 @@ if not verificar_password():
 # --- 1. DATOS DE PRODUCCIÓN (FUNCIÓN ÚNICA Y FUNCIONAL) ---
 # --- 1. MOTOR DE INTELIGENCIA DE NEGOCIO (BVM PRO) ---
 def traer_datos():
-    # Precios Base (se mantienen como respaldo)
-    maderas_base = {
-        'Melamina Blanca 18mm': 95000.0,
-        'Melamina Colores 18mm': 120000.0,
-        'Enchapado Paraiso 18mm': 180000.0,
-        'Enchapado Roble Claro 18mm': 285000.0
-    }
-    
-    # Inyectamos el Multiplicador de Inflación dinámico
-    # Esto permite al dueño actualizar TODO el taller con un solo clic en el futuro
-    factor_ajuste = st.sidebar.number_input("Factor de Ajuste Inflacionario", value=1.0, step=0.05)
-    maderas = {k: v * factor_ajuste for k, v in maderas_base.items()}
-
-    fondos = {
-        'Fibroplus Blanco 3mm': 34500.0 * factor_ajuste,
-        'Faplac Fondo 5.5mm': 45000.0 * factor_ajuste
-    }
-    
-    config = {
-        'gastos_fijos_diarios': 179768.0,
-        'amortizacion_maquinas_pct': 0.10,
-        'ganancia_taller_pct': 0.15,
-        'desperdicio_placa_pct': 0.10,
-        'flete_capital': 70000.0,
-        'flete_norte': 35000.0,
-        'colocacion_dia': 100000.0,
-        'bisagra_cazoleta': 1300.0,
-        'telescopica_45': 6000.0,
-        'telescopica_soft': 18000.0
-    }
-    return maderas, fondos, config
-
-def guardar_presupuesto_nube(cliente, mueble, total):
     try:
-        data = {
-            "fecha": datetime.now().strftime("%Y-%m-%d %H:%M"),
-            "cliente": cliente,
-            "mueble": mueble,
-            "precio_final": float(total),
-            "estado": "Pendiente"
+        # 1. Consultamos la nueva tabla de configuración
+        res = supabase.table("configuracion").select("*").execute()
+        datos_db = res.data
+        
+        # 2. Mapeamos los datos de la DB a los diccionarios del sistema
+        maderas = {d['clave']: d['valor'] for d in datos_db if d['categoria'] == 'maderas'}
+        config = {d['clave']: d['valor'] for d in datos_db if d['categoria'] in ['costos', 'margen', 'herrajes']}
+        
+        # 3. Mantenemos los fondos como respaldo o podés agregarlos a la DB también
+        fondos = {
+            'Fibroplus Blanco 3mm': 34500.0,
+            'Faplac Fondo 5.5mm': 45000.0
         }
-        supabase.table("ventas").insert(data).execute()
-        st.success(f"✅ ¡Impactado en SQL! Cliente: {cliente}")
-        st.balloons()
+        
+        # Inyectamos el factor de ajuste (opcional, para cambios rápidos)
+        factor_ajuste = st.sidebar.number_input("Ajuste Rápido Inflación (%)", value=0.0, step=1.0) / 100
+        if factor_ajuste != 0:
+            maderas = {k: v * (1 + factor_ajuste) for k, v in maderas.items()}
+            
+        return maderas, fondos, config
     except Exception as e:
-        st.error(f"❌ Error de comunicación: {e}")
+        st.error(f"Error cargando configuración desde la nube: {e}")
+        # Retorno de emergencia si falla la red
+        return {}, {}, {}
+def actualizar_precio_nube(clave, nuevo_valor):
+    try:
+        supabase.table("configuracion").update({"valor": nuevo_valor}).eq("clave", clave).execute()
+        st.toast(f"✅ {clave} actualizado en la nube")
+    except Exception as e:
+        st.error(f"Error al guardar en nube: {e}")        
 
+    
 def traer_datos_historial():
     try:
         response = supabase.table("ventas").select("*").execute()
@@ -415,9 +401,20 @@ elif menu == "⚙️ Configuración de Precios":
     with st.expander("💰 Margen de Ganancia"):
         config['ganancia_taller_pct'] = st.slider("Porcentaje de Utilidad Bruta", 0.0, 1.0, float(config['ganancia_taller_pct']), 0.05)
         st.write(f"Margen actual: {config['ganancia_taller_pct']*100}%")
-
-    if st.button("💾 Aplicar Cambios Temporales"):
-        st.success("Precios actualizados para la sesión actual.")
+    if st.button("💾 Guardar Precios Permanentemente"):
+        # 1. Guardamos las maderas (lo que ya tenés)
+        for madera, precio in maderas.items():
+            actualizar_precio_nube(madera, precio)
+        
+        # 2. AGREGADO: Guardamos los costos operativos y márgenes
+        # Asegurate de que estas 'claves' existan tal cual en tu tabla de Supabase
+        actualizar_precio_nube('gastos_fijos_diarios', config['gastos_fijos_diarios'])
+        actualizar_precio_nube('ganancia_taller_pct', config['ganancia_taller_pct'])
+        actualizar_precio_nube('flete_capital', config['flete_capital'])
+        actualizar_precio_nube('flete_norte', config['flete_norte'])
+        actualizar_precio_nube('colocacion_dia', config['colocacion_dia'])
+        
+        st.success("Configuración blindada en Supabase para todos los parámetros.")
 
 
 
