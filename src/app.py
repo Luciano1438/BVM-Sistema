@@ -7,6 +7,7 @@ from datetime import datetime
 from supabase import create_client, Client
 from dotenv import load_dotenv
 from fpdf import FPDF
+from datetime import datetime, timedelta, timezone
 
 def generar_pdf_presupuesto(datos):
     pdf = FPDF()
@@ -19,8 +20,9 @@ def generar_pdf_presupuesto(datos):
     
     pdf.set_text_color(0, 0, 0)
     pdf.set_font("Arial", '', 10)
-    pdf.cell(200, 10, f"Fecha de emisión: {datetime.now().strftime('%d/%m/%Y')}", ln=True, align='R')
-    pdf.ln(10)
+    tz_arg = timezone(timedelta(hours=-3))
+    fecha_hoy = datetime.now(tz_arg).strftime('%d/%m/%Y')
+    pdf.cell(200, 10, f"Fecha de emisión: {fecha_hoy}", ln=True, align='R')    pdf.ln(10)
 
     # Cuerpo del Presupuesto
     pdf.set_font("Arial", 'B', 12)
@@ -491,6 +493,7 @@ elif menu == "⚙️ Configuración de Precios":
         actualizar_precio_nube('colocacion_dia', config['colocacion_dia'])
         
         st.success("Configuración blindada en Supabase para todos los parámetros.")
+
 
 
 
