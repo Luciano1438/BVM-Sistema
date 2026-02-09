@@ -34,7 +34,7 @@ def generar_pdf_presupuesto(datos):
     pdf.cell(0, 8, f"Material Principal: {datos['material']}", ln=True)
     pdf.ln(5)
     
-   generar_pdf_presupuesto y reemplazala:
+   # generar_pdf_presupuesto y reemplazala:
     pdf.set_font("Arial", 'B', 12)
     pdf.cell(0, 10, "CONDICIONES Y ENTREGA", ln=True)
     pdf.set_font("Arial", '', 11)
@@ -491,6 +491,7 @@ elif menu == "⚙️ Configuración de Precios":
         actualizar_precio_nube('colocacion_dia', config['colocacion_dia'])
         
         st.success("Configuración blindada en Supabase para todos los parámetros.")
+
 
 
 
