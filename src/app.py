@@ -34,13 +34,15 @@ def generar_pdf_presupuesto(datos):
     pdf.cell(0, 8, f"Material Principal: {datos['material']}", ln=True)
     pdf.ln(5)
     
-    # Condiciones Comerciales
+   generar_pdf_presupuesto y reemplazala:
     pdf.set_font("Arial", 'B', 12)
     pdf.cell(0, 10, "CONDICIONES Y ENTREGA", ln=True)
     pdf.set_font("Arial", '', 11)
     pdf.cell(0, 8, f"Tiempo estimado de entrega: {datos['entrega']} días hábiles.", ln=True)
-    pdf.cell(0, 8, f"Monto de Seña (50%): ${datos['precio'] * 0.5:,.2f}", ln=True)
-    pdf.ln(10)
+    
+    # Calculamos la seña dinámicamente
+    monto_seña = datos['precio'] * (datos['pct_seña'] / 100)
+    pdf.cell(0, 8, f"Monto de Seña ({datos['pct_seña']}%): ${monto_seña:,.2f}", ln=True)
 
     # Precio Final Destacado
     pdf.set_font("Arial", 'B', 16)
@@ -372,27 +374,32 @@ if menu == "Cotizador CNC":
                         else:
                             st.warning("El retazo es muy chico para ser útil (mínimo 300x300).")
 
-                # --- 3. GESTIÓN COMERCIAL (PDF PRO) ---
+               # --- 3. GESTIÓN COMERCIAL (PDF PRO) ---
                 st.write("---")
                 st.subheader("📄 Generar Propuesta para Cliente")
-                dias_entrega = st.number_input("Días estimados de entrega", value=15, step=1)
                 
-                # Preparamos el paquete de datos para el PDF
+                c_com1, c_com2 = st.columns(2)
+                with c_com1:
+                    dias_entrega = st.number_input("Días de entrega", value=15, step=1)
+                with c_com2:
+                    pct_seña = st.slider("% de Seña", 0, 100, 50, 5) # Default 50%, saltos de 5%
+                
+                # Preparamos el paquete de datos para el PDF (incluimos el % de seña)
                 datos_pdf = {
                     'cliente': cliente, 'mueble': mueble_nom, 
                     'precio': precio_final, 'material': mat_principal,
                     'ancho': ancho_m, 'alto': alto_m, 'prof': prof_m,
-                    'entrega': dias_entrega
+                    'entrega': dias_entrega,
+                    'pct_seña': pct_seña
                 }
                 
-                # Botón de PDF con lógica de generación inmediata
                 pdf_bytes = generar_pdf_presupuesto(datos_pdf)
                 st.download_button(
                     label="📥 Descargar Presupuesto Profesional",
                     data=pdf_bytes,
                     file_name=f"Presupuesto_{cliente}.pdf",
                     mime="application/pdf",
-                    use_container_width=True # Lo hacemos destacar
+                    use_container_width=True
                 )
             
                 # 6. --- GENERACIÓN DE ETIQUETAS (VALOR PRO) ---
@@ -484,6 +491,7 @@ elif menu == "⚙️ Configuración de Precios":
         actualizar_precio_nube('colocacion_dia', config['colocacion_dia'])
         
         st.success("Configuración blindada en Supabase para todos los parámetros.")
+
 
 
 
