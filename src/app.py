@@ -180,6 +180,23 @@ def ejecutar_query(query, params=(), fetch=False):
         cursor.execute(query, params)
         if fetch: return cursor.fetchall()
         conn.commit()
+import urllib.parse
+
+def generar_link_whatsapp(datos):
+    # Estructuramos el mensaje con formato de WhatsApp (negritas y saltos)
+    mensaje = (
+        f"*PRESUPUESTO BVM - {datos['mueble'].upper()}*\n\n"
+        f"Hola! Te envío los detalles de la cotización:\n\n"
+        f"📏 *Medidas:* {datos['ancho']}x{datos['alto']}x{datos['prof']} mm\n"
+        f"🪵 *Material:* {datos['material']}\n"
+        f"⏳ *Entrega:* {datos['entrega']} días hábiles\n\n"
+        f"💰 *VALOR TOTAL:* ${datos['precio']:,.2f}\n"
+        f"💵 *SEÑA REQUERIDA ({datos['pct_seña']}%):* ${datos['precio'] * (datos['pct_seña']/100):,.2f}\n\n"
+        f"⚠️ _Nota: Los precios se mantienen por 48hs. Una vez abonada la seña, se congelan los materiales y comienza la producción._"
+    )
+    # Codificamos el texto para que sea un link válido
+    texto_url = urllib.parse.quote(mensaje)
+    return f"https://wa.me/?text={texto_url}"
 
 # --- 3. INTERFAZ Y LÓGICA (INTACTA) ---
 maderas, fondos, config = traer_datos()
@@ -410,6 +427,9 @@ if menu == "Cotizador CNC":
                 
                 pdf_bytes = generar_pdf_presupuesto(datos_pdf)
                 st.download_button(
+                    # --- BOTÓN DE WHATSAPP ---
+                    link_wa = generar_link_whatsapp(datos_pdf)
+                    st.link_button("🟢 Enviar Presupuesto por WhatsApp", link_wa, use_container_width=True)
                     label="📥 Descargar Presupuesto Profesional",
                     data=pdf_bytes,
                     file_name=f"Presupuesto_{cliente}.pdf",
@@ -506,6 +526,7 @@ elif menu == "⚙️ Configuración de Precios":
         actualizar_precio_nube('colocacion_dia', config['colocacion_dia'])
         
         st.success("Configuración blindada en Supabase para todos los parámetros.")
+
 
 
 
