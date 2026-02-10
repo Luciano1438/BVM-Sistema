@@ -543,6 +543,46 @@ elif menu == "⚙️ Configuración de Precios":
         actualizar_precio_nube('colocacion_dia', config['colocacion_dia'])
         
         st.success("Configuración blindada en Supabase para todos los parámetros.")
+        # --- PESTAÑA: ADMINISTRACIÓN DE LICENCIAS (SOLO ADMIN) ---
+if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"]["usuario"] == "bvm_admin":
+    st.write("---")
+    st.header("👤 Panel de Control de Licencias")
+    st.info("Desde aquí podés crear nuevas cuentas para otros carpinteros.")
+    
+    with st.expander("🆕 Registrar Nuevo Cliente SaaS"):
+        c1, c2 = st.columns(2)
+        nuevo_user = c1.text_input("Usuario (ej: pepe_muebles)")
+        nueva_pass = c2.text_input("Contraseña Inicial", type="password")
+        nom_carpinteria = st.text_input("Nombre del Negocio")
+        
+        if st.button("🚀 Activar Licencia"):
+            if nuevo_user and nueva_pass:
+                try:
+                    # 1. Creamos el usuario
+                    data_user = {
+                        "usuario": nuevo_user, 
+                        "password": nueva_pass, 
+                        "nombre": nom_carpinteria
+                    }
+                    supabase.table("usuarios").insert(data_user).execute()
+                    
+                    # 2. SEED: Le cargamos precios base para que la app no le de error
+                    # Copiamos tus costos actuales como base para el nuevo cliente
+                    precios_base = []
+                    for k, v in config.items():
+                        precios_base.append({"usuario": nuevo_user, "clave": k, "valor": v, "categoria": "costos"})
+                    
+                    for m, p in maderas.items():
+                        precios_base.append({"usuario": nuevo_user, "clave": m, "valor": p, "categoria": "maderas"})
+                    
+                    supabase.table("configuracion").insert(precios_base).execute()
+                    
+                    st.success(f"✅ Licencia activada para {nuevo_user}. Ya puede loguearse.")
+                except Exception as e:
+                    st.error(f"Error al crear cuenta: {e}")
+            else:
+                st.warning("Completá usuario y contraseña.")
+
 
 
 
