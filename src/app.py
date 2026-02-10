@@ -199,7 +199,7 @@ def generar_link_whatsapp(datos):
         f"VALOR TOTAL: ${datos['precio']:,.2f}",
         f"SEÑA REQUERIDA ({datos['pct_seña']}%): ${datos['precio'] * (datos['pct_seña']/100):,.2f}",
         "",
-        "Nota: Los precios se mantienen por 48hs. Una vez abonada la sena, se congelan los materiales y comienza la producción."
+        "Nota: Los precios se mantienen por 48hs. Una vez abonada la seña, se congelan los materiales y comienza la producción."
     ]
 
     # Unimos con saltos de línea
@@ -543,6 +543,7 @@ elif menu == "⚙️ Configuración de Precios":
         actualizar_precio_nube('colocacion_dia', config['colocacion_dia'])
         
         st.success("Configuración blindada en Supabase para todos los parámetros.")
+
 
 
 
