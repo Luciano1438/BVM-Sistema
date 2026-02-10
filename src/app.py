@@ -544,6 +544,7 @@ elif menu == "⚙️ Configuración de Precios":
         
         st.success("Configuración blindada en Supabase para todos los parámetros.")
         # --- PESTAÑA: ADMINISTRACIÓN DE LICENCIAS (SOLO ADMIN) ---
+# --- PESTAÑA: ADMINISTRACIÓN DE LICENCIAS (SOLO ADMIN) ---
 if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"]["usuario"] == "bvm_admin":
     st.write("---")
     st.header("👤 Panel de Control de Licencias")
@@ -558,45 +559,44 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
         if st.button("🚀 Activar Licencia"):
             if nuevo_user and nueva_pass:
                 try:
-                    # 1. Creamos el usuario
+                    # 1. Creamos el usuario alineado a tu tabla de Supabase
                     data_user = {
                         "usuario": nuevo_user, 
                         "password": nueva_pass, 
-                        "nombre": nom_carpinteria
+                        "nombre_carpinteria": nom_carpinteria, # <-- Corregido según image_add0a8
+                        "role": "cliente"                      # <-- Corregido según image_add0a8
                     }
                     supabase.table("usuarios").insert(data_user).execute()
                     
-                    # 2. SEED: Le cargamos precios base para que la app no le de error
-                    # Copiamos tus costos actuales como base para el nuevo cliente
+                    # 2. SEED: Cargamos los precios base para el nuevo cliente
                     precios_base = []
+                    # Costos, herrajes y márgenes
                     for k, v in config.items():
-                        precios_base.append({"usuario": nuevo_user, "clave": k, "valor": v, "categoria": "costos"})
+                        precios_base.append({
+                            "usuario": nuevo_user, 
+                            "clave": k, 
+                            "valor": v, 
+                            "categoria": "costos"
+                        })
                     
+                    # Precios de maderas (18mm)
                     for m, p in maderas.items():
-                        precios_base.append({"usuario": nuevo_user, "clave": m, "valor": p, "categoria": "maderas"})
+                        precios_base.append({
+                            "usuario": nuevo_user, 
+                            "clave": m, 
+                            "valor": p, 
+                            "categoria": "maderas"
+                        })
                     
+                    # Impactamos la tabla configuracion en la nube
                     supabase.table("configuracion").insert(precios_base).execute()
                     
                     st.success(f"✅ Licencia activada para {nuevo_user}. Ya puede loguearse.")
+                    st.balloons() # Festejá tu primera venta del SaaS
                 except Exception as e:
                     st.error(f"Error al crear cuenta: {e}")
             else:
-                st.warning("Completá usuario y contraseña.")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+                st.warning("Completá usuario y contraseña para continuar.")
 
 
 
