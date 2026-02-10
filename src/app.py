@@ -426,6 +426,9 @@ if menu == "Cotizador CNC":
                 }
                 
                 pdf_bytes = generar_pdf_presupuesto(datos_pdf)
+                link_wa = generar_link_whatsapp(datos_pdf)
+
+                # 2. Después dibujamos los botones (Interfaz)
                 st.download_button(
                     label="📥 Descargar Presupuesto Profesional",
                     data=pdf_bytes,
@@ -433,8 +436,7 @@ if menu == "Cotizador CNC":
                     mime="application/pdf",
                     use_container_width=True
                 )
-                # --- BOTÓN DE WHATSAPP ---
-                link_wa = generar_link_whatsapp(datos_pdf)
+                
                 st.link_button("🟢 Enviar Presupuesto por WhatsApp", link_wa, use_container_width=True)
             
                 # 6. --- GENERACIÓN DE ETIQUETAS (VALOR PRO) ---
@@ -526,6 +528,7 @@ elif menu == "⚙️ Configuración de Precios":
         actualizar_precio_nube('colocacion_dia', config['colocacion_dia'])
         
         st.success("Configuración blindada en Supabase para todos los parámetros.")
+
 
 
 
