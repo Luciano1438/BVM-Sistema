@@ -3,7 +3,6 @@ import pandas as pd
 import sqlite3
 import os
 from pathlib import Path
-from datetime import datetime
 from supabase import create_client, Client
 from dotenv import load_dotenv
 from fpdf import FPDF
@@ -76,23 +75,25 @@ else:
 
 # --- FUNCIONES DE BASE DE DATOS (FUERA DEL IF/ELSE) ---
 def consultar_retazos_disponibles(material):
+    usuario_actual = st.session_state["user_data"]["usuario"]
     try:
         # Traemos todos los retazos de ese material
-        res = supabase.table("retazos").select("*").eq("material", material).execute()
+        res = supabase.table("retazos").select("*").eq("material", material).eq("usuario", usuario_actual).execute()
         return res.data
     except Exception as e:
         st.error(f"Error al consultar retazos: {e}")
         return []
 
 def registrar_retazo(material, largo, ancho):
+    usuario_actual = st.session_state["user_data"]["usuario"]
     try:
         if largo >= 300 and ancho >= 300: 
-            data = {"material": material, "largo": largo, "ancho": ancho}
+            data = {"material": material, "largo": largo, "ancho": ancho, "usuario" : usuario_actual}
             supabase.table("retazos").insert(data).execute()
             st.toast(f"♻️ Retazo de {material} ({int(largo)}x{int(ancho)}) guardado")
     except Exception as e:
         st.error(f"Error al registrar retazo: {e}")
-# --- 0. SEGURIDAD DE ACCESO (VALOR PRO) ---
+# --- 0. SEGURIDAD DE ACCESO MULTIUSUARIO (VALOR PRO) ---
 def verificar_password():
     if "autenticado" not in st.session_state:
         st.session_state["autenticado"] = False
@@ -100,25 +101,28 @@ def verificar_password():
     if not st.session_state["autenticado"]:
         with st.sidebar:
             st.title("🔐 Acceso BVM Pro")
-            usuario = st.text_input("Usuario")
-            clave = st.text_input("Contraseña", type="password")
+            user_input = st.text_input("Usuario")
+            pass_input = st.text_input("Contraseña", type="password")
+            
             if st.button("Ingresar"):
-                # Aquí podrías validar contra Supabase, por ahora usamos hardcoded para tu viejo
-                if usuario == "bvm_admin" and clave == "Lucho15k": # Cambiá esta clave
-                    st.session_state["autenticado"] = True
-                    st.rerun()
-                else:
-                    st.error("Credenciales incorrectas")
+                try:
+                    # Consultamos si el usuario existe y la password coincide
+                    res = supabase.table("usuarios").select("*").eq("usuario", user_input).eq("password", pass_input).execute()
+                    
+                    if len(res.data) > 0:
+                        st.session_state["autenticado"] = True
+                        st.session_state["user_data"] = res.data[0] # Guardamos info del usuario
+                        st.success(f"Bienvenido, {res.data[0]['usuario']}")
+                        st.rerun()
+                    else:
+                        st.error("Credenciales incorrectas o usuario inexistente.")
+                except Exception as e:
+                    st.error(f"Error de conexión: {e}")
         return False
     return True
-
-if not verificar_password():
-    st.info("Por favor, ingrese sus credenciales para operar el sistema.")
-    st.stop() # Detiene la ejecución del resto de la app
-
-# --- 1. DATOS DE PRODUCCIÓN (FUNCIÓN ÚNICA Y FUNCIONAL) ---
 # --- 1. MOTOR DE INTELIGENCIA DE NEGOCIO (BVM PRO) ---
 def traer_datos():
+    usuario_actual = st.session_state["user_data"]["usuario"]
     try:
         # 1. Consultamos la nueva tabla de configuración
         res = supabase.table("configuracion").select("*").execute()
@@ -144,17 +148,26 @@ def traer_datos():
         st.error(f"Error cargando configuración desde la nube: {e}")
         # Retorno de emergencia si falla la red
         return {}, {}, {}
-def actualizar_precio_nube(clave, nuevo_valor):
+def guardar_presupuesto_nube(cliente, mueble, total):
+    usuario_actual = st.session_state["user_data"]["usuario"]
     try:
-        supabase.table("configuracion").update({"valor": nuevo_valor}).eq("clave", clave).execute()
-        st.toast(f"✅ {clave} actualizado en la nube")
+        data = {
+            "cliente": cliente,
+            "mueble": mueble,
+            "precio_final": float(total),
+            "estado": "Pendiente",
+            "usuario": usuario_actual, # <-- ESTA ES LA FIRMA DE PROPIEDAD
+            "fecha": datetime.now(timezone(timedelta(hours=-3))).strftime("%Y-%m-%d %H:%M")
+        }
+        supabase.table("ventas").insert(data).execute()
+        st.success(f"🚀 Venta blindada para {usuario_actual}")
     except Exception as e:
-        st.error(f"Error al guardar en nube: {e}")        
-
+        st.error(f"Error al impactar nube: {e}")
     
 def traer_datos_historial():
+    usuario_actual = st.session_state["user_data"]["usuario"]
     try:
-        response = supabase.table("ventas").select("*").execute()
+        response = supabase.table("ventas").select("*").eq("usuario", usuario_actual).execute()
         return pd.DataFrame(response.data)
     except:
         return pd.DataFrame()
@@ -493,6 +506,7 @@ elif menu == "⚙️ Configuración de Precios":
         actualizar_precio_nube('colocacion_dia', config['colocacion_dia'])
         
         st.success("Configuración blindada en Supabase para todos los parámetros.")
+
 
 
 
