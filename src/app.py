@@ -182,10 +182,12 @@ def ejecutar_query(query, params=(), fetch=False):
         conn.commit()
 import urllib.parse
 
+import urllib.parse
+
 def generar_link_whatsapp(datos):
-    # Estructuramos el mensaje con formato de WhatsApp (negritas y saltos)
+    # 1. Armamos el mensaje (UTF-8 por defecto en Python 3)
     mensaje = (
-        f"*PRESUPUESTO BVM - {datos['mueble'].upper()}*\n\n"
+        f"⭐ *PRESUPUESTO BVM - {datos['mueble'].upper()}*\n\n"
         f"Hola! Te envío los detalles de la cotización:\n\n"
         f"📏 *Medidas:* {datos['ancho']}x{datos['alto']}x{datos['prof']} mm\n"
         f"🪵 *Material:* {datos['material']}\n"
@@ -194,8 +196,11 @@ def generar_link_whatsapp(datos):
         f"💵 *SEÑA REQUERIDA ({datos['pct_seña']}%):* ${datos['precio'] * (datos['pct_seña']/100):,.2f}\n\n"
         f"⚠️ _Nota: Los precios se mantienen por 48hs. Una vez abonada la seña, se congelan los materiales y comienza la producción._"
     )
-    # Codificamos el texto para que sea un link válido
-    texto_url = urllib.parse.quote(mensaje)
+    
+    # 2. LA CLAVE: Forzamos la codificación segura para URLs
+    # Esto elimina los rombos con signo de pregunta
+    texto_url = urllib.parse.quote(mensaje.encode('utf-8')) 
+    
     return f"https://wa.me/?text={texto_url}"
 
 # --- 3. INTERFAZ Y LÓGICA (INTACTA) ---
@@ -532,6 +537,7 @@ elif menu == "⚙️ Configuración de Precios":
         actualizar_precio_nube('colocacion_dia', config['colocacion_dia'])
         
         st.success("Configuración blindada en Supabase para todos los parámetros.")
+
 
 
 
