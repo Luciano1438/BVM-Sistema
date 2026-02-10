@@ -7,6 +7,7 @@ from supabase import create_client, Client
 from dotenv import load_dotenv
 from fpdf import FPDF
 from datetime import datetime, timedelta, timezone
+import urllib.parse
 
 def generar_pdf_presupuesto(datos):
     pdf = FPDF()
@@ -185,21 +186,24 @@ import urllib.parse
 import urllib.parse
 
 def generar_link_whatsapp(datos):
-    # 1. Armamos el mensaje (UTF-8 por defecto en Python 3)
-    mensaje = (
-        f"⭐ *PRESUPUESTO BVM - {datos['mueble'].upper()}*\n\n"
-        f"Hola! Te envío los detalles de la cotización:\n\n"
-        f"📏 *Medidas:* {datos['ancho']}x{datos['alto']}x{datos['prof']} mm\n"
-        f"🪵 *Material:* {datos['material']}\n"
-        f"⏳ *Entrega:* {datos['entrega']} días hábiles\n\n"
-        f"💰 *VALOR TOTAL:* ${datos['precio']:,.2f}\n"
-        f"💵 *SEÑA REQUERIDA ({datos['pct_seña']}%):* ${datos['precio'] * (datos['pct_seña']/100):,.2f}\n\n"
-        f"⚠️ _Nota: Los precios se mantienen por 48hs. Una vez abonada la seña, se congelan los materiales y comienza la producción._"
-    )
+    # Usamos Unicodes para asegurar que CUALQUIER celular los vea bien
+    # \u2b50 = estrella, \U0001f4cf = regla, \U0001f6a7 = madera/obra, \U0001f4b0 = bolsa dinero
     
-    # 2. LA CLAVE: Forzamos la codificación segura para URLs
-    # Esto elimina los rombos con signo de pregunta
-    texto_url = urllib.parse.quote(mensaje.encode('utf-8')) 
+    linea1 = f"*PRESUPUESTO BVM - {datos['mueble'].upper()}*"
+    linea2 = "Hola! Te envío los detalles de la cotización:"
+    linea3 = f"\U0001f4cf *Medidas:* {datos['ancho']}x{datos['alto']}x{datos['prof']} mm"
+    linea4 = f"\U0001fab5 *Material:* {datos['material']}"
+    linea5 = f"\u23f3 *Entrega:* {datos['entrega']} días hábiles"
+    linea6 = f"\U0001f4b5 *VALOR TOTAL:* ${datos['precio']:,.2f}"
+    linea7 = f"\U0001f4b4 *SEÑA REQUERIDA ({datos['pct_seña']}%):* ${datos['precio'] * (datos['pct_seña']/100):,.2f}"
+    linea8 = "⚠️ _Nota: Los precios se mantienen por 48hs._"
+
+    # Unimos todo con saltos de línea reales
+    mensaje_final = f"{linea1}\n\n{linea2}\n\n{linea3}\n{linea4}\n{linea5}\n\n{linea6}\n{linea7}\n\n{linea8}"
+    
+    # Codificamos
+    texto_url = urllib.parse.quote(mensaje_final)
+    return f"https://wa.me/?text={texto_url}"
     
     return f"https://wa.me/?text={texto_url}"
 
@@ -537,6 +541,7 @@ elif menu == "⚙️ Configuración de Precios":
         actualizar_precio_nube('colocacion_dia', config['colocacion_dia'])
         
         st.success("Configuración blindada en Supabase para todos los parámetros.")
+
 
 
 
