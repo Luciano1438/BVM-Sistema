@@ -125,6 +125,8 @@ def verificar_password():
 def traer_datos():
     usuario_actual = st.session_state["user_data"]["usuario"]
     try:
+        res = supabase.table("configuracion").select("*").eq("usuario", usuario_actual).execute()
+        datos_db = res.data
         # 1. Consultamos la nueva tabla de configuración
         res = supabase.table("configuracion").select("*").execute()
         datos_db = res.data
@@ -597,6 +599,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
