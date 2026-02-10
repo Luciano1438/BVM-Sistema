@@ -1,4 +1,4 @@
-    import streamlit as st
+import streamlit as st
 import pandas as pd
 import sqlite3
 import os
@@ -532,6 +532,7 @@ elif menu == "⚙️ Configuración de Precios":
         actualizar_precio_nube('colocacion_dia', config['colocacion_dia'])
         
         st.success("Configuración blindada en Supabase para todos los parámetros.")
+
 
 
 
