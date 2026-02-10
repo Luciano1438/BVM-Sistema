@@ -427,15 +427,15 @@ if menu == "Cotizador CNC":
                 
                 pdf_bytes = generar_pdf_presupuesto(datos_pdf)
                 st.download_button(
-                    # --- BOTÓN DE WHATSAPP ---
-                    link_wa = generar_link_whatsapp(datos_pdf)
-                    st.link_button("🟢 Enviar Presupuesto por WhatsApp", link_wa, use_container_width=True)
                     label="📥 Descargar Presupuesto Profesional",
                     data=pdf_bytes,
                     file_name=f"Presupuesto_{cliente}.pdf",
                     mime="application/pdf",
                     use_container_width=True
                 )
+                # --- BOTÓN DE WHATSAPP ---
+                link_wa = generar_link_whatsapp(datos_pdf)
+                st.link_button("🟢 Enviar Presupuesto por WhatsApp", link_wa, use_container_width=True)
             
                 # 6. --- GENERACIÓN DE ETIQUETAS (VALOR PRO) ---
                 st.write("---") # Una línea divisoria para separar administración de taller
@@ -526,6 +526,7 @@ elif menu == "⚙️ Configuración de Precios":
         actualizar_precio_nube('colocacion_dia', config['colocacion_dia'])
         
         st.success("Configuración blindada en Supabase para todos los parámetros.")
+
 
 
 
