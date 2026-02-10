@@ -217,6 +217,13 @@ if not verificar_password():
 maderas, fondos, config = traer_datos()
 # --- ACTUALIZACIÓN DE MENÚ (VALOR PRO) ---
 menu = st.sidebar.radio("Navegación", ["Cotizador CNC", "Historial de Ventas", "⚙️ Configuración de Precios"])
+# --- BOTÓN DE CIERRE DE SESIÓN ---
+st.sidebar.write("---")
+if st.sidebar.button("🚪 Cerrar Sesión"):
+    # Limpiamos todo el estado de la sesión para forzar el re-login
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
+    st.rerun()
 if menu == "Cotizador CNC":
     try:
         st.title("🏭 BVM | Control de Producción Industrial")
@@ -596,6 +603,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
