@@ -1,4 +1,4 @@
-import streamlit as st
+    import streamlit as st
 import pandas as pd
 import sqlite3
 import os
@@ -199,8 +199,12 @@ def generar_link_whatsapp(datos):
     return f"https://wa.me/?text={texto_url}"
 
 # --- 3. INTERFAZ Y LÓGICA (INTACTA) ---
-maderas, fondos, config = traer_datos()
 st.set_page_config(page_title="BVM - Gestión materiales", layout="wide")
+if not verificar_password():
+    st.info("Por favor, ingrese sus credenciales para operar el sistema.")
+    st.stop()
+
+maderas, fondos, config = traer_datos()
 # --- ACTUALIZACIÓN DE MENÚ (VALOR PRO) ---
 menu = st.sidebar.radio("Navegación", ["Cotizador CNC", "Historial de Ventas", "⚙️ Configuración de Precios"])
 if menu == "Cotizador CNC":
@@ -528,6 +532,7 @@ elif menu == "⚙️ Configuración de Precios":
         actualizar_precio_nube('colocacion_dia', config['colocacion_dia'])
         
         st.success("Configuración blindada en Supabase para todos los parámetros.")
+
 
 
 
