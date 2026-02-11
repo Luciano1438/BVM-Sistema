@@ -21,13 +21,17 @@ CONFIG_TECNICA = {
     "limpieza_placa_manual": 20, # mm (refilado)
     "sierra_kerf": 2.0           # mm (lo que come el disco)
 }
-def obtener_veta_automatica(nombre_pieza):
-    """Asigna el sentido de la veta según las reglas del experto BVM."""
+def obtener_veta_automatica(nombre_pieza, material):
+    """Asigna veta solo si el material no es liso (blanco)."""
+    material_lower = material.lower()
+    
+    # Si es blanco o liso, no hay veta que respetar
+    if "blanco" in material_lower:
+        return "Libre (Rotación para ahorro)"
+    
     nombre_lower = nombre_pieza.lower()
-    # Casos específicos de veta vertical según tu viejo
     if any(x in nombre_lower for x in ["lateral exterior", "puerta", "tapa de cajon", "fondo"]):
         return "Vertical (Hacia Arriba)"
-    # Estantes, bases, techos, travesaños y partes internas de cajón son horizontales
     return "Horizontal (Izquierda a Derecha)"
 def calcular_medida_frente(ancho_hueco, alto_hueco, tipo_montaje="Superpuesto", es_doble=False):
     """
@@ -279,6 +283,7 @@ if menu == "Cotizador CNC":
             alto_m = c2.number_input("Alto Total (mm)", min_value=0, value=0)
             prof_m = c3.number_input("Profundo (mm)", min_value=0, value=0)
             mat_principal = st.selectbox("Material Cuerpo (18mm)", list(maderas.keys()))
+            esp_real = st.number_input("Espesor Real Placa (mm)", value=18.0, step=0.1, format="%.1f")
             mat_fondo_sel = st.selectbox("Material Fondo", list(fondos.keys()))
             
             st.write("---")
@@ -346,16 +351,16 @@ if menu == "Cotizador CNC":
                     l_f = largo - (esp_canto * 2) if descontar else largo
                     a_f = ancho - (esp_canto * 2) if descontar else ancho
                     # Usamos la función de veta que pegaste arriba
-                    veta = obtener_veta_automatica(nombre)
+                    veta = obtener_veta_automatica(nombre, mat_principal) # Agregamos mat_principal
                     return {"Pieza": nombre, "Cant": cant, "L": int(l_f), "A": int(a_f), "Veta": veta}
 
                 despiece = []
                 # 1. Estructura
                 despiece.append(crear_pieza("Lateral Exterior", 2, alto_m, prof_m))
-                despiece.append(crear_pieza("Piso/Techo", 2, ancho_m - 36, prof_m))
+                despiece.append(crear_pieza("Piso/Techo", 2, ancho_m - (esp_real * 2), prof_m))
                 
                 if tiene_parante:
-                    despiece.append(crear_pieza("Parante Divisor", 1, alto_m - 36, prof_m - 20))
+                    despiece.append(crear_pieza("Parante Divisor", 1, alto_m - (esp_real * 2), prof_m - 20))
                 
                 for i, e_ancho in enumerate(medidas_estantes):
                     if e_ancho > 0: despiece.append(crear_pieza(f"Estante {i+1}", 1, e_ancho, prof_m - 20))
@@ -661,6 +666,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
