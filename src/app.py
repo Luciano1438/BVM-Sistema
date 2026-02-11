@@ -369,7 +369,7 @@ if menu == "Cotizador CNC":
             necesita_colocacion = st.checkbox("¿Requiere Colocación?")
             flete_sel = st.selectbox("Zona Envío", ["Ninguno", "Capital", "Zona Norte"])
             dias_col = st.number_input("Días de obra", value=0) if necesita_colocacion else 0
-        with col_out:
+       with col_out:
             st.subheader("📐 Planilla de Corte e Inteligencia de Materiales")
             
             if alto_m > 0 and ancho_m > 0:
@@ -377,61 +377,45 @@ if menu == "Cotizador CNC":
                 c_prec1, c_prec2 = st.columns(2)
                 es_cnc = c_prec1.toggle("🚀 Modo CNC (Margen 25mm)", value=True)
                 pvc_2mm = c_prec2.checkbox("¿Usa PVC 2mm?", value=True)
-                # Eliminamos el checkbox de Gola de acá porque ya se define en la columna de la izquierda
                 esp_canto = 2.0 if pvc_2mm else 0.5
                 
                 def crear_pieza(nombre, cant, largo, ancho, descontar=True):
                     l_f = largo - (esp_canto * 2) if descontar else largo
                     a_f = ancho - (esp_canto * 2) if descontar else ancho
-                    
-                    if not tiene_veta:
-                        veta_final = "Libre (Cualquier sentido)"
-                    else:
-                        veta_final = obtener_veta_automatica(nombre, mat_principal)
-        
+                    veta_final = obtener_veta_automatica(nombre, mat_principal) if tiene_veta else "Libre"
                     return {"Pieza": nombre, "Cant": cant, "L": int(l_f), "A": int(a_f), "Veta": veta_final}
 
-                # --- ESTO VA DENTRO DEL IF ALTO_M > 0 ---
                 despiece = []
                 
                 # --- LÓGICA DE ALTURA DINÁMICA DE BVM ---
-                # Definimos la altura real de la caja del mueble
                 altura_caja_real = alto_m
                 if tipo_base in ["Banquina de Obra", "Patas Plásticas"]:
                     altura_caja_real = alto_m - altura_base
 
-                # 1. Estructura Principal
+                # 1. Estructura Principal (USANDO ESP_REAL)
                 despiece.append(crear_pieza("Lateral Exterior", 2, altura_caja_real, prof_m))
                 despiece.append(crear_pieza("Piso/Techo", 2, ancho_m - (esp_real * 2), prof_m))
                 
-                # Zócalos de Madera
                 if tipo_base == "Zócalo de Madera":
                     despiece.append(crear_pieza("Zócalo Frontal", 2, altura_base, ancho_m - (esp_real * 2)))
                     despiece.append(crear_pieza("Zócalo Lateral", 2, altura_base, prof_m - 50))
                 
-                # Parante Divisor Dinámico
                 if tiene_parante:
                     despiece.append(crear_pieza("Parante Divisor", 1, altura_caja_real - (esp_real * 2), prof_m - 20))
-                    
                     hueco_izq = distancia_parante
                     hueco_der = (ancho_m - (esp_real * 2)) - distancia_parante - esp_real
                     st.info(f"📏 Hueco Izquierdo: {hueco_izq:.1f}mm | Hueco Derecho: {hueco_der:.1f}mm")
 
-                # Estantes y Travesaños
                 for i, e_ancho in enumerate(medidas_estantes):
-                    if e_ancho > 0: 
-                        despiece.append(crear_pieza(f"Estante {i+1}", 1, e_ancho, prof_m - 20))
+                    if e_ancho > 0: despiece.append(crear_pieza(f"Estante {i+1}", 1, e_ancho, prof_m - 20))
                 
                 for i, trav in enumerate(medidas_travesaños):
-                    if trav['L'] > 0:
-                        despiece.append(crear_pieza(f"Travesaño {i+1}", 1, trav['L'], trav['A']))
+                    if trav['L'] > 0: despiece.append(crear_pieza(f"Travesaño {i+1}", 1, trav['L'], trav['A']))
 
-                # 2. Frentes (Puertas y Cajones con Altura Corregida)
+                # 2. Frentes (Puertas y Cajones)
                 if cant_puertas > 0:
-                    # REGLA ORO: La puerta se calcula sobre la altura de la CAJA, no el alto total
                     w_pue, h_pue = calcular_medida_frente(ancho_sugerido, altura_caja_real, "Superpuesto")
-                    if usa_gola: 
-                        h_pue -= 20 
+                    if usa_gola: h_pue -= 20 
                     for i in range(int(cant_puertas)):
                         despiece.append(crear_pieza(f"Puerta {i+1} ({tipo_agarre})", 1, h_pue, w_pue))
 
@@ -439,11 +423,11 @@ if menu == "Cotizador CNC":
                     for i in range(int(cant_cajones)):
                         h_frente = st.session_state.get(f"h_caj_{i}", 150)
                         w_tapa, h_tapa = calcular_medida_frente(ancho_hueco_cajon, h_frente, "Superpuesto")
-                        if usa_gola:
-                            h_tapa -= 20
+                        if usa_gola: h_tapa -= 20
                         despiece.append(crear_pieza(f"Tapa de Cajon {i+1} ({tipo_agarre})", 1, h_tapa, w_tapa))
-                # Fondo (sin descontar canto)
-                despiece.append({"Pieza": "Fondo Mueble", "Cant": 1, "L": alto_m - 5, "A": ancho_m - 5, "Veta": "Vertical", "Tipo": "Fondo"})
+
+                # Fondo
+                despiece.append({"Pieza": "Fondo Mueble", "Cant": 1, "L": altura_caja_real - 5, "A": ancho_m - 5, "Veta": "Vertical", "Tipo": "Fondo"})
 
                 df_corte = pd.DataFrame(despiece)
                 st.data_editor(df_corte, use_container_width=True)
@@ -729,6 +713,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
