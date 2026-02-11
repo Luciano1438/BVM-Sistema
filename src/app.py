@@ -21,14 +21,17 @@ CONFIG_TECNICA = {
     "limpieza_placa_manual": 20, # mm (refilado)
     "sierra_kerf": 2.0           # mm (lo que come el disco)
 }
-def obtener_veta_automatica(nombre_pieza, material):
-    """Asigna veta solo si el material no es liso (blanco)."""
-    material_lower = material.lower()
+def obtener_veta_automatica(nombre_pieza, material_seleccionado):
+    """
+    Si es Blanco, la veta es libre. Si es enchapado, sigue la regla de BVM.
+    """
+    material_lower = material_seleccionado.lower()
     
-    # Si es blanco o liso, no hay veta que respetar
+    # REGLA DE EFICIENCIA: Si es blanco, no desperdiciamos placa con orientaciones fijas
     if "blanco" in material_lower:
-        return "Libre (Rotación para ahorro)"
+        return "Libre (Cualquier sentido)"
     
+    # Regla de tu viejo para materiales con veta (enchapados/colores)
     nombre_lower = nombre_pieza.lower()
     if any(x in nombre_lower for x in ["lateral exterior", "puerta", "tapa de cajon", "fondo"]):
         return "Vertical (Hacia Arriba)"
@@ -666,6 +669,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
