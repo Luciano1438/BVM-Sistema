@@ -358,8 +358,13 @@ if menu == "Cotizador CNC":
 
             st.write("---")
             st.subheader("💰 Parámetros Financieros")
-            tipo_base = st.selectbox("Soporte", ["Zócalo Madera", "Patas Plásticas", "Nada"])
+            tipo_base = st.selectbox("Tipo de Soporte", ["Zócalo de Madera", "Banquina", "Patas Plásticas", "Nada"])
             costo_base = 5000 if tipo_base == "Patas Plásticas" else 0
+            altura_base = st.number_input("Altura de Base/Zócalo (mm)", min_value=0.0, value=100.0, step=5.0)
+            if tipo_base == "Zócalo de Madera":
+                st.caption("💡 El sistema sumará las piezas de zócalo al despiece.")
+            elif tipo_base == "Banquina":
+                st.info(f"⚠️ El mueble apoyará sobre base de {altura_base}mm. Ajustando laterales.")
             dias_prod = st.number_input("Días de taller", value=0.0, step=0.5) # Arranca en 0
             necesita_colocacion = st.checkbox("¿Requiere Colocación?")
             flete_sel = st.selectbox("Zona Envío", ["Ninguno", "Capital", "Zona Norte"])
@@ -708,6 +713,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
