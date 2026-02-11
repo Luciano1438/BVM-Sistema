@@ -311,6 +311,8 @@ if menu == "Cotizador CNC":
             # --- NUEVA LÓGICA DE PARANTE DESPLAZABLE Y SIMETRÍA ---
             tiene_parante = st.checkbox("¿Lleva parante divisor?", value=False)
             distancia_parante = 0.0
+            tiene_parante = st.checkbox("¿Lleva parante divisor?", value=False)
+            
             
             if tiene_parante:
                 # El límite máximo es el ancho interno libre total
@@ -376,18 +378,20 @@ if menu == "Cotizador CNC":
         
                     return {"Pieza": nombre, "Cant": cant, "L": int(l_f), "A": int(a_f), "Veta": veta_final}
 
+                # --- ESTO VA DENTRO DEL IF ALTO_M > 0 ---
                 despiece = []
                 # 1. Estructura
-               despiece.append(crear_pieza("Lateral Exterior", 2, alto_m, prof_m))
-               despiece.append(crear_pieza("Piso/Techo", 2, ancho_m - (esp_real * 2), prof_m))
-                distancia_parante = 0.0
+                despiece.append(crear_pieza("Lateral Exterior", 2, alto_m, prof_m))
+                despiece.append(crear_pieza("Piso/Techo", 2, ancho_m - (esp_real * 2), prof_m))
+                
                 if tiene_parante:
                     # El parante ahora es dinámico
                     despiece.append(crear_pieza("Parante Divisor", 1, alto_m - (esp_real * 2), prof_m - 20))
                     
-                    # CÁLCULO DE HUECOS PARA TU VIEJO
+                    # CÁLCULO DE HUECOS PARA TU VIEJO (Sin redeclarar la variable)
                     hueco_izq = distancia_parante
                     hueco_der = (ancho_m - (esp_real * 2)) - distancia_parante - esp_real
+                    st.info(f"📏 Hueco Izquierdo: {hueco_izq:.1f}mm | Hueco Derecho: {hueco_der:.1f}mm")
                     st.info(f"📏 Hueco Izquierdo: {hueco_izq:.1f}mm | Hueco Derecho: {hueco_der:.1f}mm")
                 for i, e_ancho in enumerate(medidas_estantes):
                     if e_ancho > 0: despiece.append(crear_pieza(f"Estante {i+1}", 1, e_ancho, prof_m - 20))
@@ -693,6 +697,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
