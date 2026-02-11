@@ -468,19 +468,19 @@ if menu == "Cotizador CNC":
                     if st.button("💾 Guardar en Nube"):
                         guardar_presupuesto_nube(cliente, mueble_nom, precio_final)
 
-                # --- 2. GESTIÓN DE INVENTARIO (RETAZOS) ---
+               # --- 2. GESTIÓN DE INVENTARIO (RETAZOS CORREGIDO A 150x400) ---
                 with st.expander("➕ Registrar Nuevo Retazo en Depósito"):
-                    st.write("Cargá sobrantes útiles (>300mm) para que el sistema los detecte en futuras cotizaciones.")
+                    st.write("Cargá sobrantes útiles (>150x400mm) para que el sistema los detecte.")
                     c_ret1, c_ret2 = st.columns(2)
                     ancho_r = c_ret1.number_input("Ancho (mm)", value=0, key="anc_r")
                     largo_r = c_ret2.number_input("Largo (mm)", value=0, key="lar_r")
     
                     if st.button("💾 Guardar en Inventario de Retazos"):
-                        if ancho_r >= 300 and largo_r >= 300:
+                        # Aplicamos la Regla de Oro de tu viejo: 150x400
+                        if (ancho_r >= 150 and largo_r >= 400) or (ancho_r >= 400 and largo_r >= 150):
                             registrar_retazo(mat_principal, largo_r, ancho_r)
                         else:
-                            st.warning("El retazo es muy chico para ser útil (mínimo 300x300).")
-
+                            st.warning("El retazo es muy chico para ser útil (mínimo 150x400mm según estándar BVM).")
                # --- 3. GESTIÓN COMERCIAL (PDF PRO) ---
                 st.write("---")
                 st.subheader("📄 Generar Propuesta para Cliente")
@@ -657,6 +657,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
