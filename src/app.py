@@ -394,40 +394,42 @@ if menu == "Cotizador CNC":
                 # --- ESTO VA DENTRO DEL IF ALTO_M > 0 ---
                 despiece = []
                 
-                # LÓGICA DE ALTURA DINÁMICA DE BVM
-                # Si es Banquina o Patas, el lateral es más corto.
-                # Si es Zócalo de madera, el lateral llega al piso.
-                altura_lat_real = alto_m
+                # --- LÓGICA DE ALTURA DINÁMICA DE BVM ---
+                # Definimos la altura real de la caja del mueble
+                altura_caja_real = alto_m
                 if tipo_base in ["Banquina de Obra", "Patas Plásticas"]:
-                    altura_lat_real = alto_m - altura_base
+                    altura_caja_real = alto_m - altura_base
 
-                # 1. Estructura con Espesor de Calibre (esp_real)
-                despiece.append(crear_pieza("Lateral Exterior", 2, altura_lat_real, prof_m))
+                # 1. Estructura Principal
+                despiece.append(crear_pieza("Lateral Exterior", 2, altura_caja_real, prof_m))
                 despiece.append(crear_pieza("Piso/Techo", 2, ancho_m - (esp_real * 2), prof_m))
                 
-                # Agregamos las piezas de Zócalo si eligió esa opción
+                # Zócalos de Madera
                 if tipo_base == "Zócalo de Madera":
-                    # Zócalo frontal (entre laterales)
                     despiece.append(crear_pieza("Zócalo Frontal", 2, altura_base, ancho_m - (esp_real * 2)))
-                    # Zócalo lateral (profundidad)
                     despiece.append(crear_pieza("Zócalo Lateral", 2, altura_base, prof_m - 50))
                 
+                # Parante Divisor Dinámico
                 if tiene_parante:
-                    # El parante descuenta piso y techo
-                    despiece.append(crear_pieza("Parante Divisor", 1, altura_lat_real - (esp_real * 2), prof_m - 20))
+                    despiece.append(crear_pieza("Parante Divisor", 1, altura_caja_real - (esp_real * 2), prof_m - 20))
                     
                     hueco_izq = distancia_parante
                     hueco_der = (ancho_m - (esp_real * 2)) - distancia_parante - esp_real
                     st.info(f"📏 Hueco Izquierdo: {hueco_izq:.1f}mm | Hueco Derecho: {hueco_der:.1f}mm")
 
+                # Estantes y Travesaños
                 for i, e_ancho in enumerate(medidas_estantes):
                     if e_ancho > 0: 
                         despiece.append(crear_pieza(f"Estante {i+1}", 1, e_ancho, prof_m - 20))
+                
+                for i, trav in enumerate(medidas_travesaños):
+                    if trav['L'] > 0:
+                        despiece.append(crear_pieza(f"Travesaño {i+1}", 1, trav['L'], trav['A']))
 
-                # 2. Frentes (Puertas y Cajones con lógica de Agarre)
+                # 2. Frentes (Puertas y Cajones con Altura Corregida)
                 if cant_puertas > 0:
-                    w_pue, h_pue = calcular_medida_frente(ancho_sugerido, alto_m, "Superpuesto")
-                    # REGLA BVM: Si es Gola, restamos para el perfil de aluminio
+                    # REGLA ORO: La puerta se calcula sobre la altura de la CAJA, no el alto total
+                    w_pue, h_pue = calcular_medida_frente(ancho_sugerido, altura_caja_real, "Superpuesto")
                     if usa_gola: 
                         h_pue -= 20 
                     for i in range(int(cant_puertas)):
@@ -437,7 +439,6 @@ if menu == "Cotizador CNC":
                     for i in range(int(cant_cajones)):
                         h_frente = st.session_state.get(f"h_caj_{i}", 150)
                         w_tapa, h_tapa = calcular_medida_frente(ancho_hueco_cajon, h_frente, "Superpuesto")
-                        # Si es Gola, achicamos el frente para que entre la mano
                         if usa_gola:
                             h_tapa -= 20
                         despiece.append(crear_pieza(f"Tapa de Cajon {i+1} ({tipo_agarre})", 1, h_tapa, w_tapa))
@@ -728,6 +729,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
