@@ -369,7 +369,7 @@ if menu == "Cotizador CNC":
             necesita_colocacion = st.checkbox("¿Requiere Colocación?")
             flete_sel = st.selectbox("Zona Envío", ["Ninguno", "Capital", "Zona Norte"])
             dias_col = st.number_input("Días de obra", value=0) if necesita_colocacion else 0
-       with col_out:
+        with col_out:
             st.subheader("📐 Planilla de Corte e Inteligencia de Materiales")
             
             if alto_m > 0 and ancho_m > 0:
@@ -713,6 +713,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
