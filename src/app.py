@@ -311,8 +311,6 @@ if menu == "Cotizador CNC":
             # --- NUEVA LÓGICA DE PARANTE DESPLAZABLE Y SIMETRÍA ---
             tiene_parante = st.checkbox("¿Lleva parante divisor?", value=False)
             distancia_parante = 0.0
-            tiene_parante = st.checkbox("¿Lleva parante divisor?", value=False)
-            
             
             if tiene_parante:
                 # El límite máximo es el ancho interno libre total
@@ -697,6 +695,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
