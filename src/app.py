@@ -279,18 +279,25 @@ if menu == "Cotizador CNC":
             st.subheader("📋 Datos del Proyecto")
             cliente = st.text_input("Cliente", "")
             mueble_nom = st.text_input("Mueble", "")
+            
             c1, c2, c3 = st.columns(3)
-            ancho_m = c1.number_input("Ancho Total (mm)", min_value=0, value=0)
-            alto_m = c2.number_input("Alto Total (mm)", min_value=0, value=0)
-            prof_m = c3.number_input("Profundo (mm)", min_value=0, value=0)
+            # 1. Ajuste Decimal: Todos como float para que acepten el punto decimal
+            ancho_m = c1.number_input("Ancho Total (mm)", min_value=0.0, max_value=5000.0, value=0.0, step=0.5)
+            alto_m = c2.number_input("Alto Total (mm)", min_value=0.0, max_value=5000.0, value=0.0, step=0.5)
+            prof_m = c3.number_input("Profundo (mm)", min_value=0.0, max_value=2000.0, value=0.0, step=0.5)
+            
             mat_principal = st.selectbox("Material Cuerpo (18mm)", list(maderas.keys()))
             tiene_veta = st.toggle("💎 El material tiene veta (Respetar orientación)", value=True)
-            esp_real = st.number_input("Espesor Real Placa (mm)", value=18.0, step=0.1, format="%.1f")
+            
+            # EL ESPESOR MAESTRO: Es la única fuente de verdad para los cálculos
+            esp_real = st.number_input("Espesor Real Placa (mm)", min_value=1.0, max_value=50.0, value=18.0, step=0.1)
             mat_fondo_sel = st.selectbox("Material Fondo", list(fondos.keys()))
             
             st.write("---")
             st.subheader("🏗️ Configuración de Módulos")
-            esp, luz_e, luz_i = 18, 2, 3
+            luz_e, luz_i = 2, 3
+            
+            # Configuración de Herrajes
             tipo_bisagra = st.selectbox("Tipo de Bisagra", ["Cazoleta C0 Cierre Suave", "Especial"])
             precio_bisagra = config['bisagra_cazoleta']
             tipo_corredera = st.radio("Tipo de Corredera", ["Telescópica 45cm", "Cierre Suave Pesada"])
@@ -298,35 +305,41 @@ if menu == "Cotizador CNC":
             
             c_caj, c_hue = st.columns(2)
             cant_cajones = c_caj.number_input("Cant. Cajones", value=0, min_value=0)
-            ancho_hueco_cajon = c_hue.number_input("Ancho Hueco Cajonera (mm)", value=0)
-            tiene_parante = st.checkbox("¿Lleva parante divisor?", value=False) # Ahora arranca en False
-            esp_parante = 18 if tiene_parante else 0
+            # El ancho del hueco también debe permitir decimales (por si el parante está desplazado)
+            ancho_hueco_cajon = c_hue.number_input("Ancho Hueco Cajonera (mm)", value=0.0, step=0.5)
+            
+            tiene_parante = st.checkbox("¿Lleva parante divisor?", value=False)
             
             if cant_cajones > 0:
                 for i in range(int(cant_cajones)):
-                    st.number_input(f"Altura Frente Cajón {i+1} (mm)", value=150, key=f"h_caj_{i}")
+                    st.number_input(f"Altura Frente Cajón {i+1} (mm)", value=150.0, key=f"h_caj_{i}", step=0.5)
 
             c_pue, c_est = st.columns(2)
             cant_puertas = c_pue.number_input("Cant. Puertas", value=0, min_value=0, key="cant_pue_p")
             cant_estantes = c_est.number_input("Cant. Estantes", value=0, min_value=0, key="cant_est_p")
             usa_gola = st.checkbox("¿Lleva sistema Gola? (+2cm altura)", value=False)
 
-            # --- Lógica de Simetría Original Restaurada ---
+            # --- LÓGICA DE SIMETRÍA 100% DINÁMICA ---
             if cant_puertas > 0 and ancho_m > 0:
-                ancho_disp_p = ancho_m - (esp * 2) - ancho_hueco_cajon - esp_parante
+                # REGLA ORO: Descontamos 2 laterales exteriores + hueco cajon + espesor del parante (si hay)
+                esp_parante_din = esp_real if tiene_parante else 0
+                ancho_disp_p = ancho_m - (esp_real * 2) - ancho_hueco_cajon - esp_parante_din
+                
                 total_luces = (luz_e * 2) + (luz_i * (cant_puertas - 1))
                 ancho_sugerido = (ancho_disp_p - total_luces) / cant_puertas
-                st.info(f"💡 Simetría BVM: {ancho_sugerido:.1f} mm c/u")
+                st.info(f"💡 Simetría BVM (Calculado a {esp_real}mm): {ancho_sugerido:.1f} mm c/u")
 
-            medidas_puertas = [st.number_input(f"Ancho Puerta {i+1} (mm)", value=0, key=f"pue_{i}") for i in range(int(cant_puertas))]
-            medidas_estantes = [st.number_input(f"Ancho Estante {i+1} (mm)", value=0, key=f"est_{i}") for i in range(int(cant_estantes))]
+            medidas_puertas = [st.number_input(f"Ancho Puerta {i+1} (mm)", value=0.0, key=f"pue_{i}", step=0.5) for i in range(int(cant_puertas))]
+            medidas_estantes = [st.number_input(f"Ancho Estante {i+1} (mm)", value=0.0, key=f"est_{i}", step=0.5) for i in range(int(cant_estantes))]
             
             cant_travesaños = st.number_input("Cantidad de Travesaños", value=0, min_value=0)
             medidas_travesaños = []
             for i in range(int(cant_travesaños)):
                 ct1, ct2 = st.columns(2)
-                l_t = ct1.number_input(f"Largo Travesaño {i+1}", value=int(ancho_m-36 if ancho_m>36 else 0), key=f"lt_{i}")
-                a_t = ct2.number_input(f"Ancho Travesaño {i+1}", value=100, key=f"at_{i}")
+                # El largo sugerido ahora descuenta el ESPESOR REAL, no 36 fijos
+                l_sug = float(ancho_m - (esp_real * 2) if ancho_m > (esp_real * 2) else 0)
+                l_t = ct1.number_input(f"Largo Travesaño {i+1}", value=l_sug, key=f"lt_{i}", step=0.5)
+                a_t = ct2.number_input(f"Ancho Travesaño {i+1}", value=100.0, key=f"at_{i}", step=0.5)
                 medidas_travesaños.append({"L": l_t, "A": a_t})
 
             st.write("---")
@@ -672,6 +685,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
