@@ -125,12 +125,16 @@ def consultar_retazos_disponibles(material):
 def registrar_retazo(material, largo, ancho):
     usuario_actual = st.session_state["user_data"]["usuario"]
     try:
-        if largo >= 300 and ancho >= 300: 
+        # REGLA BVM: Validamos contra 150x400 (en cualquier sentido)
+        if (largo >= 400 and ancho >= 150) or (largo >= 150 and ancho >= 400): 
             data = {"material": material, "largo": largo, "ancho": ancho, "usuario" : usuario_actual}
             supabase.table("retazos").insert(data).execute()
-            st.toast(f"♻️ Retazo de {material} ({int(largo)}x{int(ancho)}) guardado")
+            st.toast(f"♻️ Retazo guardado: {int(largo)}x{int(ancho)}")
+        else:
+            # AHORA SÍ TE AVISA POR QUÉ NO GUARDA
+            st.error(f"❌ Error: {int(largo)}x{int(ancho)} es inferior al mínimo de 150x400.")
     except Exception as e:
-        st.error(f"Error al registrar retazo: {e}")
+        st.error(f"Error técnico al registrar: {e}")
 # --- 0. SEGURIDAD DE ACCESO MULTIUSUARIO (VALOR PRO) ---
 def verificar_password():
     if "autenticado" not in st.session_state:
@@ -657,6 +661,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
