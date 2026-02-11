@@ -391,16 +391,31 @@ if menu == "Cotizador CNC":
         
                     return {"Pieza": nombre, "Cant": cant, "L": int(l_f), "A": int(a_f), "Veta": veta_final}
 
+                # --- ESTO VA DENTRO DEL IF ALTO_M > 0 ---
                 despiece = []
+                
+                # LÓGICA DE ALTURA DINÁMICA DE BVM
+                # Si es Banquina o Patas, el lateral es más corto.
+                # Si es Zócalo de madera, el lateral llega al piso.
+                altura_lat_real = alto_m
+                if tipo_base in ["Banquina de Obra", "Patas Plásticas"]:
+                    altura_lat_real = alto_m - altura_base
+
                 # 1. Estructura con Espesor de Calibre (esp_real)
-                despiece.append(crear_pieza("Lateral Exterior", 2, alto_m, prof_m))
+                despiece.append(crear_pieza("Lateral Exterior", 2, altura_lat_real, prof_m))
                 despiece.append(crear_pieza("Piso/Techo", 2, ancho_m - (esp_real * 2), prof_m))
                 
+                # Agregamos las piezas de Zócalo si eligió esa opción
+                if tipo_base == "Zócalo de Madera":
+                    # Zócalo frontal (entre laterales)
+                    despiece.append(crear_pieza("Zócalo Frontal", 2, altura_base, ancho_m - (esp_real * 2)))
+                    # Zócalo lateral (profundidad)
+                    despiece.append(crear_pieza("Zócalo Lateral", 2, altura_base, prof_m - 50))
+                
                 if tiene_parante:
-                    # El parante ahora es dinámico según esp_real
-                    despiece.append(crear_pieza("Parante Divisor", 1, alto_m - (esp_real * 2), prof_m - 20))
+                    # El parante descuenta piso y techo
+                    despiece.append(crear_pieza("Parante Divisor", 1, altura_lat_real - (esp_real * 2), prof_m - 20))
                     
-                    # CÁLCULO DE HUECOS (Usando la variable definida en col_in)
                     hueco_izq = distancia_parante
                     hueco_der = (ancho_m - (esp_real * 2)) - distancia_parante - esp_real
                     st.info(f"📏 Hueco Izquierdo: {hueco_izq:.1f}mm | Hueco Derecho: {hueco_der:.1f}mm")
@@ -713,6 +728,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
