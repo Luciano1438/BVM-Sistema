@@ -350,16 +350,17 @@ if menu == "Cotizador CNC":
                 esp_canto = 2.0 if pvc_2mm else 0.5
                 
                 # Función interna mejorada con las últimas reglas de tu viejo
-                # Función interna mejorada: Detecta si el material TIENE veta o no
                 def crear_pieza(nombre, cant, largo, ancho, descontar=True):
                     l_f = largo - (esp_canto * 2) if descontar else largo
                     a_f = ancho - (esp_canto * 2) if descontar else ancho
                     
-                    # REGLA BURRY: Si es blanco, no hay veta. Si no, aplicamos regla de tu viejo.
+                    # REGLA MAESTRA: Si el material es Blanco, veta LIBRE. Si no, regla BVM.
                     if "blanco" in mat_principal.lower():
-                        veta = "Libre (Cualquier sentido)"
+                        veta_final = "Libre (Cualquier sentido)"
                     else:
-                        veta = obtener_veta_automatica(nombre, mat_principal)
+                        veta_final = obtener_veta_automatica(nombre, mat_principal)
+                        
+                    return {"Pieza": nombre, "Cant": cant, "L": int(l_f), "A": int(a_f), "Veta": veta_final}
                         
                     return {"Pieza": nombre, "Cant": cant, "L": int(l_f), "A": int(a_f), "Veta": veta}
 
@@ -675,6 +676,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
