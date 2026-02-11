@@ -402,17 +402,29 @@ if menu == "Cotizador CNC":
 
                 # --- C. RETAZOS Y PRECIO FINAL (Igual que antes) ---
                 st.write("---")
+               # --- C. TU LÓGICA DE RETAZOS (REGLA EXPERTA: 150x400) ---
+                st.write("---")
                 retazos_en_stock = consultar_retazos_disponibles(mat_principal)
                 ahorro_madera = 0
+                
                 if retazos_en_stock:
                     st.subheader("♻️ Oportunidades de Ahorro")
+                    piezas_que_encajan = 0
                     for ret in retazos_en_stock:
-                        for index, row in df_corte.iterrows():
-                            if (ret['largo'] >= row['L'] and ret['ancho'] >= row['A']) or (ret['largo'] >= row['A'] and ret['ancho'] >= row['L']):
-                                m2_p = (row['L'] * row['A']) / 1_000_000
-                                ahorro_madera += (m2_p * maderas[mat_principal] / 5.03)
-                                st.success(f"¡Match! '{row['Pieza']}' en Retazo ID-{ret['id']}")
-                                break 
+                        # AJUSTE SEGÚN TU VIEJO: Mínimo 150x400
+                        # Verificamos si el retazo sirve (en cualquier orientación)
+                        if (ret['largo'] >= 400 and ret['ancho'] >= 150) or \
+                           (ret['largo'] >= 150 and ret['ancho'] >= 400):
+                            
+                            for index, row in df_corte.iterrows():
+                                if (ret['largo'] >= row['L'] and ret['ancho'] >= row['A']) or \
+                                   (ret['largo'] >= row['A'] and ret['ancho'] >= row['L']):
+                                    
+                                    piezas_que_encajan += 1
+                                    m2_p = (row['L'] * row['A']) / 1_000_000
+                                    ahorro_madera += (m2_p * maderas[mat_principal] / 5.03)
+                                    st.success(f"¡Match! '{row['Pieza']}' entra en Retazo ID-{ret['id']}")
+                                    break
 
                 total_costo_real = total_costo - ahorro_madera
                 utilidad = total_costo_real * config['ganancia_taller_pct']
@@ -645,6 +657,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
