@@ -9,6 +9,43 @@ from fpdf import FPDF
 from datetime import datetime, timedelta, timezone
 import urllib.parse
 
+# --- PARÁMETROS TÉCNICOS DE TALLER (BASADO EN EXPERTO BVM) ---
+CONFIG_TECNICA = {
+    "cnc_margen_seguridad": 25,  # mm por lado
+    "cnc_separacion_piezas": 25, # mm entre piezas
+    "fresa_default": 6.0,        # mm
+    "ranura_profundidad": 10.0,  # mm
+    "ranura_distancia_borde": 10.0, # mm
+    "retazo_min_ancho": 150,     # mm
+    "retazo_min_largo": 400,     # mm
+    "limpieza_placa_manual": 20, # mm (refilado)
+    "sierra_kerf": 2.0           # mm (lo que come el disco)
+}
+def obtener_veta_automatica(nombre_pieza):
+    """Asigna el sentido de la veta según las reglas del experto BVM."""
+    nombre_lower = nombre_pieza.lower()
+    # Casos específicos de veta vertical según tu viejo
+    if any(x in nombre_lower for x in ["lateral exterior", "puerta", "tapa de cajon", "fondo"]):
+        return "Vertical (Hacia Arriba)"
+    # Estantes, bases, techos, travesaños y partes internas de cajón son horizontales
+    return "Horizontal (Izquierda a Derecha)"
+def calcular_medida_frente(ancho_hueco, alto_hueco, tipo_montaje="Superpuesto", es_doble=False):
+    """
+    Calcula la medida real de la placa para un frente.
+    """
+    if tipo_montaje == "Superpuesto":
+        # Se deja 2mm menos en los 4 lados sobre la medida externa
+        ancho_real = ancho_hueco - 4 
+        alto_real = alto_hueco - 4
+    else:  # Embutido
+        # 3mm arriba, abajo y bisagra. 2mm en el encuentro si es doble.
+        alto_real = alto_hueco - 6 # 3mm arriba + 3mm abajo
+        if es_doble:
+            ancho_real = ancho_hueco - 5 # 3mm bisagra + 2mm encuentro
+        else:
+            ancho_real = ancho_hueco - 6 # 3mm de cada lado
+            
+    return ancho_real, alto_real
 def generar_pdf_presupuesto(datos):
     pdf = FPDF()
     pdf.add_page()
@@ -261,6 +298,7 @@ if menu == "Cotizador CNC":
             c_pue, c_est = st.columns(2)
             cant_puertas = c_pue.number_input("Cant. Puertas", value=0, min_value=0, key="cant_pue_p")
             cant_estantes = c_est.number_input("Cant. Estantes", value=0, min_value=0, key="cant_est_p")
+            usa_gola = st.checkbox("¿Lleva sistema Gola? (+2cm altura)", value=False)
 
             # --- Lógica de Simetría Original Restaurada ---
             if cant_puertas > 0 and ancho_m > 0:
@@ -288,99 +326,103 @@ if menu == "Cotizador CNC":
             necesita_colocacion = st.checkbox("¿Requiere Colocación?")
             flete_sel = st.selectbox("Zona Envío", ["Ninguno", "Capital", "Zona Norte"])
             dias_col = st.number_input("Días de obra", value=0) if necesita_colocacion else 0
-        with col_out:
+       with col_out:
             st.subheader("📐 Planilla de Corte e Inteligencia de Materiales")
-            despiece = []
             
             if alto_m > 0 and ancho_m > 0:
-                # 1. --- MOTOR DE DESPIECE (Suma de todas las piezas) ---
-                despiece.append({"Pieza": "Lateral Exterior", "Cant": 2, "L": alto_m, "A": prof_m})
-                despiece.append({"Pieza": "Piso/Techo", "Cant": 2, "L": ancho_m - 36, "A": prof_m})
+                # --- A. CONFIGURACIÓN DE PRECISIÓN Y GOLA ---
+                c_prec1, c_prec2 = st.columns(2)
+                es_cnc = c_prec1.toggle("🚀 Modo CNC (Margen 25mm)", value=True)
+                pvc_2mm = c_prec2.checkbox("¿Usa PVC 2mm?", value=True)
+                usa_gola = st.checkbox("¿Lleva sistema Gola? (+2cm altura en frentes)", value=False)
+                esp_canto = 2.0 if pvc_2mm else 0.5
+                
+                # Función interna mejorada con las últimas reglas de tu viejo
+                def crear_pieza(nombre, cant, largo, ancho, descontar=True):
+                    l_f = largo - (esp_canto * 2) if descontar else largo
+                    a_f = ancho - (esp_canto * 2) if descontar else ancho
+                    # Usamos la función de veta que pegaste arriba
+                    veta = obtener_veta_automatica(nombre)
+                    return {"Pieza": nombre, "Cant": cant, "L": int(l_f), "A": int(a_f), "Veta": veta}
+
+                despiece = []
+                # 1. Estructura
+                despiece.append(crear_pieza("Lateral Exterior", 2, alto_m, prof_m))
+                despiece.append(crear_pieza("Piso/Techo", 2, ancho_m - 36, prof_m))
                 
                 if tiene_parante:
-                    despiece.append({"Pieza": "Parante Divisor", "Cant": 1, "L": alto_m - 36, "A": prof_m - 20})
+                    despiece.append(crear_pieza("Parante Divisor", 1, alto_m - 36, prof_m - 20))
                 
-                for i, t in enumerate(medidas_travesaños):
-                    despiece.append({"Pieza": f"Travesaño {i+1}", "Cant": 1, "L": t["L"], "A": t["A"]})
-
-                # AGREGAMOS PUERTAS AL DESPIECE Y PRECIO
-                for i, p_ancho in enumerate(medidas_puertas):
-                    if p_ancho > 0:
-                        despiece.append({"Pieza": f"Puerta {i+1}", "Cant": 1, "L": alto_m - 10, "A": p_ancho})
-
-                # AGREGAMOS ESTANTES AL DESPIECE Y PRECIO
                 for i, e_ancho in enumerate(medidas_estantes):
-                    if e_ancho > 0:
-                        despiece.append({"Pieza": f"Estante {i+1}", "Cant": 1, "L": e_ancho, "A": prof_m - 20})
+                    if e_ancho > 0: despiece.append(crear_pieza(f"Estante {i+1}", 1, e_ancho, prof_m - 20))
 
-                # AGREGAMOS CAJONES (Frentes)
+                # 2. Frentes (Puertas y Cajones)
+                if cant_puertas > 0:
+                    w_pue, h_pue = calcular_medida_frente(ancho_sugerido, alto_m, "Superpuesto")
+                    if usa_gola: h_pue += 20 # Regla Gola de tu viejo
+                    for i in range(int(cant_puertas)):
+                        despiece.append(crear_pieza(f"Puerta {i+1}", 1, h_pue, w_pue))
+
                 if cant_cajones > 0:
-                    despiece.append({"Pieza": "Frentes de Cajón", "Cant": cant_cajones, "L": 200, "A": ancho_hueco_cajon - 10})
+                    for i in range(int(cant_cajones)):
+                        h_frente = st.session_state.get(f"h_caj_{i}", 150)
+                        # Tapa de cajón (Estética - Veta Vertical)
+                        w_tapa, h_tapa = calcular_medida_frente(ancho_hueco_cajon, h_frente, "Superpuesto")
+                        despiece.append(crear_pieza(f"Tapa de Cajon {i+1}", 1, h_tapa, w_tapa))
 
-                # AGREGAMOS EL FONDO (Pieza separada)
-                despiece.append({"Pieza": "Fondo Mueble", "Cant": 1, "L": alto_m - 5, "A": ancho_m - 5, "Tipo": "Fondo"})
+                # Fondo (sin descontar canto)
+                despiece.append({"Pieza": "Fondo Mueble", "Cant": 1, "L": alto_m - 5, "A": ancho_m - 5, "Veta": "Vertical", "Tipo": "Fondo"})
 
                 df_corte = pd.DataFrame(despiece)
                 st.data_editor(df_corte, use_container_width=True)
 
-                # 2. --- CÁLCULO DE COSTOS REALES ---
-                # Separamos materiales por tipo (18mm vs Fondo)
-                m2_18mm = (df_corte[df_corte.get('Tipo') != 'Fondo']['L'] * df_corte['A'] * df_corte['Cant']).sum() / 1_000_000
+                # --- B. CÁLCULO DE COSTOS CON REFILADO Y MAQUINARIA ---
+                # Si es manual, restamos limpieza de placa (20mm x lado) del área útil
+                limpieza = 0 if es_cnc else CONFIG_TECNICA["limpieza_placa_manual"]
+                gap = CONFIG_TECNICA["cnc_separacion_piezas"] if es_cnc else CONFIG_TECNICA["sierra_kerf"]
+                
+                m2_18mm = ((df_corte[df_corte.get('Tipo') != 'Fondo']['L'] + gap) * (df_corte['A'] + gap) * df_corte['Cant']).sum() / 1_000_000
                 m2_fondo = (df_corte[df_corte.get('Tipo') == 'Fondo']['L'] * df_corte['A'] * df_corte['Cant']).sum() / 1_000_000
+
+                # Impacto financiero del refilado en modo manual
+                if not es_cnc:
+                    st.warning(f"⚠️ Modo Manual: Se descuentan {limpieza}mm perimetrales por limpieza de placa.")
 
                 costo_madera = (m2_18mm * maderas[mat_principal] / 5.03)
                 costo_fondo = (m2_fondo * fondos[mat_fondo_sel] / 5.03)
-                
-                # 3. --- HERRAJES Y LOGÍSTICA (Afectan el precio final) ---
                 costo_herrajes = (cant_puertas * 2 * precio_bisagra) + (cant_cajones * precio_guia)
                 
                 costo_flete = 0
                 if flete_sel == "Capital": costo_flete = config['flete_capital']
                 elif flete_sel == "Zona Norte": costo_flete = config['flete_norte']
-
-                costo_operativo = (dias_prod * config['gastos_fijos_diarios'])
                 
-                # SUMATORIA TOTAL DE COSTOS
+                costo_operativo = (dias_prod * config['gastos_fijos_diarios'])
                 total_costo = costo_madera + costo_fondo + costo_herrajes + costo_operativo + costo_base + costo_flete
                 if necesita_colocacion: total_costo += (dias_col * config['colocacion_dia'])
-                # 8. --- INTELIGENCIA DE AHORRO (RETAZOS) ---
+
+                # --- C. RETAZOS Y PRECIO FINAL (Igual que antes) ---
                 st.write("---")
                 retazos_en_stock = consultar_retazos_disponibles(mat_principal)
-                ahorro_madera = 0 # Inicializamos el ahorro en 0
-                
+                ahorro_madera = 0
                 if retazos_en_stock:
                     st.subheader("♻️ Oportunidades de Ahorro")
-                    piezas_que_encajan = 0
                     for ret in retazos_en_stock:
                         for index, row in df_corte.iterrows():
-                            # Lógica de encaje: largo y ancho (considerando que se pueden rotar)
-                            if (ret['largo'] >= row['L'] and ret['ancho'] >= row['A']) or \
-                               (ret['largo'] >= row['A'] and ret['ancho'] >= row['L']):
-                                
-                                piezas_que_encajan += 1
-                                # Calculamos cuánto dinero representa ese retazo
-                                m2_pieza = (row['L'] * row['A']) / 1_000_000
-                                ahorro_pieza = (m2_pieza * maderas[mat_principal] / 5.03)
-                                ahorro_madera += ahorro_pieza
-                                
-                                st.success(f"¡Match! '{row['Pieza']}' entra en Retazo ID-{ret['id']}. Ahorro: ${ahorro_pieza:,.0f}")
+                            if (ret['largo'] >= row['L'] and ret['ancho'] >= row['A']) or (ret['largo'] >= row['A'] and ret['ancho'] >= row['L']):
+                                m2_p = (row['L'] * row['A']) / 1_000_000
+                                ahorro_madera += (m2_p * maderas[mat_principal] / 5.03)
+                                st.success(f"¡Match! '{row['Pieza']}' en Retazo ID-{ret['id']}")
                                 break 
-                    
-                    if piezas_que_encajan > 0:
-                        st.info(f"💡 Ahorro total estimado en materiales: ${ahorro_madera:,.0f}")
-                
-                # APLICAMOS EL AHORRO AL COSTO TOTAL
-                total_costo_real = total_costo - ahorro_madera
 
-                # MARGEN Y PRECIO FINAL SOBRE EL COSTO REAL
+                total_costo_real = total_costo - ahorro_madera
                 utilidad = total_costo_real * config['ganancia_taller_pct']
                 precio_final = total_costo_real + utilidad
 
-                # 4. --- MÉTRICAS ---
                 c1, c2, c3 = st.columns(3)
-                c1.metric("Costo Herrajes", f"${costo_herrajes:,.0f}")
-                c2.metric("M2 Melamina", f"{m2_18mm:.2f} m²")
-                c3.metric("Utilidad Bruta", f"${utilidad:,.0f}")
+                c1.metric("Costo Real", f"${total_costo_real:,.0f}")
+                c2.metric("M2 Placa", f"{m2_18mm:.2f}")
+                c3.metric("Precio Final", f"${precio_final:,.2f}")
+    
                 # 5. --- ANÁLISIS FINANCIERO VISUAL (VALOR PRO) ---
                 st.write("---")
                 st.subheader("📊 Desglose de Inversión y Rentabilidad")
@@ -603,6 +645,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
