@@ -326,7 +326,7 @@ if menu == "Cotizador CNC":
             necesita_colocacion = st.checkbox("¿Requiere Colocación?")
             flete_sel = st.selectbox("Zona Envío", ["Ninguno", "Capital", "Zona Norte"])
             dias_col = st.number_input("Días de obra", value=0) if necesita_colocacion else 0
-       with col_out:
+        with col_out:
             st.subheader("📐 Planilla de Corte e Inteligencia de Materiales")
             
             if alto_m > 0 and ancho_m > 0:
@@ -422,7 +422,7 @@ if menu == "Cotizador CNC":
                 c1.metric("Costo Real", f"${total_costo_real:,.0f}")
                 c2.metric("M2 Placa", f"{m2_18mm:.2f}")
                 c3.metric("Precio Final", f"${precio_final:,.2f}")
-    
+            
                 # 5. --- ANÁLISIS FINANCIERO VISUAL (VALOR PRO) ---
                 st.write("---")
                 st.subheader("📊 Desglose de Inversión y Rentabilidad")
@@ -645,6 +645,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
