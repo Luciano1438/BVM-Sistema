@@ -326,6 +326,14 @@ if menu == "Cotizador CNC":
             # ACÁ SE DEFINE LA VARIABLE QUE TE FALTA:
             cant_puertas = c_pue.number_input("Cant. Puertas", value=0, min_value=0, key="cant_pue_p")
             cant_estantes = c_est.number_input("Cant. Estantes", value=0, min_value=0, key="cant_est_p")
+            tipo_agarre = st.selectbox(
+                "Tipo de Agarre en Frentes", 
+                ["Manija / Tirador Estándar", "Perfil Gola (Aluminio)", "Uñero (Corte a 45°)", "Push to Open"],
+                key="agarre_selector"
+            )
+            
+            # Variable lógica que usará el despiece automáticamente
+            usa_gola = True if "Gola" in tipo_agarre else False
             # Recalculo de simetría de puertas (ahora considera el parante desplazado)
             if cant_puertas > 0 and ancho_m > 0:
                 esp_parante_din = esp_real if tiene_parante else 0
@@ -360,18 +368,17 @@ if menu == "Cotizador CNC":
             st.subheader("📐 Planilla de Corte e Inteligencia de Materiales")
             
             if alto_m > 0 and ancho_m > 0:
-                # --- A. CONFIGURACIÓN DE PRECISIÓN Y GOLA ---
+                # --- A. CONFIGURACIÓN DE PRECISIÓN ---
                 c_prec1, c_prec2 = st.columns(2)
                 es_cnc = c_prec1.toggle("🚀 Modo CNC (Margen 25mm)", value=True)
                 pvc_2mm = c_prec2.checkbox("¿Usa PVC 2mm?", value=True)
-                usa_gola = st.checkbox("¿Lleva sistema Gola? (+2cm altura en frentes)", value=False)
+                # Eliminamos el checkbox de Gola de acá porque ya se define en la columna de la izquierda
                 esp_canto = 2.0 if pvc_2mm else 0.5
                 
                 def crear_pieza(nombre, cant, largo, ancho, descontar=True):
                     l_f = largo - (esp_canto * 2) if descontar else largo
                     a_f = ancho - (esp_canto * 2) if descontar else ancho
-    
-                    # Si el switch está apagado, la veta es LIBRE. Si está prendido, usamos la regla BVM.
+                    
                     if not tiene_veta:
                         veta_final = "Libre (Cualquier sentido)"
                     else:
@@ -379,38 +386,41 @@ if menu == "Cotizador CNC":
         
                     return {"Pieza": nombre, "Cant": cant, "L": int(l_f), "A": int(a_f), "Veta": veta_final}
 
-                # --- ESTO VA DENTRO DEL IF ALTO_M > 0 ---
                 despiece = []
-                # 1. Estructura
+                # 1. Estructura con Espesor de Calibre (esp_real)
                 despiece.append(crear_pieza("Lateral Exterior", 2, alto_m, prof_m))
                 despiece.append(crear_pieza("Piso/Techo", 2, ancho_m - (esp_real * 2), prof_m))
                 
                 if tiene_parante:
-                    # El parante ahora es dinámico
+                    # El parante ahora es dinámico según esp_real
                     despiece.append(crear_pieza("Parante Divisor", 1, alto_m - (esp_real * 2), prof_m - 20))
                     
-                    # CÁLCULO DE HUECOS PARA TU VIEJO (Sin redeclarar la variable)
+                    # CÁLCULO DE HUECOS (Usando la variable definida en col_in)
                     hueco_izq = distancia_parante
                     hueco_der = (ancho_m - (esp_real * 2)) - distancia_parante - esp_real
                     st.info(f"📏 Hueco Izquierdo: {hueco_izq:.1f}mm | Hueco Derecho: {hueco_der:.1f}mm")
-                    st.info(f"📏 Hueco Izquierdo: {hueco_izq:.1f}mm | Hueco Derecho: {hueco_der:.1f}mm")
-                for i, e_ancho in enumerate(medidas_estantes):
-                    if e_ancho > 0: despiece.append(crear_pieza(f"Estante {i+1}", 1, e_ancho, prof_m - 20))
 
-                # 2. Frentes (Puertas y Cajones)
+                for i, e_ancho in enumerate(medidas_estantes):
+                    if e_ancho > 0: 
+                        despiece.append(crear_pieza(f"Estante {i+1}", 1, e_ancho, prof_m - 20))
+
+                # 2. Frentes (Puertas y Cajones con lógica de Agarre)
                 if cant_puertas > 0:
                     w_pue, h_pue = calcular_medida_frente(ancho_sugerido, alto_m, "Superpuesto")
-                    if usa_gola: h_pue += 20 # Regla Gola de tu viejo
+                    # REGLA BVM: Si es Gola, restamos para el perfil de aluminio
+                    if usa_gola: 
+                        h_pue -= 20 
                     for i in range(int(cant_puertas)):
-                        despiece.append(crear_pieza(f"Puerta {i+1}", 1, h_pue, w_pue))
+                        despiece.append(crear_pieza(f"Puerta {i+1} ({tipo_agarre})", 1, h_pue, w_pue))
 
                 if cant_cajones > 0:
                     for i in range(int(cant_cajones)):
                         h_frente = st.session_state.get(f"h_caj_{i}", 150)
-                        # Tapa de cajón (Estética - Veta Vertical)
                         w_tapa, h_tapa = calcular_medida_frente(ancho_hueco_cajon, h_frente, "Superpuesto")
-                        despiece.append(crear_pieza(f"Tapa de Cajon {i+1}", 1, h_tapa, w_tapa))
-
+                        # Si es Gola, achicamos el frente para que entre la mano
+                        if usa_gola:
+                            h_tapa -= 20
+                        despiece.append(crear_pieza(f"Tapa de Cajon {i+1} ({tipo_agarre})", 1, h_tapa, w_tapa))
                 # Fondo (sin descontar canto)
                 despiece.append({"Pieza": "Fondo Mueble", "Cant": 1, "L": alto_m - 5, "A": ancho_m - 5, "Veta": "Vertical", "Tipo": "Fondo"})
 
@@ -698,6 +708,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
