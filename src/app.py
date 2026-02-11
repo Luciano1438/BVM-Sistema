@@ -230,8 +230,6 @@ def ejecutar_query(query, params=(), fetch=False):
         conn.commit()
 import urllib.parse
 
-import urllib.parse
-
 def generar_link_whatsapp(datos):
     # Formato limpio y profesional sin caracteres especiales
     lineas = [
@@ -286,6 +284,7 @@ if menu == "Cotizador CNC":
             alto_m = c2.number_input("Alto Total (mm)", min_value=0, value=0)
             prof_m = c3.number_input("Profundo (mm)", min_value=0, value=0)
             mat_principal = st.selectbox("Material Cuerpo (18mm)", list(maderas.keys()))
+            tiene_veta = st.toggle("💎 El material tiene veta (Respetar orientación)", value=True)
             esp_real = st.number_input("Espesor Real Placa (mm)", value=18.0, step=0.1, format="%.1f")
             mat_fondo_sel = st.selectbox("Material Fondo", list(fondos.keys()))
             
@@ -349,20 +348,17 @@ if menu == "Cotizador CNC":
                 usa_gola = st.checkbox("¿Lleva sistema Gola? (+2cm altura en frentes)", value=False)
                 esp_canto = 2.0 if pvc_2mm else 0.5
                 
-                # Función interna mejorada con las últimas reglas de tu viejo
                 def crear_pieza(nombre, cant, largo, ancho, descontar=True):
                     l_f = largo - (esp_canto * 2) if descontar else largo
                     a_f = ancho - (esp_canto * 2) if descontar else ancho
-                    
-                    # REGLA MAESTRA: Si el material es Blanco, veta LIBRE. Si no, regla BVM.
-                    if "blanco" in mat_principal.lower():
+    
+                    # Si el switch está apagado, la veta es LIBRE. Si está prendido, usamos la regla BVM.
+                    if not tiene_veta:
                         veta_final = "Libre (Cualquier sentido)"
                     else:
                         veta_final = obtener_veta_automatica(nombre, mat_principal)
-                        
+        
                     return {"Pieza": nombre, "Cant": cant, "L": int(l_f), "A": int(a_f), "Veta": veta_final}
-                        
-                    return {"Pieza": nombre, "Cant": cant, "L": int(l_f), "A": int(a_f), "Veta": veta}
 
                 despiece = []
                 # 1. Estructura
@@ -676,6 +672,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
