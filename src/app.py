@@ -308,26 +308,29 @@ if menu == "Cotizador CNC":
             # El ancho del hueco también debe permitir decimales (por si el parante está desplazado)
             ancho_hueco_cajon = c_hue.number_input("Ancho Hueco Cajonera (mm)", value=0.0, step=0.5)
             
+            # --- NUEVA LÓGICA DE PARANTE DESPLAZABLE Y SIMETRÍA ---
             tiene_parante = st.checkbox("¿Lleva parante divisor?", value=False)
+            distancia_parante = 0.0
             
-            if cant_cajones > 0:
-                for i in range(int(cant_cajones)):
-                    st.number_input(f"Altura Frente Cajón {i+1} (mm)", value=150.0, key=f"h_caj_{i}", step=0.5)
+            if tiene_parante:
+                # El límite máximo es el ancho interno libre total
+                max_pos = float(ancho_m - (esp_real * 2)) if ancho_m > (esp_real * 2) else 0.0
+                distancia_parante = st.number_input(
+                    "Distancia Parante desde borde IZQ interno (mm)", 
+                    min_value=0.0, 
+                    max_value=max_pos, 
+                    value=ancho_hueco_cajon if ancho_hueco_cajon > 0 else (max_pos / 2),
+                    step=0.5
+                )
 
-            c_pue, c_est = st.columns(2)
-            cant_puertas = c_pue.number_input("Cant. Puertas", value=0, min_value=0, key="cant_pue_p")
-            cant_estantes = c_est.number_input("Cant. Estantes", value=0, min_value=0, key="cant_est_p")
-            usa_gola = st.checkbox("¿Lleva sistema Gola? (+2cm altura)", value=False)
-
-            # --- LÓGICA DE SIMETRÍA 100% DINÁMICA ---
+            # Recalculo de simetría de puertas (ahora considera el parante desplazado)
             if cant_puertas > 0 and ancho_m > 0:
-                # REGLA ORO: Descontamos 2 laterales exteriores + hueco cajon + espesor del parante (si hay)
                 esp_parante_din = esp_real if tiene_parante else 0
                 ancho_disp_p = ancho_m - (esp_real * 2) - ancho_hueco_cajon - esp_parante_din
                 
                 total_luces = (luz_e * 2) + (luz_i * (cant_puertas - 1))
                 ancho_sugerido = (ancho_disp_p - total_luces) / cant_puertas
-                st.info(f"💡 Simetría BVM (Calculado a {esp_real}mm): {ancho_sugerido:.1f} mm c/u")
+                st.info(f"💡 Simetría BVM (Espesor {esp_real}mm): {ancho_sugerido:.1f} mm c/u")
 
             medidas_puertas = [st.number_input(f"Ancho Puerta {i+1} (mm)", value=0.0, key=f"pue_{i}", step=0.5) for i in range(int(cant_puertas))]
             medidas_estantes = [st.number_input(f"Ancho Estante {i+1} (mm)", value=0.0, key=f"est_{i}", step=0.5) for i in range(int(cant_estantes))]
@@ -375,12 +378,17 @@ if menu == "Cotizador CNC":
 
                 despiece = []
                 # 1. Estructura
-                despiece.append(crear_pieza("Lateral Exterior", 2, alto_m, prof_m))
-                despiece.append(crear_pieza("Piso/Techo", 2, ancho_m - (esp_real * 2), prof_m))
-                
+               despiece.append(crear_pieza("Lateral Exterior", 2, alto_m, prof_m))
+               despiece.append(crear_pieza("Piso/Techo", 2, ancho_m - (esp_real * 2), prof_m))
+                distancia_parante = 0.0
                 if tiene_parante:
+                    # El parante ahora es dinámico
                     despiece.append(crear_pieza("Parante Divisor", 1, alto_m - (esp_real * 2), prof_m - 20))
-                
+                    
+                    # CÁLCULO DE HUECOS PARA TU VIEJO
+                    hueco_izq = distancia_parante
+                    hueco_der = (ancho_m - (esp_real * 2)) - distancia_parante - esp_real
+                    st.info(f"📏 Hueco Izquierdo: {hueco_izq:.1f}mm | Hueco Derecho: {hueco_der:.1f}mm")
                 for i, e_ancho in enumerate(medidas_estantes):
                     if e_ancho > 0: despiece.append(crear_pieza(f"Estante {i+1}", 1, e_ancho, prof_m - 20))
 
@@ -685,6 +693,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
