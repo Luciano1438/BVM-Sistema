@@ -322,7 +322,10 @@ if menu == "Cotizador CNC":
                     value=ancho_hueco_cajon if ancho_hueco_cajon > 0 else (max_pos / 2),
                     step=0.5
                 )
-
+            c_pue, c_est = st.columns(2)
+            # ACÁ SE DEFINE LA VARIABLE QUE TE FALTA:
+            cant_puertas = c_pue.number_input("Cant. Puertas", value=0, min_value=0, key="cant_pue_p")
+            cant_estantes = c_est.number_input("Cant. Estantes", value=0, min_value=0, key="cant_est_p")
             # Recalculo de simetría de puertas (ahora considera el parante desplazado)
             if cant_puertas > 0 and ancho_m > 0:
                 esp_parante_din = esp_real if tiene_parante else 0
@@ -695,6 +698,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
