@@ -392,27 +392,36 @@ if menu == "Cotizador CNC":
                 if tipo_base in ["Banquina de Obra", "Patas Plásticas"]:
                     altura_caja_real = alto_m - altura_base
 
-                # 1. Estructura Principal (USANDO ESP_REAL)
+                # 1. Estructura Principal (USANDO ESP_REAL MAESTRO)
                 despiece.append(crear_pieza("Lateral Exterior", 2, altura_caja_real, prof_m))
-                despiece.append(crear_pieza("Piso/Techo", 2, ancho_m - (esp_real * 2), prof_m))
+                
+                # EL PISO Y TECHO: Ahora reaccionan al espesor real del calibre
+                ancho_interno_total = ancho_m - (esp_real * 2)
+                despiece.append(crear_pieza("Piso/Techo", 2, ancho_interno_total, prof_m))
                 
                 if tipo_base == "Zócalo de Madera":
-                    despiece.append(crear_pieza("Zócalo Frontal", 2, altura_base, ancho_m - (esp_real * 2)))
+                    despiece.append(crear_pieza("Zócalo Frontal", 2, altura_base, ancho_interno_total))
                     despiece.append(crear_pieza("Zócalo Lateral", 2, altura_base, prof_m - 50))
                 
                 if tiene_parante:
+                    # El parante descuenta espesor real de piso y techo para la altura
                     despiece.append(crear_pieza("Parante Divisor", 1, altura_caja_real - (esp_real * 2), prof_m - 20))
+                    
                     hueco_izq = distancia_parante
-                    hueco_der = (ancho_m - (esp_real * 2)) - distancia_parante - esp_real
+                    # El hueco derecho descuenta el espesor real del parante
+                    hueco_der = ancho_interno_total - distancia_parante - esp_real
                     st.info(f"📏 Hueco Izquierdo: {hueco_izq:.1f}mm | Hueco Derecho: {hueco_der:.1f}mm")
 
+                # Estantes y Travesaños: Respetan la lógica de ancho interno
                 for i, e_ancho in enumerate(medidas_estantes):
-                    if e_ancho > 0: despiece.append(crear_pieza(f"Estante {i+1}", 1, e_ancho, prof_m - 20))
+                    if e_ancho > 0: 
+                        despiece.append(crear_pieza(f"Estante {i+1}", 1, e_ancho, prof_m - 20))
                 
                 for i, trav in enumerate(medidas_travesaños):
-                    if trav['L'] > 0: despiece.append(crear_pieza(f"Travesaño {i+1}", 1, trav['L'], trav['A']))
+                    if trav['L'] > 0: 
+                        despiece.append(crear_pieza(f"Travesaño {i+1}", 1, trav['L'], trav['A']))
 
-                # 2. Frentes (Puertas y Cajones)
+                # 2. Frentes (Puertas y Cajones con Altura de Caja Real)
                 if cant_puertas > 0:
                     w_pue, h_pue = calcular_medida_frente(ancho_sugerido, altura_caja_real, "Superpuesto")
                     if usa_gola: h_pue -= 20 
@@ -713,6 +722,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
