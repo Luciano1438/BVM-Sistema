@@ -418,14 +418,18 @@ if menu == "Cotizador CNC":
                     despiece.append(crear_pieza("Zócalo Lateral", 2, altura_base, prof_m - 50))
                 
                 if tiene_parante:
-                    # El parante descuenta espesor real de piso y techo para la altura
-                    despiece.append(crear_pieza("Parante Divisor", 1, altura_caja_real - (esp_real * 2), prof_m - 20))
+                    # EL PARANTE: Altura interna exacta (Caja - 2 espesores reales)
+                    altura_interna = altura_caja_real - (esp_real * 2)
+                    despiece.append(crear_pieza("Parante Divisor", 1, altura_interna, prof_m - 20))
                     
+                    # CÁLCULO DE HUECOS (Manda el calibre)
+                    # El hueco izquierdo es la medida que puso tu viejo
                     hueco_izq = distancia_parante
-                    # El hueco derecho descuenta el espesor real del parante
+                    # El hueco derecho es el resto, descontando el espesor real del parante
                     hueco_der = ancho_interno_total - distancia_parante - esp_real
-                    st.info(f"📏 Hueco Izquierdo: {hueco_izq:.1f}mm | Hueco Derecho: {hueco_der:.1f}mm")
-
+                    
+                    st.info(f"📏 Luz Interna Izquierda: {hueco_izq:.1f}mm")
+                    st.info(f"📏 Luz Interna Derecha: {hueco_der:.1f}mm")
                 # Estantes y Travesaños: Respetan la lógica de ancho interno
                 for i, e_ancho in enumerate(medidas_estantes):
                     if e_ancho > 0: 
@@ -736,6 +740,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
