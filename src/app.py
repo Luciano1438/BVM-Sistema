@@ -399,15 +399,17 @@ if menu == "Cotizador CNC":
 
                 despiece = []
                 
-                # --- LÓGICA DE ALTURA DINÁMICA DE BVM ---
+                # --- LÓGICA DE ESTRUCTURA REAL BVM ---
+                # 1. Definimos la altura de la caja (descontando banquina/patas)
                 altura_caja_real = alto_m
                 if tipo_base in ["Banquina de Obra", "Patas Plásticas"]:
                     altura_caja_real = alto_m - altura_base
 
-                # 1. Estructura Principal (USANDO ESP_REAL MAESTRO)
+                # 2. LATERALES: Mandan la altura de la caja
                 despiece.append(crear_pieza("Lateral Exterior", 2, altura_caja_real, prof_m))
                 
-                # EL PISO Y TECHO: Ahora reaccionan al espesor real del calibre
+                # 3. PISO Y TECHO: AQUÍ ES DONDE EL ESPESOR REAL MANDA
+                # Si esp_real sube, el piso se achica automáticamente.
                 ancho_interno_total = ancho_m - (esp_real * 2)
                 despiece.append(crear_pieza("Piso/Techo", 2, ancho_interno_total, prof_m))
                 
@@ -734,6 +736,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
