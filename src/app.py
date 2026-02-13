@@ -307,6 +307,18 @@ if menu == "Cotizador CNC":
             cant_cajones = c_caj.number_input("Cant. Cajones", value=0, min_value=0)
             # El ancho del hueco también debe permitir decimales (por si el parante está desplazado)
             ancho_hueco_cajon = c_hue.number_input("Ancho Hueco Cajonera (mm)", value=0.0, step=0.5)
+            # --- NUEVO BLOQUE: SELECCIÓN DE ALTURAS INDIVIDUALES ---
+            if cant_cajones > 0:
+                st.markdown("#### 📏 Altura de cada Frente")
+                for i in range(int(cant_cajones)):
+                    # Guardamos cada altura con una key única para que la planilla de corte la lea
+                    st.number_input(
+                        f"Altura Frente Cajón {i+1} (mm)", 
+                        min_value=50.0, 
+                        value=150.0, 
+                        key=f"h_caj_{i}", 
+                        step=0.5
+                    )
             
             # --- NUEVA LÓGICA DE PARANTE DESPLAZABLE Y SIMETRÍA ---
             tiene_parante = st.checkbox("¿Lleva parante divisor?", value=False)
@@ -722,6 +734,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
