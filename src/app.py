@@ -391,7 +391,7 @@ if menu == "Cotizador CNC":
                 pvc_2mm = c_prec2.checkbox("¿Usa PVC 2mm?", value=True)
                 esp_canto = 2.0 if pvc_2mm else 0.5
                 
-               def crear_pieza(nombre, cant, largo, ancho, cant_l=2, cant_a=0, descontar=True):
+                def crear_pieza(nombre, cant, largo, ancho, cant_l=2, cant_a=0, descontar=True):
                     """
                     Calcula el corte real descontando el PVC.
                     cant_l: cuántos lados del LARGO llevan PVC (0, 1 o 2)
