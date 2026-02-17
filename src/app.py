@@ -273,52 +273,63 @@ if st.sidebar.button("🚪 Cerrar Sesión"):
 if menu == "Cotizador CNC":
     try:
         st.title("🏭 BVM | Control de Producción Industrial")
+        # --- BLOQUE A PEGAR: DASHBOARD DE CONTROL ---
+        st.write("---")
+        # Calculamos la rentabilidad proyectada (usamos valores base si no hay datos)
+        # Esto le da el look de "Terminal de Inversión"
+        m1, m2, m3, m4 = st.columns(4)
+        with m1:
+            st.metric("📦 Piezas Totales", f"{len(df_corte) if 'df_corte' in locals() else 0}")
+        with m2:
+            st.metric("🪵 Consumo Placa", f"{m2_18mm:.2f} m²" if 'm2_18mm' in locals() else "0.0 m²")
+        with m3:
+            st.metric("📈 Margen Bruto", f"{config['ganancia_taller_pct']*100:.0f}%")
+        with m4:
+            color_precio = "normal" if 'precio_final' in locals() else "off"
+            st.metric("💵 Cotización", f"${precio_final:,.0f}" if 'precio_final' in locals() else "$0", delta_color=color_precio)
+        st.write("---")
         col_in, col_out = st.columns([1, 1.2])
 
         with col_in:
-            st.subheader("📋 Datos del Proyecto")
-            cliente = st.text_input("Cliente", "")
-            mueble_nom = st.text_input("Mueble", "")
-            
-            c1, c2, c3 = st.columns(3)
-            # 1. Ajuste Decimal: Todos como float para que acepten el punto decimal
-            ancho_m = c1.number_input("Ancho Total (mm)", min_value=0.0, max_value=5000.0, value=0.0, step=0.5)
-            alto_m = c2.number_input("Alto Total (mm)", min_value=0.0, max_value=5000.0, value=0.0, step=0.5)
-            prof_m = c3.number_input("Profundo (mm)", min_value=0.0, max_value=2000.0, value=0.0, step=0.5)
-            
-            mat_principal = st.selectbox("Material Cuerpo (18mm)", list(maderas.keys()))
-            tiene_veta = st.toggle("💎 El material tiene veta (Respetar orientación)", value=True)
-            
-            # EL ESPESOR MAESTRO: Es la única fuente de verdad para los cálculos
-            esp_real = st.number_input("Espesor Real Placa (mm)", min_value=1.0, max_value=50.0, value=18.0, step=0.1)
-            mat_fondo_sel = st.selectbox("Material Fondo", list(fondos.keys()))
-            
-            st.write("---")
-            st.subheader("🏗️ Configuración de Módulos")
-            luz_e, luz_i = 2, 3
-            
-            # Configuración de Herrajes
-            tipo_bisagra = st.selectbox("Tipo de Bisagra", ["Cazoleta C0 Cierre Suave", "Especial"])
-            precio_bisagra = config['bisagra_cazoleta']
-            tipo_corredera = st.radio("Tipo de Corredera", ["Telescópica 45cm", "Cierre Suave Pesada"])
-            precio_guia = config['telescopica_45'] if "45cm" in tipo_corredera else config['telescopica_soft']
-            
-            c_caj, c_hue = st.columns(2)
-            cant_cajones = c_caj.number_input("Cant. Cajones", value=0, min_value=0)
-            # El ancho del hueco también debe permitir decimales (por si el parante está desplazado)
-            ancho_hueco_cajon = c_hue.number_input("Ancho Hueco Cajonera (mm)", value=0.0, step=0.5)
-            # --- NUEVO BLOQUE: SELECCIÓN DE ALTURAS INDIVIDUALES ---
-            if cant_cajones > 0:
-                st.markdown("#### 📏 Altura de cada Frente")
-                for i in range(int(cant_cajones)):
-                    # Guardamos cada altura con una key única para que la planilla de corte la lea
-                    st.number_input(
-                        f"Altura Frente Cajón {i+1} (mm)", 
-                        min_value=50.0, 
-                        value=150.0, 
-                        key=f"h_caj_{i}", 
-                        step=0.5
-                    )
+            # Agrupamos los datos básicos en un contenedor expandible
+            with st.expander("🛠️ 1. Definición de Estructura", expanded=True):
+                cliente = st.text_input("Cliente", "")
+                mueble_nom = st.text_input("Mueble", "")
+                
+                c1, c2, c3 = st.columns(3)
+                ancho_m = c1.number_input("Ancho Total (mm)", min_value=0.0, max_value=5000.0, value=0.0, step=0.5)
+                alto_m = c2.number_input("Alto Total (mm)", min_value=0.0, max_value=5000.0, value=0.0, step=0.5)
+                prof_m = c3.number_input("Profundo (mm)", min_value=0.0, max_value=2000.0, value=0.0, step=0.5)
+                
+                mat_principal = st.selectbox("Material Cuerpo (18mm)", list(maderas.keys()))
+                tiene_veta = st.toggle("💎 El material tiene veta (Respetar orientación)", value=True)
+                esp_real = st.number_input("Espesor Real Placa (mm)", min_value=1.0, max_value=50.0, value=18.0, step=0.1)
+                mat_fondo_sel = st.selectbox("Material Fondo", list(fondos.keys()))
+
+            # Agrupamos los módulos en otro contenedor
+            with st.expander("🏗️ 2. Configuración de Módulos", expanded=False):
+                luz_e, luz_i = 2, 3
+                
+                # Configuración de Herrajes
+                tipo_bisagra = st.selectbox("Tipo de Bisagra", ["Cazoleta C0 Cierre Suave", "Especial"])
+                precio_bisagra = config['bisagra_cazoleta']
+                tipo_corredera = st.radio("Tipo de Corredera", ["Telescópica 45cm", "Cierre Suave Pesada"])
+                precio_guia = config['telescopica_45'] if "45cm" in tipo_corredera else config['telescopica_soft']
+                
+                c_caj, c_hue = st.columns(2)
+                cant_cajones = c_caj.number_input("Cant. Cajones", value=0, min_value=0)
+                ancho_hueco_cajon = c_hue.number_input("Ancho Hueco Cajonera (mm)", value=0.0, step=0.5)
+                
+                if cant_cajones > 0:
+                    st.markdown("#### 📏 Altura de cada Frente")
+                    for i in range(int(cant_cajones)):
+                        st.number_input(
+                            f"Altura Frente Cajón {i+1} (mm)", 
+                            min_value=50.0, 
+                            value=150.0, 
+                            key=f"h_caj_{i}", 
+                            step=0.5
+                        )
             
             # --- NUEVA LÓGICA DE PARANTE DESPLAZABLE Y SIMETRÍA ---
             tiene_parante = st.checkbox("¿Lleva parante divisor?", value=False)
@@ -749,6 +760,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
