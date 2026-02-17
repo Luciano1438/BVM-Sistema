@@ -330,68 +330,61 @@ if menu == "Cotizador CNC":
                             key=f"h_caj_{i}", 
                             step=0.5
                         )
-            
-            # --- NUEVA LÓGICA DE PARANTE DESPLAZABLE Y SIMETRÍA ---
-            tiene_parante = st.checkbox("¿Lleva parante divisor?", value=False)
-            distancia_parante = 0.0
-            
-            if tiene_parante:
-                # El límite máximo es el ancho interno libre total
-                max_pos = float(ancho_m - (esp_real * 2)) if ancho_m > (esp_real * 2) else 0.0
-                distancia_parante = st.number_input(
-                    "Distancia Parante desde borde IZQ interno (mm)", 
-                    min_value=0.0, 
-                    max_value=max_pos, 
-                    value=ancho_hueco_cajon if ancho_hueco_cajon > 0 else (max_pos / 2),
-                    step=0.5
-                )
-            c_pue, c_est = st.columns(2)
-            # ACÁ SE DEFINE LA VARIABLE QUE TE FALTA:
-            cant_puertas = c_pue.number_input("Cant. Puertas", value=0, min_value=0, key="cant_pue_p")
-            cant_estantes = c_est.number_input("Cant. Estantes", value=0, min_value=0, key="cant_est_p")
-            tipo_agarre = st.selectbox(
-                "Tipo de Agarre en Frentes", 
-                ["Manija / Tirador Estándar", "Perfil Gola (Aluminio)", "Uñero (Corte a 45°)", "Push to Open"],
-                key="agarre_selector"
-            )
-            
-            # Variable lógica que usará el despiece automáticamente
-            usa_gola = True if "Gola" in tipo_agarre else False
-            # Recalculo de simetría de puertas (ahora considera el parante desplazado)
-            if cant_puertas > 0 and ancho_m > 0:
-                esp_parante_din = esp_real if tiene_parante else 0
-                ancho_disp_p = ancho_m - (esp_real * 2) - ancho_hueco_cajon - esp_parante_din
+          # --- SECCIÓN 3: INTERIORES Y SIMETRÍA ---
+            with st.expander("⚖️ 3. Parante, Estantes y Simetría", expanded=False):
+                tiene_parante = st.checkbox("¿Lleva parante divisor?", value=False)
+                distancia_parante = 0.0
                 
-                total_luces = (luz_e * 2) + (luz_i * (cant_puertas - 1))
-                ancho_sugerido = (ancho_disp_p - total_luces) / cant_puertas
-                st.info(f"💡 Simetría BVM (Espesor {esp_real}mm): {ancho_sugerido:.1f} mm c/u")
+                if tiene_parante:
+                    max_pos = float(ancho_m - (esp_real * 2)) if ancho_m > (esp_real * 2) else 0.0
+                    distancia_parante = st.number_input(
+                        "Distancia Parante desde borde IZQ interno (mm)", 
+                        min_value=0.0, 
+                        max_value=max_pos, 
+                        value=ancho_hueco_cajon if ancho_hueco_cajon > 0 else (max_pos / 2),
+                        step=0.5
+                    )
+                
+                c_pue, c_est = st.columns(2)
+                cant_puertas = c_pue.number_input("Cant. Puertas", value=0, min_value=0, key="cant_pue_p")
+                cant_estantes = c_est.number_input("Cant. Estantes", value=0, min_value=0, key="cant_est_p")
+                
+                # Inteligencia de Simetría BVM (Cálculo Automático)
+                if cant_puertas > 0 and ancho_m > 0:
+                    esp_parante_din = esp_real if tiene_parante else 0
+                    ancho_disp_p = ancho_m - (esp_real * 2) - ancho_hueco_cajon - esp_parante_din
+                    total_luces = (luz_e * 2) + (luz_i * (cant_puertas - 1))
+                    ancho_sugerido = (ancho_disp_p - total_luces) / cant_puertas
+                    st.info(f"💡 Simetría BVM (Espesor {esp_real}mm): {ancho_sugerido:.1f} mm c/u")
 
-            medidas_puertas = [st.number_input(f"Ancho Puerta {i+1} (mm)", value=0.0, key=f"pue_{i}", step=0.5) for i in range(int(cant_puertas))]
-            medidas_estantes = [st.number_input(f"Ancho Estante {i+1} (mm)", value=0.0, key=f"est_{i}", step=0.5) for i in range(int(cant_estantes))]
-            
-            cant_travesaños = st.number_input("Cantidad de Travesaños", value=0, min_value=0)
-            medidas_travesaños = []
-            for i in range(int(cant_travesaños)):
-                ct1, ct2 = st.columns(2)
-                # El largo sugerido ahora descuenta el ESPESOR REAL, no 36 fijos
-                l_sug = float(ancho_m - (esp_real * 2) if ancho_m > (esp_real * 2) else 0)
-                l_t = ct1.number_input(f"Largo Travesaño {i+1}", value=l_sug, key=f"lt_{i}", step=0.5)
-                a_t = ct2.number_input(f"Ancho Travesaño {i+1}", value=100.0, key=f"at_{i}", step=0.5)
-                medidas_travesaños.append({"L": l_t, "A": a_t})
+                medidas_puertas = [st.number_input(f"Ancho Puerta {i+1} (mm)", value=0.0, key=f"pue_{i}", step=0.5) for i in range(int(cant_puertas))]
+                medidas_estantes = [st.number_input(f"Ancho Estante {i+1} (mm)", value=0.0, key=f"est_{i}", step=0.5) for i in range(int(cant_estantes))]
+                
+                st.write("---")
+                cant_travesaños = st.number_input("Cantidad de Travesaños", value=0, min_value=0)
+                medidas_travesaños = []
+                for i in range(int(cant_travesaños)):
+                    ct1, ct2 = st.columns(2)
+                    l_sug = float(ancho_m - (esp_real * 2) if ancho_m > (esp_real * 2) else 0)
+                    l_t = ct1.number_input(f"Largo Travesaño {i+1}", value=l_sug, key=f"lt_{i}", step=0.5)
+                    a_t = ct2.number_input(f"Ancho Travesaño {i+1}", value=100.0, key=f"at_{i}", step=0.5)
+                    medidas_travesaños.append({"L": l_t, "A": a_t})
 
-            st.write("---")
-            st.subheader("💰 Parámetros Financieros")
-            tipo_base = st.selectbox("Tipo de Soporte", ["Zócalo de Madera", "Banquina", "Patas Plásticas", "Nada"])
-            costo_base = 5000 if tipo_base == "Patas Plásticas" else 0
-            altura_base = st.number_input("Altura de Base/Zócalo (mm)", min_value=0.0, value=100.0, step=5.0)
-            if tipo_base == "Zócalo de Madera":
-                st.caption("💡 El sistema sumará las piezas de zócalo al despiece.")
-            elif tipo_base == "Banquina":
-                st.info(f"⚠️ El mueble apoyará sobre base de {altura_base}mm. Ajustando laterales.")
-            dias_prod = st.number_input("Días de taller", value=0.0, step=0.5) # Arranca en 0
-            necesita_colocacion = st.checkbox("¿Requiere Colocación?")
-            flete_sel = st.selectbox("Zona Envío", ["Ninguno", "Capital", "Zona Norte"])
-            dias_col = st.number_input("Días de obra", value=0) if necesita_colocacion else 0
+            # --- SECCIÓN 4: PARÁMETROS FINANCIEROS Y ENVÍO ---
+            with st.expander("💰 4. Soporte y Logística", expanded=False):
+                tipo_base = st.selectbox("Tipo de Soporte", ["Zócalo de Madera", "Banquina", "Patas Plásticas", "Nada"])
+                costo_base = 5000 if tipo_base == "Patas Plásticas" else 0
+                altura_base = st.number_input("Altura de Base/Zócalo (mm)", min_value=0.0, value=100.0, step=5.0)
+                
+                if tipo_base == "Zócalo de Madera":
+                    st.caption("💡 El sistema sumará las piezas de zócalo al despiece.")
+                elif tipo_base == "Banquina":
+                    st.info(f"⚠️ El mueble apoyará sobre base de {altura_base}mm. Ajustando laterales.")
+                
+                dias_prod = st.number_input("Días de taller", value=0.0, step=0.5)
+                necesita_colocacion = st.checkbox("¿Requiere Colocación?")
+                flete_sel = st.selectbox("Zona Envío", ["Ninguno", "Capital", "Zona Norte"])
+                dias_col = st.number_input("Días de obra", value=0) if necesita_colocacion else 0
         with col_out:
             st.subheader("📐 Planilla de Corte e Inteligencia de Materiales")
             
@@ -760,6 +753,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
