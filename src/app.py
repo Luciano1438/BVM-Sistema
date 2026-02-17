@@ -391,26 +391,25 @@ if menu == "Cotizador CNC":
                 pvc_2mm = c_prec2.checkbox("¿Usa PVC 2mm?", value=True)
                 esp_canto = 2.0 if pvc_2mm else 0.5
                 
-                def crear_pieza(nombre, cant, largo, ancho, cant_l=2, cant_a=0, descontar=True):
+               def crear_pieza(nombre, cant, largo, ancho, cant_l=2, cant_a=0, descontar=True):
                     """
-                    Calcula el corte real descontando el espesor del PVC según cuántos lados se canten.
-                    cant_l: cantidad de lados del LARGO que llevan PVC (0, 1 o 2)
-                    cant_a: cantidad de lados del ANCHO que llevan PVC (0, 1 o 2)
+                    Calcula el corte real descontando el PVC.
+                    cant_l: cuántos lados del LARGO llevan PVC (0, 1 o 2)
+                    cant_a: cuántos lados del ANCHO llevan PVC (0, 1 o 2)
                     """
                     if descontar:
+                        # Restamos el espesor del canto (esp_canto) según la cantidad de lados
                         l_f = largo - (esp_canto * cant_l)
                         a_f = ancho - (esp_canto * cant_a)
                     else:
-                        l_f = largo
-                        a_f = ancho
+                        l_f, a_f = largo, ancho
                         
                     veta_final = obtener_veta_automatica(nombre, mat_principal) if tiene_veta else "Libre"
                     
-                    # Agregamos info de canteado para que sea PRO
+                    # Nota para que el canteador sepa qué hacer
                     nota_canto = f"Canto: {cant_l}L / {cant_a}A"
                     
                     return {"Pieza": nombre, "Cant": cant, "L": int(l_f), "A": int(a_f), "Veta": veta_final, "Notas": nota_canto}
-
                 despiece = []
                 
                 # --- LÓGICA DE ESTRUCTURA REAL BVM ---
@@ -754,6 +753,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
