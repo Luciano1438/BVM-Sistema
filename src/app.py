@@ -213,7 +213,7 @@ def guardar_presupuesto_nube(cliente, mueble, total):
         st.success(f"🚀 Venta blindada para {usuario_actual}")
     except Exception as e:
         st.error(f"Error al impactar nube: {e}")
- def traer_datos_historial():
+def traer_datos_historial():
     usuario_actual = st.session_state["user_data"]["usuario"]
     try:
         response = supabase.table("ventas").select("*").eq("usuario", usuario_actual).execute()
@@ -778,6 +778,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
