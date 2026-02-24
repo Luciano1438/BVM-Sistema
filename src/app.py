@@ -458,7 +458,16 @@ if menu == "Cotizador CNC":
                         despiece.append(crear_pieza(f"Tapa de Cajon {i+1} ({tipo_agarre})", 1, h_tapa, w_tapa))
 
                 # Fondo
-                despiece.append({"Pieza": "Fondo Mueble", "Cant": 1, "L": altura_caja_real - 5, "A": ancho_m - 5, "Veta": "Vertical", "Tipo": "Fondo"})
+                    
+                # El fondo ahora es dinámico según la configuración del taller
+                despiece.append({
+                    "Pieza": "Fondo Mueble", 
+                    "Cant": 1, 
+                    "L": altura_caja_real - config.get('desc_fondo', 5.0), 
+                    "A": ancho_m - config.get('desc_fondo', 5.0), 
+                    "Veta": "Vertical", 
+                    "Tipo": "Fondo"
+                               })
 
                 df_corte = pd.DataFrame(despiece)
                 st.data_editor(df_corte, use_container_width=True)
@@ -676,6 +685,22 @@ elif menu == "⚙️ Configuración de Precios":
     with st.expander("💰 Margen de Ganancia"):
         config['ganancia_taller_pct'] = st.slider("Porcentaje de Utilidad Bruta", 0.0, 1.0, float(config['ganancia_taller_pct']), 0.05)
         st.write(f"Margen actual: {config['ganancia_taller_pct']*100}%")
+    with st.expander("📐 Estándares de Taller (Luces y Holguras)"):
+        st.info("Configurá las reglas que BVM aplicará a todos tus despieces automáticamente.")
+        c_tec1, c_tec2 = st.columns(2)
+        
+        # Leemos de 'config' (que ya traes de Supabase) o ponemos el default técnico
+        luz_f = c_tec1.number_input("Luz Perimetral Frentes (mm)", 
+                                   value=float(config.get('luz_frente', 2.0)), step=0.5)
+        luz_e = c_tec2.number_input("Luz entre Puertas/Cajones (mm)", 
+                                   value=float(config.get('luz_entre', 3.0)), step=0.5)
+        desc_f = c_tec1.number_input("Descuento Fondo vs Vano (mm)", 
+                                    value=float(config.get('desc_fondo', 5.0)), step=1.0)
+        
+        # Actualizamos el diccionario para que el despiece lo tome en tiempo real
+        config['luz_frente'] = luz_f
+        config['luz_entre'] = luz_e
+        config['desc_fondo'] = desc_f
     if st.button("💾 Guardar Precios Permanentemente"):
         # 1. Guardamos las maderas (lo que ya tenés)
         for madera, precio in maderas.items():
@@ -744,6 +769,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
