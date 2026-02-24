@@ -8,7 +8,6 @@ from fpdf import FPDF
 from datetime import datetime, timedelta, timezone
 import urllib.parse
 
-# ESTO ES LO QUE CONECTA CON TUS NUEVOS ARCHIVOS
 from logic import obtener_veta_automatica, calcular_medida_frente_pro
 from database import consultar_retazos_disponibles, registrar_retazo, traer_datos_historial
 # --- PARÁMETROS TÉCNICOS DE TALLER (BASADO EN EXPERTO BVM) ---
@@ -709,6 +708,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
