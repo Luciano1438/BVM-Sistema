@@ -389,8 +389,8 @@ if menu == "Cotizador CNC":
                 def crear_pieza(nombre, cant, largo, ancho, cant_l=2, cant_a=0, descontar=True):
                     
                     # Calcula el corte real descontando el PVC.
-                    cant_l: cuántos lados del LARGO llevan PVC (0, 1 o 2)
-                    cant_a: cuántos lados del ANCHO llevan PVC (0, 1 o 2)
+                    # cant_l: cuántos lados del LARGO llevan PVC (0, 1 o 2)
+                    # cant_a: cuántos lados del ANCHO llevan PVC (0, 1 o 2)
                     
                     if descontar:
                         # Restamos el espesor del canto (esp_canto) según la cantidad de lados
@@ -744,6 +744,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
