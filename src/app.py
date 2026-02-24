@@ -36,22 +36,13 @@ def obtener_veta_automatica(nombre_pieza, material_seleccionado):
     if any(x in nombre_lower for x in ["lateral exterior", "puerta", "tapa de cajon", "fondo"]):
         return "Vertical (Hacia Arriba)"
     return "Horizontal (Izquierda a Derecha)"
-def calcular_medida_frente(ancho_hueco, alto_hueco, tipo_montaje="Superpuesto", es_doble=False):
-    """
-    Calcula la medida real de la placa para un frente.
-    """
-    if tipo_montaje == "Superpuesto":
-        # Se deja 2mm menos en los 4 lados sobre la medida externa
-        ancho_real = ancho_hueco - 4 
-        alto_real = alto_hueco - 4
-    else:  # Embutido
-        # 3mm arriba, abajo y bisagra. 2mm en el encuentro si es doble.
-        alto_real = alto_hueco - 6 # 3mm arriba + 3mm abajo
-        if es_doble:
-            ancho_real = ancho_hueco - 5 # 3mm bisagra + 2mm encuentro
-        else:
-            ancho_real = ancho_hueco - 6 # 3mm de cada lado
-            
+def calcular_medida_frente_pro(ancho_hueco, alto_hueco, config, tipo="Superpuesto"):
+    # En lugar de -4 hardcoded, usamos la variable del sistema
+    descuento = config.get('luz_puerta_perimetral', 2.0) * 2
+    
+    ancho_real = ancho_hueco - descuento
+    alto_real = alto_hueco - descuento
+    
     return ancho_real, alto_real
 def generar_pdf_presupuesto(datos):
     pdf = FPDF()
@@ -753,6 +744,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
