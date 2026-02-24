@@ -108,13 +108,6 @@ if url and key:
     supabase: Client = create_client(url, key)
 else:
     st.error("Error: No se cargaron las credenciales.")
-    # --- DIAGNÓSTICO DE CONEXIÓN ---
-if not url:
-    st.error("🚨 La URL está vacía. Streamlit no está leyendo st.secrets ni el .env")
-elif not url.startswith("https://"):
-    st.error(f"🚨 URL Malformada: Debe empezar con https://. Recibido: {url[:10]}...")
-elif url.endswith("/"):
-    st.error("🚨 URL Error: Borrá la barra '/' del final de la URL en tus Secrets.")
 
 # --- FUNCIONES DE BASE DE DATOS (FUERA DEL IF/ELSE) ---
 def consultar_retazos_disponibles(material):
@@ -751,6 +744,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
