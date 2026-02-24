@@ -9,7 +9,7 @@ from fpdf import FPDF
 from datetime import datetime, timedelta, timezone
 import urllib.parse
 
-# --- PARÁMETROS TÉCNICOS DE TALLER (BASADO EN EXPERTO BVM) ---
+# --- PARÁMETROS TÉCNICOS DE TALLER ---
 CONFIG_TECNICA = {
     "cnc_margen_seguridad": 25,  # mm por lado
     "cnc_separacion_piezas": 25, # mm entre piezas
@@ -778,6 +778,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
