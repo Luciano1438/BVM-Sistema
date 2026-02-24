@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import sqlite3
 import os
 from pathlib import Path
 from supabase import create_client, Client
@@ -9,6 +8,9 @@ from fpdf import FPDF
 from datetime import datetime, timedelta, timezone
 import urllib.parse
 
+# ESTO ES LO QUE CONECTA CON TUS NUEVOS ARCHIVOS
+from logic import obtener_veta_automatica, calcular_medida_frente_pro
+from database import consultar_retazos_disponibles, registrar_retazo, traer_datos_historial
 # --- PARÁMETROS TÉCNICOS DE TALLER (BASADO EN EXPERTO BVM) ---
 CONFIG_TECNICA = {
     "cnc_margen_seguridad": 25,  # mm por lado
@@ -21,29 +23,8 @@ CONFIG_TECNICA = {
     "limpieza_placa_manual": 20, # mm (refilado)
     "sierra_kerf": 2.0           # mm (lo que come el disco)
 }
-def obtener_veta_automatica(nombre_pieza, material_seleccionado):
-    """
-    Si es Blanco, la veta es libre. Si es enchapado, sigue la regla de BVM.
-    """
-    material_lower = material_seleccionado.lower()
-    
-    # REGLA DE EFICIENCIA: Si es blanco, no desperdiciamos placa con orientaciones fijas
-    if "blanco" in material_lower:
-        return "Libre (Cualquier sentido)"
-    
-    # Regla de tu viejo para materiales con veta (enchapados/colores)
-    nombre_lower = nombre_pieza.lower()
-    if any(x in nombre_lower for x in ["lateral exterior", "puerta", "tapa de cajon", "fondo"]):
-        return "Vertical (Hacia Arriba)"
-    return "Horizontal (Izquierda a Derecha)"
-def calcular_medida_frente_pro(ancho_hueco, alto_hueco, config, tipo="Superpuesto"):
-    # En lugar de -4 hardcoded, usamos la variable del sistema
-    descuento = config.get('luz_puerta_perimetral', 2.0) * 2
-    
-    ancho_real = ancho_hueco - descuento
-    alto_real = alto_hueco - descuento
-    
-    return ancho_real, alto_real
+
+
 def generar_pdf_presupuesto(datos):
     pdf = FPDF()
     pdf.add_page()
@@ -109,30 +90,6 @@ if url and key:
 else:
     st.error("Error: No se cargaron las credenciales.")
 
-# --- FUNCIONES DE BASE DE DATOS (FUERA DEL IF/ELSE) ---
-def consultar_retazos_disponibles(material):
-    usuario_actual = st.session_state["user_data"]["usuario"]
-    try:
-        # Traemos todos los retazos de ese material
-        res = supabase.table("retazos").select("*").eq("material", material).eq("usuario", usuario_actual).execute()
-        return res.data
-    except Exception as e:
-        st.error(f"Error al consultar retazos: {e}")
-        return []
-
-def registrar_retazo(material, largo, ancho):
-    usuario_actual = st.session_state["user_data"]["usuario"]
-    try:
-        # REGLA BVM: Validamos contra 150x400 (en cualquier sentido)
-        if (largo >= 400 and ancho >= 150) or (largo >= 150 and ancho >= 400): 
-            data = {"material": material, "largo": largo, "ancho": ancho, "usuario" : usuario_actual}
-            supabase.table("retazos").insert(data).execute()
-            st.toast(f"♻️ Retazo guardado: {int(largo)}x{int(ancho)}")
-        else:
-            # AHORA SÍ TE AVISA POR QUÉ NO GUARDA
-            st.error(f"❌ Error: {int(largo)}x{int(ancho)} es inferior al mínimo de 150x400.")
-    except Exception as e:
-        st.error(f"Error técnico al registrar: {e}")
 # --- 0. SEGURIDAD DE ACCESO MULTIUSUARIO (VALOR PRO) ---
 def verificar_password():
     if "autenticado" not in st.session_state:
@@ -202,24 +159,7 @@ def guardar_presupuesto_nube(cliente, mueble, total):
         st.success(f"🚀 Venta blindada para {usuario_actual}")
     except Exception as e:
         st.error(f"Error al impactar nube: {e}")
-    
-def traer_datos_historial():
-    usuario_actual = st.session_state["user_data"]["usuario"]
-    try:
-        response = supabase.table("ventas").select("*").eq("usuario", usuario_actual).execute()
-        return pd.DataFrame(response.data)
-    except:
-        return pd.DataFrame()
-
-# --- 2. CONECTIVIDAD LOCAL (Mantenida para guardar localmente) ---
-def ejecutar_query(query, params=(), fetch=False):
-    db_path = BASE_DIR / 'data' / 'carpinteria.db'
-    with sqlite3.connect(db_path) as conn:
-        cursor = conn.cursor()
-        cursor.execute(query, params)
-        if fetch: return cursor.fetchall()
-        conn.commit()
-import urllib.parse
+ 
 
 def generar_link_whatsapp(datos):
     # Formato limpio y profesional sin caracteres especiales
@@ -769,6 +709,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
