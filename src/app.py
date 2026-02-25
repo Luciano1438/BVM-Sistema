@@ -479,34 +479,32 @@ if menu == "Cotizador CNC":
             st.info(f"📏 Luz Interna Derecha: {hueco_der:.1f}mm")
 
                 # 5. ESTANTES: Respetan el canteado frontal
-                for i, e_ancho in enumerate(medidas_estantes):
-                    if e_ancho > 0: 
-                        despiece.append(crear_pieza(f"Estante {i+1}", 1, e_ancho, prof_m - 20, cant_l=1, cant_a=0))
+            for i, e_ancho in enumerate(medidas_estantes):
+                if e_ancho > 0: 
+                    despiece.append(crear_pieza(f"Estante {i+1}", 1, e_ancho, prof_m - 20, cant_l=1, cant_a=0))
                 
                 # 6. TRAVESAÑOS: Respetan el canteado frontal
-                for i, trav in enumerate(medidas_travesaños):
-                    if trav['L'] > 0: 
-                        despiece.append(crear_pieza(f"Travesaño {i+1}", 1, trav['L'], trav['A'], cant_l=1, cant_a=0))
+            for i, trav in enumerate(medidas_travesaños):
+                if trav['L'] > 0: 
+                    despiece.append(crear_pieza(f"Travesaño {i+1}", 1, trav['L'], trav['A'], cant_l=1, cant_a=0))
                 # 2. Frentes (Puertas y Cajones con Altura de Caja Real)
-                if cant_puertas > 0:
-                    w_pue, h_pue = calcular_medida_frente(ancho_sugerido, altura_caja_real, "Superpuesto")
-                    if usa_gola: h_pue -= 20 
-                    for i in range(int(cant_puertas)):
-                        despiece.append(crear_pieza(f"Puerta {i+1} ({tipo_agarre})", 1, h_pue, w_pue))
+            if cant_puertas > 0:
+                w_pue, h_pue = calcular_medida_frente(ancho_sugerido, altura_caja_real, "Superpuesto")
+                if usa_gola: h_pue -= 20 
+                for i in range(int(cant_puertas)):
+                    despiece.append(crear_pieza(f"Puerta {i+1} ({tipo_agarre})", 1, h_pue, w_pue))
 
-               if cant_cajones > 0 and tipo_tapa:
+            if cant_cajones > 0 and tipo_tapa:
            # FÓRMULA DE TU VIEJO PARA DISTANCIA ÚTIL
             # (Alto - 30mm - (luces intermedias)) / cant
-            altura_util_tapas = (alto_m - 30 - ((cant_cajones - 1) * luz_entre_tapas)) / cant_cajones
+                altura_util_tapas = (alto_m - 30 - ((cant_cajones - 1) * luz_entre_tapas)) / cant_cajones
     
             # El ancho de la tapa usa la luz perimetral que ingresa el usuario
-            ancho_tapa_bvm = ancho_m - luz_perimetral_tapa
+                ancho_tapa_bvm = ancho_m - luz_perimetral_tapa
     
-            for i in range(int(cant_cajones)):
-                despiece.append(crear_pieza(f"Tapa de Cajon {i+1} (Simétrica)", 1, altura_util_tapas, ancho_tapa_bvm)))
+                for i in range(int(cant_cajones)):
+                    despiece.append(crear_pieza(f"Tapa de Cajon {i+1} (Simétrica)", 1, altura_util_tapas, ancho_tapa_bvm)))
 
-                # Fondo
-                    
                 # El fondo ahora es dinámico según la configuración del taller
                         despiece.append({
                             "Pieza": "Fondo Mueble", 
@@ -817,6 +815,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
