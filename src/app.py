@@ -464,19 +464,19 @@ if menu == "Cotizador CNC":
                 
                 
                 # 3. ZÓCALOS DE MADERA: Si existen, llevan canto al frente
-               if tipo_base == "Zócalo de Madera":
-                   despiece.append(crear_pieza("Zócalo Frontal", 2, altura_base, ancho_interno_total, cant_l=1, cant_a=0))
-                   despiece.append(crear_pieza("Zócalo Lateral", 2, altura_base, prof_m - 50, cant_l=1, cant_a=0))
+        if tipo_base == "Zócalo de Madera":
+            despiece.append(crear_pieza("Zócalo Frontal", 2, altura_base, ancho_interno_total, cant_l=1, cant_a=0))
+            despiece.append(crear_pieza("Zócalo Lateral", 2, altura_base, prof_m - 50, cant_l=1, cant_a=0))
                 
                 # 4. PARANTE DIVISOR: Altura interna y canto al frente
-                if tiene_parante:
-                    altura_interna = altura_caja_real - (esp_real * 2)
-                    despiece.append(crear_pieza("Parante Divisor", 1, altura_interna, prof_m - 20, cant_l=1, cant_a=0))
+        if tiene_parante:
+            altura_interna = altura_caja_real - (esp_real * 2)
+            despiece.append(crear_pieza("Parante Divisor", 1, altura_interna, prof_m - 20, cant_l=1, cant_a=0))
                     
-                    hueco_izq = distancia_parante
-                    hueco_der = ancho_interno_total - distancia_parante - esp_real
-                    st.info(f"📏 Luz Interna Izquierda: {hueco_izq:.1f}mm")
-                    st.info(f"📏 Luz Interna Derecha: {hueco_der:.1f}mm")
+            hueco_izq = distancia_parante
+            hueco_der = ancho_interno_total - distancia_parante - esp_real
+            st.info(f"📏 Luz Interna Izquierda: {hueco_izq:.1f}mm")
+            st.info(f"📏 Luz Interna Derecha: {hueco_der:.1f}mm")
 
                 # 5. ESTANTES: Respetan el canteado frontal
                 for i, e_ancho in enumerate(medidas_estantes):
@@ -817,6 +817,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
