@@ -509,27 +509,27 @@ if menu == "Cotizador CNC":
             m2_fondo = (df_corte[df_corte.get('Tipo') == 'Fondo']['L'] * df_corte['A'] * df_corte['Cant']).sum() / 1_000_000
 
                 # Impacto financiero del refilado en modo manual
-                if not es_cnc:
-                    st.warning(f"⚠️ Modo Manual: Se descuentan {limpieza}mm perimetrales por limpieza de placa.")
+            if not es_cnc:
+                st.warning(f"⚠️ Modo Manual: Se descuentan {limpieza}mm perimetrales por limpieza de placa.")
 
-                costo_madera = (m2_18mm * maderas[mat_principal] / 5.03)
-                costo_fondo = (m2_fondo * fondos[mat_fondo_sel] / 5.03)
-                costo_herrajes = (cant_puertas * 2 * precio_bisagra) + (cant_cajones * precio_guia)
+            costo_madera = (m2_18mm * maderas[mat_principal] / 5.03)
+            costo_fondo = (m2_fondo * fondos[mat_fondo_sel] / 5.03)
+            costo_herrajes = (cant_puertas * 2 * precio_bisagra) + (cant_cajones * precio_guia)
                 
-                costo_flete = 0
-                if flete_sel == "Capital": costo_flete = config['flete_capital']
-                elif flete_sel == "Zona Norte": costo_flete = config['flete_norte']
+            costo_flete = 0
+            if flete_sel == "Capital": costo_flete = config['flete_capital']
+            elif flete_sel == "Zona Norte": costo_flete = config['flete_norte']
                 
-                costo_operativo = (dias_prod * config['gastos_fijos_diarios'])
-                total_costo = costo_madera + costo_fondo + costo_herrajes + costo_operativo + costo_base + costo_flete
-                if necesita_colocacion: total_costo += (dias_col * config['colocacion_dia'])
+            costo_operativo = (dias_prod * config['gastos_fijos_diarios'])
+            total_costo = costo_madera + costo_fondo + costo_herrajes + costo_operativo + costo_base + costo_flete
+            if necesita_colocacion: total_costo += (dias_col * config['colocacion_dia'])
 
                 # --- C. RETAZOS Y PRECIO FINAL (Igual que antes) ---
-                st.write("---")
+            st.write("---")
                # --- C. TU LÓGICA DE RETAZOS (REGLA EXPERTA: 150x400) ---
-                st.write("---")
-                retazos_en_stock = consultar_retazos_disponibles(mat_principal)
-                ahorro_madera = 0
+            st.write("---")
+            retazos_en_stock = consultar_retazos_disponibles(mat_principal)
+            ahorro_madera = 0
                 
                 if retazos_en_stock:
                     st.subheader("♻️ Oportunidades de Ahorro")
@@ -797,6 +797,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
