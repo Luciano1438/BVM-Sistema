@@ -447,7 +447,7 @@ if menu == "Cotizador CNC":
 
          # 3. TRAVESAÑO TRASERO Y FRENTÍN (Horizontales)
         # Ambos van entre laterales, por eso descuentan (esp_real * 2)
-        ancho_hueco_interno = ancho_m - (esp_real * 2)
+        ancho_interno_total = ancho_m - (esp_real * 2)
         despiece.append(crear_pieza("Travesaño Trasero", 1, ancho_hueco_interno, altura_travesano, cant_l=1, cant_a=0))
         despiece.append(crear_pieza("Frentín Frontal", 1, ancho_hueco_interno, 50, cant_l=1, cant_a=0))
 
@@ -815,6 +815,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
