@@ -503,7 +503,7 @@ if menu == "Cotizador CNC":
                 ancho_tapa_bvm = ancho_m - luz_perimetral_tapa
     
                 for i in range(int(cant_cajones)):
-                    despiece.append(crear_pieza(f"Tapa de Cajon {i+1} (Simétrica)", 1, altura_util_tapas, ancho_tapa_bvm)))
+                    despiece.append(crear_pieza(f"Tapa de Cajon {i+1} (Simétrica)", 1, altura_util_tapas, ancho_tapa_bvm))
 
                 # El fondo ahora es dinámico según la configuración del taller
                         despiece.append({
@@ -815,6 +815,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
