@@ -483,15 +483,27 @@ if menu == "Cotizador CNC":
                     despiece.append(crear_pieza(f"Puerta {i+1} ({tipo_agarre})", 1, h_pue, w_pue))
 
             if cant_cajones > 0 and tipo_tapa:
-                # FÓRMULA DE TU VIEJO PARA DISTANCIA ÚTIL
+                # FÓRMULA PARA DISTANCIA ÚTIL
                 # (Alto - 30mm - (luces intermedias)) / cant
                 altura_util_tapas = (alto_m - 30 - ((cant_cajones - 1) * luz_entre_tapas)) / cant_cajones
                 
                 # El ancho de la tapa usa la luz perimetral que ingresa el usuario
                 ancho_tapa_bvm = ancho_m - luz_perimetral_tapa
-                
                 for i in range(int(cant_cajones)):
                     despiece.append(crear_pieza(f"Tapa de Cajon {i+1} (Simétrica)", 1, altura_util_tapas, ancho_tapa_bvm))
+                ancho_caja_total = ancho_interno_total - (esp_corredera * 2)
+                largo_lateral_caja = prof_m - aire_trasero
+                    
+                # Laterales de 150mm (2 por cajón)
+                despiece.append(crear_pieza("Lateral Cajón", cant_cajones * 2, 150, largo_lateral_caja, cant_l=1, cant_a=0))
+                    
+                 # Frente/Fondo de la caja (Van entre laterales de la caja)
+                ancho_frente_interno = ancho_caja_total - (esp_real * 2)
+                despiece.append(crear_pieza("Frente/Fondo Interno", cant_cajones * 2, 150, ancho_frente_interno, cant_l=1, cant_a=0))
+                    
+                # Piso del cajón (Descuento de 20mm de tu viejo)
+                despiece.append({"Pieza": "Piso Cajón", "Cant": cant_cajones, "L": int(largo_lateral_caja - 20), "A": int(ancho_caja_total - 20), "Veta": "Horizontal", "Tipo": "Piso"})
+            
             # --- MOSTRAR RESULTADOS FINAL TIPO 1 ---
             df_corte = pd.DataFrame(despiece)
             st.data_editor(df_corte, use_container_width=True, hide_index=True)
@@ -798,6 +810,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
