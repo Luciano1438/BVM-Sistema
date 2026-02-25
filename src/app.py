@@ -416,7 +416,8 @@ if menu == "Cotizador CNC":
                     # Nota para que el canteador sepa qué hacer
                     nota_canto = f"Canto: {cant_l}L / {cant_a}A"
                     
-                    return {"Pieza": nombre, "Cant": cant, "L": int(l_f), "A": int(a_f), "Veta": veta_final, "Notas": nota_canto}
+                    # Sacamos el 'int()' para que te muestre los decimales reales
+                    return {"Pieza": nombre, "Cant": cant, "L": round(l_f, 1), "A": round(a_f, 1), "Veta": veta_final, "Notas": nota_canto}
                 despiece = []
                 
                 # --- LÓGICA DE ESTRUCTURA REAL BVM CON CANTEADO ---
@@ -810,6 +811,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
