@@ -506,14 +506,14 @@ if menu == "Cotizador CNC":
                     despiece.append(crear_pieza(f"Tapa de Cajon {i+1} (Simétrica)", 1, altura_util_tapas, ancho_tapa_bvm))
 
                 # El fondo ahora es dinámico según la configuración del taller
-                        despiece.append({
-                            "Pieza": "Fondo Mueble", 
-                            "Cant": 1, 
-                            "L": altura_caja_real - config.get('desc_fondo', 5.0), 
-                            "A": ancho_m - config.get('desc_fondo', 5.0), 
-                            "Veta": "Vertical", 
-                            "Tipo": "Fondo"
-                                       })
+                    despiece.append({
+                        "Pieza": "Fondo Mueble", 
+                        "Cant": 1, 
+                        "L": altura_caja_real - config.get('desc_fondo', 5.0), 
+                        "A": ancho_m - config.get('desc_fondo', 5.0), 
+                        "Veta": "Vertical", 
+                        "Tipo": "Fondo"
+                                    })
 
                 df_corte = pd.DataFrame(despiece)
                 st.data_editor(df_corte, use_container_width=True)
@@ -815,6 +815,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
