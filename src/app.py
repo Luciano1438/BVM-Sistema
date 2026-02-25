@@ -322,6 +322,7 @@ if menu == "Cotizador CNC":
                 c_caj, c_hue = st.columns(2)
                 cant_cajones = c_caj.number_input("Cant. Cajones", value=0, min_value=0)
                 ancho_hueco_cajon = c_hue.number_input("Ancho Hueco Cajonera (mm)", value=0.0, step=0.5)
+                tipo_tapa = st.checkbox("Tapa Superpuesta (Tipo 1)", value=True)
                 
                 if cant_cajones > 0:
                     st.markdown("#### 📏 Parámetros del Cajón (Tipo 1)")
@@ -798,6 +799,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
