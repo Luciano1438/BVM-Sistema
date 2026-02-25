@@ -332,6 +332,7 @@ if menu == "Cotizador CNC":
                     col_c1, col_c2 = st.columns(2)
                     esp_corredera = col_c1.number_input("Espesor de Corredera (mm)", value=13.0)
                     aire_trasero = col_c2.number_input("Espacio libre trasero (mm)", value=30.0)
+                    altura_travesano = st.number_input("Altura Travesaño Trasero (mm)", value=100.0)
             # --- SECCIÓN 3: INTERIORES Y SIMETRÍA ---
             with st.expander("⚖️ 3. Parante, Estantes y Simetría", expanded=False):
                 tiene_parante = st.checkbox("¿Lleva parante divisor?", value=False)
@@ -797,6 +798,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
