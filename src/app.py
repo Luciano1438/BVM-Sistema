@@ -516,7 +516,7 @@ if menu == "Cotizador CNC":
                
                 # --- B. CÁLCULO DE COSTOS CON REFILADO Y MAQUINARIA ---
                 # Si es manual, restamos limpieza de placa (20mm x lado) del área útil
-            impieza = 0 if es_cnc else CONFIG_TECNICA["limpieza_placa_manual"]
+            limpieza = 0 if es_cnc else CONFIG_TECNICA["limpieza_placa_manual"]
             gap = CONFIG_TECNICA["cnc_separacion_piezas"] if es_cnc else CONFIG_TECNICA["sierra_kerf"]
                 
             m2_18mm = ((df_corte[df_corte.get('Tipo') != 'Fondo']['L'] + gap) * (df_corte['A'] + gap) * df_corte['Cant']).sum() / 1_000_000
@@ -811,6 +811,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
