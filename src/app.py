@@ -323,12 +323,15 @@ if menu == "Cotizador CNC":
                 cant_cajones = c_caj.number_input("Cant. Cajones", value=0, min_value=0)
                 ancho_hueco_cajon = c_hue.number_input("Ancho Hueco Cajonera (mm)", value=0.0, step=0.5)
                 tipo_tapa = st.checkbox("Tapa Superpuesta (Tipo 1)", value=True)
+                luz_perimetral_tapa = col_l2.number_input("Luz total ancho (mm)", value=4.0)
                 
                 if cant_cajones > 0:
                     st.markdown("#### 📏 Parámetros del Cajón (Tipo 1)")
                     col_l1, col_l2 = st.columns(2)
                     luz_entre_tapas = col_l1.number_input("Luz entre tapas (mm)", value=3.0)
                     luz_total_ancho = col_l2.number_input("Luz total ancho (mm)", value=4.0) # Lo que resta al ancho total
+                    luz_perimetral_tapa = col_l2.number_input("Luz total ancho (mm)", value=4.0)
+
         
                     col_c1, col_c2 = st.columns(2)
                     esp_corredera = col_c1.number_input("Espesor de Corredera (mm)", value=13.0)
@@ -799,6 +802,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
