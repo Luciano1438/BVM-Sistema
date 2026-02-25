@@ -437,29 +437,29 @@ if menu == "Cotizador CNC":
                     altura_caja_real = alto_m - altura_base
                 # --- LÓGICA DE ESTRUCTURA REAL BVM (TIPO 1) ---
 
-# 1. BASE (Piso): Ancho total y profundidad total
-despiece.append(crear_pieza("Base Módulo", 1, ancho_m, prof_m, cant_l=1, cant_a=0))
+         # 1. BASE (Piso): Ancho total y profundidad total
+        despiece.append(crear_pieza("Base Módulo", 1, ancho_m, prof_m, cant_l=1, cant_a=0))
 
-# 2. LATERALES: (Altura - 1 espesor) y profundidad total
-# Apoyan sobre la base, por eso descontamos solo 1 espesor real
-altura_lateral_bvm = alto_m - esp_real
-despiece.append(crear_pieza("Lateral Exterior", 2, altura_lateral_bvm, prof_m, cant_l=2, cant_a=0))
+        # 2. LATERALES: (Altura - 1 espesor) y profundidad total
+        # Apoyan sobre la base, por eso descontamos solo 1 espesor real
+        altura_lateral_bvm = alto_m - esp_real
+        despiece.append(crear_pieza("Lateral Exterior", 2, altura_lateral_bvm, prof_m, cant_l=2, cant_a=0))
 
-# 3. TRAVESAÑO TRASERO Y FRENTÍN (Horizontales)
-# Ambos van entre laterales, por eso descuentan (esp_real * 2)
-ancho_hueco_interno = ancho_m - (esp_real * 2)
-despiece.append(crear_pieza("Travesaño Trasero", 1, ancho_hueco_interno, altura_travesano, cant_l=1, cant_a=0))
-despiece.append(crear_pieza("Frentín Frontal", 1, ancho_hueco_interno, 50, cant_l=1, cant_a=0))
+         # 3. TRAVESAÑO TRASERO Y FRENTÍN (Horizontales)
+        # Ambos van entre laterales, por eso descuentan (esp_real * 2)
+        ancho_hueco_interno = ancho_m - (esp_real * 2)
+        despiece.append(crear_pieza("Travesaño Trasero", 1, ancho_hueco_interno, altura_travesano, cant_l=1, cant_a=0))
+        despiece.append(crear_pieza("Frentín Frontal", 1, ancho_hueco_interno, 50, cant_l=1, cant_a=0))
 
-# 4. FONDO DEL MUEBLE: -20mm en ambos lados
-despiece.append({
-    "Pieza": "Fondo Mueble", 
-    "Cant": 1, 
-    "L": alto_m - 20, 
-    "A": ancho_m - 20, 
-    "Veta": "Vertical", 
-    "Tipo": "Fondo"
-})
+       # 4. FONDO DEL MUEBLE: -20mm en ambos lados
+        despiece.append({
+            "Pieza": "Fondo Mueble", 
+            "Cant": 1, 
+            "L": alto_m - 20, 
+            "A": ancho_m - 20, 
+            "Veta": "Vertical", 
+            "Tipo": "Fondo"
+        })
             
                 
                 
@@ -495,27 +495,27 @@ despiece.append({
                         despiece.append(crear_pieza(f"Puerta {i+1} ({tipo_agarre})", 1, h_pue, w_pue))
 
                if cant_cajones > 0 and tipo_tapa:
-    # FÓRMULA DE TU VIEJO PARA DISTANCIA ÚTIL
-    # (Alto - 30mm - (luces intermedias)) / cant
-    altura_util_tapas = (alto_m - 30 - ((cant_cajones - 1) * luz_entre_tapas)) / cant_cajones
+           # FÓRMULA DE TU VIEJO PARA DISTANCIA ÚTIL
+            # (Alto - 30mm - (luces intermedias)) / cant
+            altura_util_tapas = (alto_m - 30 - ((cant_cajones - 1) * luz_entre_tapas)) / cant_cajones
     
-    # El ancho de la tapa usa la luz perimetral que ingresa el usuario
-    ancho_tapa_bvm = ancho_m - luz_perimetral_tapa
+            # El ancho de la tapa usa la luz perimetral que ingresa el usuario
+            ancho_tapa_bvm = ancho_m - luz_perimetral_tapa
     
-    for i in range(int(cant_cajones)):
-        despiece.append(crear_pieza(f"Tapa de Cajon {i+1} (Simétrica)", 1, altura_util_tapas, ancho_tapa_bvm)))
+            for i in range(int(cant_cajones)):
+                despiece.append(crear_pieza(f"Tapa de Cajon {i+1} (Simétrica)", 1, altura_util_tapas, ancho_tapa_bvm)))
 
                 # Fondo
                     
                 # El fondo ahora es dinámico según la configuración del taller
-                despiece.append({
-                    "Pieza": "Fondo Mueble", 
-                    "Cant": 1, 
-                    "L": altura_caja_real - config.get('desc_fondo', 5.0), 
-                    "A": ancho_m - config.get('desc_fondo', 5.0), 
-                    "Veta": "Vertical", 
-                    "Tipo": "Fondo"
-                               })
+                        despiece.append({
+                            "Pieza": "Fondo Mueble", 
+                            "Cant": 1, 
+                            "L": altura_caja_real - config.get('desc_fondo', 5.0), 
+                            "A": ancho_m - config.get('desc_fondo', 5.0), 
+                            "Veta": "Vertical", 
+                            "Tipo": "Fondo"
+                                       })
 
                 df_corte = pd.DataFrame(despiece)
                 st.data_editor(df_corte, use_container_width=True)
@@ -817,6 +817,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
