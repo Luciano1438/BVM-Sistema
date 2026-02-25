@@ -263,6 +263,21 @@ if not verificar_password():
 maderas, fondos, config = traer_datos()
 # --- ACTUALIZACIÓN DE MENÚ (VALOR PRO) ---
 menu = st.sidebar.radio("Navegación", ["Cotizador CNC", "Historial de Ventas", "⚙️ Configuración de Precios"])
+# --- AGREGAR ESTO EN LA SIDEBAR (O EN LA PESTAÑA DE AJUSTES) ---
+
+st.sidebar.subheader("⚙️ Parámetros de Cajonería")
+
+# Variable para el tipo de cajonera (el check que pediste)
+tipo_tapa = st.sidebar.checkbox("Tapa Superpuesta (Tipo 1)", value=True)
+
+# Variables configurables
+cant_cajones = st.sidebar.number_input("Cantidad de Cajones", min_value=1, value=3)
+luz_entre_tapas = st.sidebar.number_input("Luz entre tapas (mm)", value=3.0)
+luz_perimetral_tapa = st.sidebar.number_input("Luz perimetral frentes (mm)", value=4.0)
+
+esp_corredera = st.sidebar.number_input("Espesor de Corredera (mm)", value=13.0)
+aire_trasero = st.sidebar.number_input("Espacio libre trasero (mm)", value=30.0)
+altura_travesano = st.sidebar.number_input("Altura Travesaño Trasero (mm)", value=100.0)
 # --- BOTÓN DE CIERRE DE SESIÓN ---
 st.sidebar.write("---")
 if st.sidebar.button("🚪 Cerrar Sesión"):
@@ -778,6 +793,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
