@@ -502,8 +502,15 @@ if menu == "Cotizador CNC":
                 ancho_frente_interno = ancho_caja_total - (esp_real * 2)
                 despiece.append(crear_pieza("Frente/Fondo Interno", cant_cajones * 2, 150, ancho_frente_interno, cant_l=1, cant_a=0, descontar=False))
                     
-                # Piso del cajón (Descuento de 20mm de tu viejo)
-                despiece.append({"Pieza": "Piso Cajón", "Cant": cant_cajones, "L": int(largo_lateral_caja - 20), "A": int(ancho_caja_total - 20), "Veta": "Horizontal", "Tipo": "Piso"})
+               # --- PISO DEL CAJÓN (ANCHO CAJA - 20 Y PROF CAJA - 20) ---
+                despiece.append({
+                    "Pieza": "Piso Cajón", 
+                    "Cant": int(cant_cajones), 
+                    "L": round(largo_lateral_caja - 20, 1), 
+                    "A": round(ancho_caja_total - 20, 1), 
+                    "Veta": "Horizontal", 
+                    "Tipo": "Piso"
+                            })
             
             # --- MOSTRAR RESULTADOS FINAL TIPO 1 ---
             df_corte = pd.DataFrame(despiece)
@@ -811,6 +818,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
