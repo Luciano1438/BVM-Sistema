@@ -439,8 +439,8 @@ if menu == "Cotizador CNC":
             ancho_hueco_interno = ancho_m - (esp_real * 2)
             # Hacemos que ambos nombres valgan lo mismo para que no de error
             ancho_interno_total = ancho_hueco_interno
-            despiece.append(crear_pieza("Travesaño Trasero", 1, ancho_hueco_interno, altura_travesano, cant_l=1, cant_a=0))
-            despiece.append(crear_pieza("Frentín Frontal", 1, ancho_hueco_interno, 50, cant_l=1, cant_a=0))
+            despiece.append(crear_pieza("Travesaño Trasero", 1, ancho_hueco_interno, altura_travesano, cant_l=1, cant_a=0, descontar=False))
+            despiece.append(crear_pieza("Frentín Frontal", 1, ancho_hueco_interno, 50, cant_l=1, cant_a=0, descontar=False))
 
             # 4. FONDO DEL MUEBLE: -20mm en ambos lados
             despiece.append({
@@ -454,13 +454,13 @@ if menu == "Cotizador CNC":
                         
                 # 3. ZÓCALOS DE MADERA: Si existen, llevan canto al frente
             if tipo_base == "Zócalo de Madera":
-                despiece.append(crear_pieza("Zócalo Frontal", 2, altura_base, ancho_interno_total, cant_l=1, cant_a=0))
-                despiece.append(crear_pieza("Zócalo Lateral", 2, altura_base, prof_m - 50, cant_l=1, cant_a=0))
+                despiece.append(crear_pieza("Zócalo Frontal", 2, altura_base, ancho_interno_total, cant_l=1, cant_a=0, descontar=False))
+                despiece.append(crear_pieza("Zócalo Lateral", 2, altura_base, prof_m - 50, cant_l=1, cant_a=0, descontar=False))
                 
                 # 4. PARANTE DIVISOR: Altura interna y canto al frente
             if tiene_parante:
                 altura_interna = altura_caja_real - (esp_real * 2)
-                despiece.append(crear_pieza("Parante Divisor", 1, altura_interna, prof_m - 20, cant_l=1, cant_a=0))
+                despiece.append(crear_pieza("Parante Divisor", 1, altura_interna, prof_m - 20, cant_l=1, cant_a=0, descontar=False))
                     
                 hueco_izq = distancia_parante
                 hueco_der = ancho_interno_total - distancia_parante - esp_real
@@ -496,11 +496,11 @@ if menu == "Cotizador CNC":
                 largo_lateral_caja = prof_m - aire_trasero
                     
                 # Laterales de 150mm (2 por cajón)
-                despiece.append(crear_pieza("Lateral Cajón", cant_cajones * 2, 150, largo_lateral_caja, cant_l=1, cant_a=0))
+                despiece.append(crear_pieza("Lateral Cajón", cant_cajones * 2, 150, largo_lateral_caja, cant_l=1, cant_a=0, descontar=False))
                     
                  # Frente/Fondo de la caja (Van entre laterales de la caja)
                 ancho_frente_interno = ancho_caja_total - (esp_real * 2)
-                despiece.append(crear_pieza("Frente/Fondo Interno", cant_cajones * 2, 150, ancho_frente_interno, cant_l=1, cant_a=0))
+                despiece.append(crear_pieza("Frente/Fondo Interno", cant_cajones * 2, 150, ancho_frente_interno, cant_l=1, cant_a=0, descontar=False))
                     
                 # Piso del cajón (Descuento de 20mm de tu viejo)
                 despiece.append({"Pieza": "Piso Cajón", "Cant": cant_cajones, "L": int(largo_lateral_caja - 20), "A": int(ancho_caja_total - 20), "Veta": "Horizontal", "Tipo": "Piso"})
@@ -811,6 +811,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
