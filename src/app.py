@@ -427,7 +427,7 @@ if menu == "Cotizador CNC":
                 # --- LÓGICA DE ESTRUCTURA REAL BVM (TIPO 1) ---
 
             # 1. BASE (Piso): Ancho total y profundidad total
-            despiece.append(crear_pieza("Base Módulo", 1, ancho_m, prof_m, cant_l=1, cant_a=0))
+            despiece.append(crear_pieza("Base Módulo", 1, ancho_m, prof_m, cant_l=1, cant_a=0, descontar=False))
 
             # 2. LATERALES: (Altura - 1 espesor) y profundidad total
             # Apoyan sobre la base, por eso descontamos solo 1 espesor real
@@ -811,6 +811,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
