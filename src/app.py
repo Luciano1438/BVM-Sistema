@@ -303,6 +303,7 @@ if menu == "Cotizador CNC":
                 ancho_m = c1.number_input("Ancho Total (mm)", min_value=0.0, max_value=5000.0, value=0.0, step=0.5)
                 alto_m = c2.number_input("Alto Total (mm)", min_value=0.0, max_value=5000.0, value=0.0, step=0.5)
                 prof_m = c3.number_input("Profundo (mm)", min_value=0.0, max_value=2000.0, value=0.0, step=0.5)
+                altura_travesano = st.number_input("Altura Travesaño Trasero (mm)", value=100.0, key="travesano_base")
                 
                 mat_principal = st.selectbox("Material Cuerpo (18mm)", list(maderas.keys()))
                 tiene_veta = st.toggle("💎 El material tiene veta (Respetar orientación)", value=True)
@@ -332,7 +333,6 @@ if menu == "Cotizador CNC":
                     col_c1, col_c2 = st.columns(2)
                     esp_corredera = col_c1.number_input("Espesor de Corredera (mm)", value=13.0)
                     aire_trasero = col_c2.number_input("Espacio libre trasero (mm)", value=30.0)
-                    altura_travesano = st.number_input("Altura Travesaño Trasero (mm)", value=100.0)
             # --- SECCIÓN 3: INTERIORES Y SIMETRÍA ---
             with st.expander("⚖️ 3. Parante, Estantes y Simetría", expanded=False):
                 tiene_parante = st.checkbox("¿Lleva parante divisor?", value=False)
@@ -824,6 +824,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
