@@ -338,7 +338,7 @@ if menu == "Cotizador CNC":
                 # Si es Tipo 1 pide luz de ancho, si es Tipo 2 pide el frentín de tu viejo
                 if tipo_tapa == "Superpuesta":
                     luz_perimetral_tapa = col_l2.number_input("Luz total ancho (mm)", value=4.0)
-                elif:
+                elif tipo_tapa == "Embutida": 
                     alto_frentin_emb = col_l2.number_input("Altura Frentín Superior (mm)", value=30.0)
                     luz_perimetral_tapa = 6.0 # Valor fijo por fórmula para Tipo 2
                 else: # GOLA
@@ -853,6 +853,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
