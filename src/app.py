@@ -418,12 +418,12 @@ if menu == "Cotizador CNC":
                     
                     # Sacamos el 'int()' para que te muestre los decimales reales
                     return {"Pieza": nombre, "Cant": cant, "L": round(l_f, 1), "A": round(a_f, 1), "Veta": veta_final, "Notas": nota_canto}
-                despiece = []
+            despiece = []
                 
                 # --- LÓGICA DE ESTRUCTURA REAL BVM CON CANTEADO ---
-                altura_caja_real = alto_m
-                if tipo_base in ["Banquina de Obra", "Patas Plásticas"]:
-                    altura_caja_real = alto_m - altura_base
+            altura_caja_real = alto_m
+            if tipo_base in ["Banquina de Obra", "Patas Plásticas"]:
+                altura_caja_real = alto_m - altura_base
                 # --- LÓGICA DE ESTRUCTURA REAL BVM (TIPO 1) ---
 
             # 1. BASE (Piso): Ancho total y profundidad total
@@ -829,6 +829,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
