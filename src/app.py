@@ -328,14 +328,14 @@ if menu == "Cotizador CNC":
                 
                 if cant_cajones > 0:
                      # --- A. ELECCIÓN DE TIPO ---
-                    tipo_tapa_bvm = st.radio("Estilo de Tapa", ["Superpuesta", "Embutida"])
+                    tipo_tapa = st.radio("Estilo de Tapa", ["Superpuesta", "Embutida"])
                     st.markdown(f"#### 📏 Parámetros del Cajón ({tipo_tapa_bvm.split()[0]})")
     
                     col_l1, col_l2 = st.columns(2)
                     luz_entre_tapas = col_l1.number_input("Luz entre tapas (mm)", value=3.0)
     
                 # Si es Tipo 1 pide luz de ancho, si es Tipo 2 pide el frentín de tu viejo
-                if tipo_tapa_bvm == "Superpuesta (Tipo 1)":
+                if tipo_tapa == "Superpuesta":
                     luz_perimetral_tapa = col_l2.number_input("Luz total ancho (mm)", value=4.0)
                 else:
                     alto_frentin_emb = col_l2.number_input("Altura Frentín Superior (mm)", value=30.0)
@@ -843,6 +843,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
