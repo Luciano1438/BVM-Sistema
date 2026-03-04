@@ -327,7 +327,7 @@ if menu == "Cotizador CNC":
                     col_l1, col_l2 = st.columns(2)
                     luz_entre_tapas = col_l1.number_input("Luz entre tapas (mm)", value=3.0)
                     luz_perimetral_tapa = col_l2.number_input("Luz total ancho (mm)", value=4.0)
-
+                    distribucion_tapas = col_l1.radio("Distribución", ["Iguales", "Proporcional (20/35/45)"])
         
                     col_c1, col_c2 = st.columns(2)
                     esp_corredera = col_c1.number_input("Espesor de Corredera (mm)", value=13.0)
@@ -484,14 +484,25 @@ if menu == "Cotizador CNC":
                     despiece.append(crear_pieza(f"Puerta {i+1} ({tipo_agarre})", 1, h_pue, w_pue))
 
             if cant_cajones > 0 and tipo_tapa:
-                # FÓRMULA PARA DISTANCIA ÚTIL
-                # (Alto - 30mm - (luces intermedias)) / cant
-                altura_util_tapas = (alto_m - 30 - ((cant_cajones - 1) * luz_entre_tapas)) / cant_cajones
-                
-                # El ancho de la tapa usa la luz perimetral que ingresa el usuario
+                # 1. Calculamos el espacio neto disponible para TODAS las tapas
+                espacio_util_total = alto_m - 30 - ((cant_cajones - 1) * luz_entre_tapas)
                 ancho_tapa_bvm = ancho_m - luz_perimetral_tapa
-                for i in range(int(cant_cajones)):
-                    despiece.append(crear_pieza(f"Tapa de Cajon {i+1} (Simétrica)", 1, altura_util_tapas, ancho_tapa_bvm))
+
+                # 2. Lógica de Alturas (Simétrica o Proporcional)
+                alturas_tapas = []
+                if distribucion_tapas == "Proporcional (20/35/45)" and cant_cajones == 3:
+                    alturas_tapas = [
+                        espacio_util_total * 0.20, # Tapa Superior
+                        espacio_util_total * 0.35, # Tapa Media
+                        espacio_util_total * 0.45  # Tapa Inferior
+                    ]
+                else:
+                    alto_igual = espacio_util_total / cant_cajones
+                    alturas_tapas = [alto_igual] * int(cant_cajones)
+
+                # 3. Generamos las Tapas en el despiece
+                for i, alto_tapa in enumerate(alturas_tapas):
+                    despiece.append(crear_pieza(f"Tapa de Cajon {i+1}", 1, alto_tapa, ancho_tapa_bvm))
                 ancho_caja_total = ancho_interno_total - (esp_corredera * 2)
                 largo_lateral_caja = prof_m - aire_trasero
                     
@@ -818,6 +829,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
