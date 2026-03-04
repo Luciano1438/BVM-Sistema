@@ -321,18 +321,31 @@ if menu == "Cotizador CNC":
                 c_caj, c_hue = st.columns(2)
                 cant_cajones = c_caj.number_input("Cant. Cajones", value=0, min_value=0)
                 ancho_hueco_cajon = c_hue.number_input("Ancho Hueco Cajonera (mm)", value=0.0, step=0.5)
-                tipo_tapa = st.checkbox("Tapa Superpuesta (Tipo 1)", value=True)
+                tipo_tapa = st.checkbox("Tapa Superpuesta", value=True)
+                alto_frentin_emb = 0.0
+                if tipo_tapa == "Tapa Embutida":
+                    alto_frentin_emb = st.number_input("Altura del Frentín Superior (mm)", value=30.0)
                 
                 if cant_cajones > 0:
-                    st.markdown("#### 📏 Parámetros del Cajón (Tipo 1)")
+                     # --- A. ELECCIÓN DE TIPO ---
+                    tipo_tapa_bvm = st.radio("Estilo de Tapa", ["Superpuesta", "Embutida"])
+                    st.markdown(f"#### 📏 Parámetros del Cajón ({tipo_tapa_bvm.split()[0]})")
+    
                     col_l1, col_l2 = st.columns(2)
                     luz_entre_tapas = col_l1.number_input("Luz entre tapas (mm)", value=3.0)
+    
+                # Si es Tipo 1 pide luz de ancho, si es Tipo 2 pide el frentín de tu viejo
+                if tipo_tapa_bvm == "Superpuesta (Tipo 1)":
                     luz_perimetral_tapa = col_l2.number_input("Luz total ancho (mm)", value=4.0)
-                    distribucion_tapas = col_l1.radio("Distribución", ["Iguales", "Proporcional (20/35/45)"])
-        
-                    col_c1, col_c2 = st.columns(2)
-                    esp_corredera = col_c1.number_input("Espesor de Corredera (mm)", value=13.0)
-                    aire_trasero = col_c2.number_input("Espacio libre trasero (mm)", value=30.0)
+                else:
+                    alto_frentin_emb = col_l2.number_input("Altura Frentín Superior (mm)", value=30.0)
+                    luz_perimetral_tapa = 6.0 # Valor fijo por fórmula para Tipo 2
+
+                distribucion_tapas = col_l1.radio("Distribución", ["Iguales", "Proporcional (20/35/45)"])
+
+                col_c1, col_c2 = st.columns(2)
+                esp_corredera = col_c1.number_input("Espesor de Corredera (mm)", value=13.0)
+                aire_trasero = col_c2.number_input("Espacio libre trasero (mm)", value=30.0)
             # --- SECCIÓN 3: INTERIORES Y SIMETRÍA ---
             with st.expander("⚖️ 3. Parante, Estantes y Simetría", expanded=False):
                 tiene_parante = st.checkbox("¿Lleva parante divisor?", value=False)
@@ -474,8 +487,20 @@ if menu == "Cotizador CNC":
 
             if cant_cajones > 0 and tipo_tapa:
                 # 1. Calculamos el espacio neto disponible para TODAS las tapas
-                espacio_util_total = alto_m - 30 - ((cant_cajones - 1) * luz_entre_tapas)
-                ancho_tapa_bvm = ancho_m - luz_perimetral_tapa
+                # Si es TIPO 1 (Superpuesta), mantenés tus fórmulas originales:
+                if tipo_tapa_bvm == "Superpuesta (Tipo 1)":
+                    espacio_util_total = alto_m - 30 - ((cant_cajones - 1) * luz_entre_tapas)
+                    ancho_tapa_bvm = ancho_m - luz_perimetral_tapa
+                    largo_lateral_caja = prof_m - aire_trasero # Tu fórmula de siempre
+                
+                # Si es TIPO 2 (Embutida), entran las fórmulas nuevas de tu viejo:
+                else:
+                    # Altura: Fórmula de tu viejo
+                    espacio_util_total = alto_m - alto_frentin_emb - esp_real - ((cant_cajones + 1) * luz_entre_tapas)
+                    # Ancho: Hueco - 6mm
+                    ancho_tapa_bvm = ancho_interno_total - 6
+                    # Lateral: Prof - 30 - espesor
+                    largo_lateral_caja = prof_m - 30 - esp_real
 
                 # 2. Lógica de Alturas (Simétrica o Proporcional)
                 alturas_tapas = []
@@ -818,6 +843,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
