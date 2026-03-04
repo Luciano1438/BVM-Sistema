@@ -392,10 +392,10 @@ if menu == "Cotizador CNC":
             st.subheader("📐 Planilla de Corte e Inteligencia de Materiales")
             
                 # --- A. CONFIGURACIÓN DE PRECISIÓN ---
-                c_prec1, c_prec2 = st.columns(2)
-                es_cnc = c_prec1.toggle("🚀 Modo CNC (Margen 25mm)", value=True)
-                pvc_2mm = c_prec2.checkbox("¿Usa PVC 2mm?", value=True)
-                esp_canto = 2.0 if pvc_2mm else 0.5
+            c_prec1, c_prec2 = st.columns(2)
+            es_cnc = c_prec1.toggle("🚀 Modo CNC (Margen 25mm)", value=True)
+            pvc_2mm = c_prec2.checkbox("¿Usa PVC 2mm?", value=True)
+            esp_canto = 2.0 if pvc_2mm else 0.5
                 
             def crear_pieza(nombre, cant, largo, ancho, cant_l=2, cant_a=0, descontar=True):
                 if descontar:
@@ -818,6 +818,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
