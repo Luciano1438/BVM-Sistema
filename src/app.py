@@ -320,6 +320,7 @@ if menu == "Cotizador CNC":
                 
                 c_caj, c_hue = st.columns(2)
                 cant_cajones = c_caj.number_input("Cant. Cajones", value=0, min_value=0)
+                tipo_tapa = "Superpuesta" 
                 alto_frentin_emb = 0.0
                 if tipo_tapa == "Tapa Embutida":
                     alto_frentin_emb = st.number_input("Altura del Frentín Superior (mm)", value=30.0)
@@ -841,6 +842,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
