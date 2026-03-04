@@ -329,7 +329,7 @@ if menu == "Cotizador CNC":
                 if cant_cajones > 0:
                      # --- A. ELECCIÓN DE TIPO ---
                     tipo_tapa = st.radio("Estilo de Tapa", ["Superpuesta", "Embutida"])
-                    st.markdown(f"#### 📏 Parámetros del Cajón ({tipo_tapa_bvm.split()[0]})")
+                    st.markdown(f"#### 📏 Parámetros del Cajón ({tipo_tapa.split()[0]})")
     
                     col_l1, col_l2 = st.columns(2)
                     luz_entre_tapas = col_l1.number_input("Luz entre tapas (mm)", value=3.0)
@@ -488,7 +488,7 @@ if menu == "Cotizador CNC":
             if cant_cajones > 0 and tipo_tapa:
                 # 1. Calculamos el espacio neto disponible para TODAS las tapas
                 # Si es TIPO 1 (Superpuesta), mantenés tus fórmulas originales:
-                if tipo_tapa_bvm == "Superpuesta (Tipo 1)":
+                if tipo_tapa == "Superpuesta (Tipo 1)":
                     espacio_util_total = alto_m - 30 - ((cant_cajones - 1) * luz_entre_tapas)
                     ancho_tapa_bvm = ancho_m - luz_perimetral_tapa
                     largo_lateral_caja = prof_m - aire_trasero # Tu fórmula de siempre
@@ -843,6 +843,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
