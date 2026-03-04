@@ -483,10 +483,10 @@ if menu == "Cotizador CNC":
                 for i in range(int(cant_puertas)):
                     despiece.append(crear_pieza(f"Puerta {i+1} ({tipo_agarre})", 1, h_pue, w_pue))
 
-            if cant_cajones > 0 and tipo_tapa:
+            if cant_cajones > 0:
                 # 1. Calculamos el espacio neto disponible para TODAS las tapas
                 # Si es TIPO 1 (Superpuesta), mantenés tus fórmulas originales:
-                if tipo_tapa == "Superpuesta":
+                if "Superpuesta" in tipo_tapa:
                     espacio_util_total = alto_m - 30 - ((cant_cajones - 1) * luz_entre_tapas)
                     ancho_tapa_bvm = ancho_m - luz_perimetral_tapa
                     largo_lateral_caja = prof_m - aire_trasero # Tu fórmula de siempre
@@ -841,6 +841,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
