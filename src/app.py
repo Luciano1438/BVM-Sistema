@@ -491,7 +491,7 @@ if menu == "Cotizador CNC":
 
                 # 3. Generamos las Tapas en el despiece
                 for i, alto_tapa in enumerate(alturas_tapas):
-                    despiece.append(crear_pieza(f"Tapa de Cajon {i+1}", 1, alto_tapa, ancho_tapa_bvm))
+                    despiece.append(crear_pieza(f"Tapa de Cajon {i+1}", 1, alto_tapa, ancho_tapa_bvm, descontar=False))
                 ancho_caja_total = ancho_interno_total - (esp_corredera * 2)
                 largo_lateral_caja = prof_m - aire_trasero
                     
@@ -818,6 +818,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
