@@ -276,7 +276,7 @@ if st.sidebar.button("🚪 Cerrar Sesión"):
 if menu == "Cotizador CNC":
     try:
         st.title("🏭 BVM | Control de Producción Industrial")
-        # --- BLOQUE A PEGAR: DASHBOARD DE CONTROL ---
+        # --- DASHBOARD DE CONTROL ---
         st.write("---")
         # Calculamos la rentabilidad proyectada (usamos valores base si no hay datos)
         # Esto le da el look de "Terminal de Inversión"
@@ -320,8 +320,6 @@ if menu == "Cotizador CNC":
                 
                 c_caj, c_hue = st.columns(2)
                 cant_cajones = c_caj.number_input("Cant. Cajones", value=0, min_value=0)
-                ancho_hueco_cajon = c_hue.number_input("Ancho Hueco Cajonera (mm)", value=0.0, step=0.5)
-                tipo_tapa = st.checkbox("Tapa Superpuesta", value=True)
                 alto_frentin_emb = 0.0
                 if tipo_tapa == "Tapa Embutida":
                     alto_frentin_emb = st.number_input("Altura del Frentín Superior (mm)", value=30.0)
@@ -843,6 +841,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
