@@ -325,13 +325,12 @@ if menu == "Cotizador CNC":
                 if tipo_tapa == "Tapa Embutida":
                     alto_frentin_emb = st.number_input("Altura del Frentín Superior (mm)", value=30.0)
                 
-                if cant_cajones > 0:
-                # 1. CREAMOS LA LISTA PRIMERO (Para que Python no se queje)
                 opciones_estilo = ["Superpuesta", "Embutida"]
-                
+
+                if cant_cajones > 0:
                 # 2. Si hay 3 cajones, le sumamos el Gola
-                if cant_cajones == 3:
-                    opciones_estilo.append("Gola")
+                   if cant_cajones == 3:
+                       opciones_estilo.append("Gola")
                 
                 # 3. Usamos la lista en el radio
                 tipo_tapa = st.radio("Estilo de Tapa", opciones_estilo)
@@ -857,6 +856,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
