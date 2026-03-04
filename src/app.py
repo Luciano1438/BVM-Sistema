@@ -497,7 +497,7 @@ if menu == "Cotizador CNC":
                     largo_lateral_caja = prof_m - aire_trasero # Tu fórmula de siempre
                 
                 # Si es TIPO 2 (Embutida),
-                else:
+                elif tipo_tapa == "Embutida":
                     # Altura: Fórmula de tu viejo
                     espacio_util_total = alto_m - alto_frentin_emb - esp_real - ((cant_cajones + 1) * luz_entre_tapas)
                     ancho_tapa_bvm = ancho_interno_total - 6
@@ -853,6 +853,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
