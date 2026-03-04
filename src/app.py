@@ -391,7 +391,6 @@ if menu == "Cotizador CNC":
         with col_out:
             st.subheader("📐 Planilla de Corte e Inteligencia de Materiales")
             
-            if alto_m > 0 and ancho_m > 0:
                 # --- A. CONFIGURACIÓN DE PRECISIÓN ---
                 c_prec1, c_prec2 = st.columns(2)
                 es_cnc = c_prec1.toggle("🚀 Modo CNC (Margen 25mm)", value=True)
@@ -400,22 +399,17 @@ if menu == "Cotizador CNC":
                 
             def crear_pieza(nombre, cant, largo, ancho, cant_l=2, cant_a=0, descontar=True):
                 if descontar:
-                        # Restamos el espesor del canto (esp_canto) según la cantidad de lados
                     l_f = largo - (esp_canto * cant_l)
                     a_f = ancho - (esp_canto * cant_a)
                 else:
                     l_f, a_f = largo, ancho
                         
                 veta_final = obtener_veta_automatica(nombre, mat_principal) if tiene_veta else "Libre"
-                    
-                    # Nota para que el canteador sepa qué hacer
                 nota_canto = f"Canto: {cant_l}L / {cant_a}A"
-                    
-                    # Sacamos el 'int()' para que te muestre los decimales reales
                 return {"Pieza": nombre, "Cant": cant, "L": round(l_f, 1), "A": round(a_f, 1), "Veta": veta_final, "Notas": nota_canto}
-            despiece = []
-                
-                # --- LÓGICA DE ESTRUCTURA REAL BVM CON CANTEADO ---
+        if alto_m > 0 and ancho_m > 0:
+            despiece = []   
+             # --- LÓGICA DE ESTRUCTURA REAL BVM CON CANTEADO ---
             altura_caja_real = alto_m
             if tipo_base in ["Banquina de Obra", "Patas Plásticas"]:
                 altura_caja_real = alto_m - altura_base
@@ -824,6 +818,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
