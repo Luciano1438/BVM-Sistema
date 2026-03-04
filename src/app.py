@@ -335,8 +335,8 @@ if menu == "Cotizador CNC":
                 # 3. Usamos la lista en el radio
                 tipo_tapa = st.radio("Estilo de Tapa", opciones_estilo)
                 st.markdown(f"#### 📏 Parámetros del Cajón ({tipo_tapa})")
-                    col_l1, col_l2 = st.columns(2)
-                    luz_entre_tapas = col_l1.number_input("Luz entre tapas (mm)", value=3.0)
+                col_l1, col_l2 = st.columns(2)
+                luz_entre_tapas = col_l1.number_input("Luz entre tapas (mm)", value=3.0)
     
                 # Si es Tipo 1 pide luz de ancho, si es Tipo 2 pide el frentín de tu viejo
                 if tipo_tapa == "Superpuesta":
@@ -856,6 +856,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
