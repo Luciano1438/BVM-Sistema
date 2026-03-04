@@ -328,6 +328,8 @@ if menu == "Cotizador CNC":
                 if cant_cajones > 0:
                      # --- A. ELECCIÓN DE TIPO ---
                     tipo_tapa = st.radio("Estilo de Tapa", ["Superpuesta", "Embutida"])
+                    if cant_cajones == 3:
+                        opciones_estilo.append("Gola")
                     st.markdown(f"#### 📏 Parámetros del Cajón ({tipo_tapa.split()[0]})")
     
                     col_l1, col_l2 = st.columns(2)
@@ -336,10 +338,13 @@ if menu == "Cotizador CNC":
                 # Si es Tipo 1 pide luz de ancho, si es Tipo 2 pide el frentín de tu viejo
                 if tipo_tapa == "Superpuesta":
                     luz_perimetral_tapa = col_l2.number_input("Luz total ancho (mm)", value=4.0)
-                else:
+                elif:
                     alto_frentin_emb = col_l2.number_input("Altura Frentín Superior (mm)", value=30.0)
                     luz_perimetral_tapa = 6.0 # Valor fijo por fórmula para Tipo 2
-
+                else: # GOLA
+                    luz_perimetral_tapa = col_l2.number_input("Luz total ancho (mm)", value=4.0)
+                    alto_frentin_emb = 0.0
+                
                 distribucion_tapas = col_l1.radio("Distribución", ["Iguales", "Proporcional (20/35/45)"])
 
                 col_c1, col_c2 = st.columns(2)
@@ -497,6 +502,16 @@ if menu == "Cotizador CNC":
                     espacio_util_total = alto_m - alto_frentin_emb - esp_real - ((cant_cajones + 1) * luz_entre_tapas)
                     ancho_tapa_bvm = ancho_interno_total - 6
                     largo_lateral_caja = prof_m - 30 - esp_real
+                else: # SISTEMA GOLA
+                    # Tu fórmula: (Alto - 60 - luces) / 3
+                    espacio_util_total = alto_m - 60 - ((cant_cajones - 1) * luz_entre_tapas)
+                    ancho_tapa_bvm = ancho_m - luz_perimetral_tapa
+                    largo_lateral_caja = prof_m - aire_trasero
+                    
+                    # AGREGAMOS LAS 4 PIEZAS DE LA "L" ESTRUCTURAL
+                    # Van entre laterales, por eso usamos 'ancho_interno_total'
+                    despiece.append(crear_pieza("Frentín Gola L (A)", 2, 40, ancho_interno_total, cant_l=1, cant_a=0, descontar=False))
+                    despiece.append(crear_pieza("Frentín Gola L (B)", 2, 50, ancho_interno_total, cant_l=1, cant_a=0, descontar=False))
 
                 # 2. Lógica de Alturas (Simétrica o Proporcional)
                 alturas_tapas = []
@@ -838,6 +853,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
