@@ -502,7 +502,7 @@ if menu == "Cotizador CNC":
                     espacio_util_total = alto_m - alto_frentin_emb - esp_real - ((cant_cajones + 1) * luz_entre_tapas)
                     ancho_tapa_bvm = ancho_interno_total - 6
                     largo_lateral_caja = prof_m - 30 - esp_real
-                else: # SISTEMA GOLA
+                else:
                     # Tu fórmula: (Alto - 60 - luces) / 3
                     espacio_util_total = alto_m - 60 - ((cant_cajones - 1) * luz_entre_tapas)
                     ancho_tapa_bvm = ancho_m - luz_perimetral_tapa
@@ -853,6 +853,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
