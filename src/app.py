@@ -430,7 +430,6 @@ if menu == "Cotizador CNC":
                 else:
                     l_f, a_f = largo, ancho
                         
-                veta_final = obtener_veta_automatica(nombre, mat_principal) if tiene_veta else "Libre"
                 nota_canto = f"Canto: {cant_l}L / {cant_a}A"
                 return {"Pieza": nombre, "Cant": cant, "L": round(l_f, 1), "A": round(a_f, 1), "Veta": veta_final, "Notas": nota_canto}
         if alto_m > 0 and ancho_m > 0:
@@ -902,6 +901,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
