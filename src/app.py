@@ -264,15 +264,17 @@ if st.sidebar.button("🚪 Cerrar Sesión"):
         del st.session_state[key]
     st.rerun()
 if menu == "Cotizador CNC":
-    tipo_modulo = "Bajo Mesada Gola"  # Valor inicial para que el código no falle
+    tipo_modulo = "Bajo Mesada Gola" 
+    ancho_m, alto_m, prof_m = 0.0, 0.0, 0.0
     ancho_hueco_cajon = 0.0
-    c_caj, c_hue = None, None
+    usa_gola = False
+    tipo_agarre = "Gola"
+    
+    m2_18mm = 0.0
     try:
         st.title("🏭 BVM | Control de Producción Industrial")
         # --- DASHBOARD DE CONTROL ---
         st.write("---")
-        # Calculamos la rentabilidad proyectada (usamos valores base si no hay datos)
-        # Esto le da el look de "Terminal de Inversión"
         m1, m2, m3, m4 = st.columns(4)
         with m1:
             st.metric("📦 Piezas Totales", f"{len(df_corte) if 'df_corte' in locals() else 0}")
@@ -909,6 +911,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
