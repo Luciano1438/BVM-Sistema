@@ -460,7 +460,7 @@ if menu == "Cotizador CNC":
             ancho_interno_total = ancho_m - (esp_real * 2)
             altura_travesano = 100.0
             # --- OPCIÓN 1: BAJO MESADA GOLA (Lógica de tu viejo) ---
-            if tipo_modulo == "Bajo Mesada Gola":
+            if tipo_modulo == "Bajo Mesada":
                 # 1. BASE: Ancho y profundidad de mueble
                 despiece.append(crear_pieza("Base Módulo", 1, ancho_m, prof_m, descontar=False))
 
@@ -469,11 +469,16 @@ if menu == "Cotizador CNC":
 
                 # 3. ESTANTES
                 if tipo_modulo == "Bajo Mesada":
-                    # Si elegiste "Completo" o "Medio", agregamos la pieza automáticamente
                     if tipo_estante == "Completo":
                         despiece.append(crear_pieza("Estante Cuerpo", 1, ancho_interno_total, prof_m - 20, cant_l=1, cant_a=0))
                     elif tipo_estante == "Medio":
                         despiece.append(crear_pieza("Estante Medio", 1, ancho_interno_total, (prof_m / 2), cant_l=1, cant_a=0))
+                
+                # Dejamos este seguro por si usás la Cajonera
+                elif 'medidas_estantes' in locals():
+                    for i, e_ancho in enumerate(medidas_estantes):
+                        if e_ancho > 0: 
+                            despiece.append(crear_pieza(f"Estante {i+1}", 1, e_ancho, prof_m - 20, cant_l=1, cant_a=0))
                 
                 else:
                     # Para otros módulos, si llegaras a necesitar la lógica de lista:
@@ -503,8 +508,12 @@ if menu == "Cotizador CNC":
                 despiece.append({"Pieza": "Fondo Mueble", "Cant": 1, "L": alto_m - 80 - esp_real, "A": ancho_m - 20, "Veta": "Vertical", "Tipo": "Fondo"})
 
                 # 8. TRAVESAÑO TRASERO
-                alt_trav = 100 if "100" in tipo_travesano else 70
-                despiece.append(crear_pieza("Travesaño Trasero", 1, alt_trav, ancho_interno_total, descontar=False))
+                if tipo_modulo == "Bajo Mesada":
+                    # Agregamos los dos travesaños estándar
+                    despiece.append(crear_pieza("Travesaño Superior (Frontal)", 1, 100, ancho_interno_total, cant_l=1, cant_a=0, descontar=False))
+                    despiece.append(crear_pieza("Travesaño Trasero", 1, 70, ancho_interno_total, cant_l=1, cant_a=0, descontar=False))
+            
+            # Borramos el bucle de 'medidas_travesaños' que pedía datos manuales
              # --- LÓGICA CAJONERA---
             else: 
                 altura_caja_real = alto_m
@@ -933,6 +942,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
