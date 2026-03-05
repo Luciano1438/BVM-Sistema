@@ -468,10 +468,19 @@ if menu == "Cotizador CNC":
                 despiece.append(crear_pieza("Lateral Exterior", 2, alto_m - esp_real, prof_m, descontar=False))
 
                 # 3. ESTANTES
-                if tipo_estante == "Completo":
-                    despiece.append(crear_pieza("Estante Completo", 1, ancho_interno_total, prof_m - 20))
-                elif tipo_estante == "Medio":
-                    despiece.append(crear_pieza("Medio Estante", 1, ancho_interno_total / 2, prof_m - 20))
+                if tipo_modulo == "Bajo Mesada":
+                    # Si elegiste "Completo" o "Medio", agregamos la pieza automáticamente
+                    if tipo_estante == "Completo":
+                        despiece.append(crear_pieza("Estante Cuerpo", 1, ancho_interno_total, prof_m - 20, cant_l=1, cant_a=0))
+                    elif tipo_estante == "Medio":
+                        despiece.append(crear_pieza("Estante Medio", 1, ancho_interno_total, (prof_m / 2), cant_l=1, cant_a=0))
+                
+                else:
+                    # Para otros módulos, si llegaras a necesitar la lógica de lista:
+                    if 'medidas_estantes' in locals():
+                        for i, e_ancho in enumerate(medidas_estantes):
+                            if e_ancho > 0: 
+                                despiece.append(crear_pieza(f"Estante {i+1}", 1, e_ancho, prof_m - 20, cant_l=1, cant_a=0))
 
                 # 4. FRENTÍN GOLA (Piezas de 40mm y 50mm)
                 despiece.append(crear_pieza("Frentín Gola (Pieza A)", 1, 40, ancho_interno_total, descontar=False))
@@ -924,6 +933,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
