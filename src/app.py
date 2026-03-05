@@ -264,7 +264,6 @@ if st.sidebar.button("🚪 Cerrar Sesión"):
         del st.session_state[key]
     st.rerun()
 if menu == "Cotizador CNC":
-    df_corte = pd.DataFrame()
     m2_18mm, m2_fondo, precio_final = 0.0, 0.0, 0.0
     total_costo, utilidad = 0.0, 0.0
     costo_madera, costo_fondo, costo_herrajes = 0.0, 0.0, 0.0
@@ -434,31 +433,13 @@ if menu == "Cotizador CNC":
                 dias_prod = st.number_input("Días de taller", value=0.0, step=0.5)
                 necesita_colocacion = st.checkbox("¿Requiere Colocación?")
                 flete_sel = st.selectbox("Zona Envío", ["Ninguno", "Capital", "Zona Norte"])
-                dias_col = st.number_input("Días de obra", value=0) if necesita_colocacion else 0
-        df_corte = pd.DataFrame(despiece)
-        
+                dias_col = st.number_input("Días de obra", value=0) if necesita_colocacion else 0        
         with col_out:
             st.subheader("📐 Planilla de Corte e Inteligencia de Materiales")
-            
-            if not df_corte.empty:
-                # Sanitización para el error rosa
-                df_corte['Tipo'] = df_corte.get('Tipo', 'Cuerpo').fillna('Cuerpo').astype(str)
-        
-                st.subheader("📐 Planilla de Corte")
-                df_editado = st.data_editor(df_corte, key="editor_final", use_container_width=True)
-                # --- A. CONFIGURACIÓN DE PRECISIÓN ---
             st.markdown("---")
             c_prec1, c_prec2 = st.columns(2)
             es_cnc = c_prec1.toggle("🚀 Modo CNC (Margen 25mm)", value=True)
             pvc_2mm = c_prec2.checkbox("¿Usa PVC 2mm?") 
-
-            # --- B. ACCIÓN FINAL ---
-            if st.button("📊 Sincronizar y Calcular Presupuesto", type="primary", use_container_width=True):
-                # Guardamos TODO en el estado para que el motor de presupuesto lo use
-                st.session_state['df_final'] = df_editado
-                st.session_state['es_cnc'] = es_cnc
-                st.session_state['pvc_2mm'] = pvc_2mm
-                st.rerun()
                 
             def crear_pieza(nombre, cant, largo, ancho, cant_l=2, cant_a=0, descontar=True, tipo_p="Cuerpo"):
                 if descontar:
@@ -470,9 +451,10 @@ if menu == "Cotizador CNC":
                 nota_canto = f"Canto: {cant_l}L / {cant_a}A"
                 # Agregamos 'Tipo' directamente aquí para que NUNCA falte
                 return {"Pieza": nombre, "Cant": cant, "L": round(l_f, 1), "A": round(a_f, 1), "Notas": nota_canto, "Tipo": tipo_p}
-            
+   
         if alto_m > 0 and ancho_m > 0:
-            despiece = []
+        despiece = []
+    
             ancho_interno_total = ancho_m - (esp_real * 2)
             altura_travesano = 100.0
             # --- OPCIÓN 1: BAJO MESADA GOLA (Lógica de tu viejo) ---
@@ -654,17 +636,17 @@ if menu == "Cotizador CNC":
                 df_corte = pd.DataFrame(despiece)
                 st.data_editor(df_corte, use_container_width=True, hide_index=True)
 
-                # --- 2. CÁLCULO DE COSTOS (Tu lógica completa) ---
-                limpieza = 0 if es_cnc else CONFIG_TECNICA["limpieza_placa_manual"]
-                gap_final = CONFIG_TECNICA["cnc_separacion_piezas"] if es_cnc else CONFIG_TECNICA["sierra_kerf"]
+                 gap = CONFIG_TECNICA["cnc_separacion_piezas"] if es_cnc else CONFIG_TECNICA["sierra_kerf"]
+                 m2_18mm = ((df_corte[df_corte['Tipo'] != 'Fondo']['L'] + gap) * (df_corte['A'] + gap) * df_corte['Cant']).sum() / 1_000_000
+                 m2_fondo = (df_corte[df_corte['Tipo'] == 'Fondo']['L'] * df_corte['A'] * df_corte['Cant']).sum() / 1_000_000
+               
+                    # --- B. CÁLCULO DE COSTOS CON REFILADO Y MAQUINARIA ---
+                    # Si es manual, restamos limpieza de placa (20mm x lado) del área útil
+                 limpieza = 0 if es_cnc else CONFIG_TECNICA["limpieza_placa_manual"]
+                 gap = CONFIG_TECNICA["cnc_separacion_piezas"] if es_cnc else CONFIG_TECNICA["sierra_kerf"]
                 
-                # Filtramos para m2
-                p_melamina = df_corte[df_corte['Tipo'] != 'Fondo']
-                p_fondo = df_corte[df_corte['Tipo'] == 'Fondo']
-
-                m2_18mm = ((p_melamina['L'] + gap_final) * (p_melamina['A'] + gap_final) * p_melamina['Cant']).sum() / 1_000_000
-                m2_fondo = (p_fondo['L'] * p_fondo['A'] * p_fondo['Cant']).sum() / 1_000_000
-
+                 m2_18mm = ((df_corte[df_corte.get('Tipo') != 'Fondo']['L'] + gap) * (df_corte['A'] + gap) * df_corte['Cant']).sum() / 1_000_000
+                 m2_fondo = (df_corte[df_corte.get('Tipo') == 'Fondo']['L'] * df_corte['A'] * df_corte['Cant']).sum() / 1_000_000
                 if not es_cnc:
                     st.warning(f"⚠️ Modo Manual: Se descuentan {limpieza}mm perimetrales por limpieza.")
 
@@ -964,6 +946,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
