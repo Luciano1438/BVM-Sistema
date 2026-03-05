@@ -315,13 +315,12 @@ if menu == "Cotizador CNC":
             # Agrupamos los módulos en otro contenedor
             with st.expander("🏗️ 2. Configuración de Módulos", expanded=True):
                 # --- HERRAJES (Común para ambos) ---
-                tipo_bisagra = st.selectbox("Tipo de Bisagra", ["Cazoleta C0 Cierre Suave", "Especial"])
+                tipo_bisagra = st.selectbox("Tipo de Bisagra", ["Cazoleta C0 Cierre Suave", "Especial"], key="bisagra_global")
                 precio_bisagra = config['bisagra_cazoleta']
 
                 # --- SELECTOR DE MUNDO: CAJONERA O BAJO MESADA ---
                 if tipo_modulo == "Cajonera":
-                    # Mantenemos todo tu código original de cajones
-                    tipo_corredera = st.radio("Tipo de Corredera", ["Telescópica 45cm", "Cierre Suave Pesada"])
+                    tipo_corredera = st.radio("Tipo de Corredera", ["Telescópica 45cm", "Cierre Suave Pesada"], key="tipo_corr_cj")
                     precio_guia = config['telescopica_45'] if "45cm" in tipo_corredera else config['telescopica_soft']
                     
                     c_caj, c_hue = st.columns(2)
@@ -331,41 +330,41 @@ if menu == "Cotizador CNC":
                     if cant_cajones == 3:
                         opciones_estilo.append("Gola")
                     
-                    tipo_tapa = st.radio("Estilo de Tapa", opciones_estilo)
+                    tipo_tapa = st.radio("Estilo de Tapa", opciones_estilo, key="estilo_tapa_cj")
                     st.markdown(f"#### 📏 Parámetros del Cajón ({tipo_tapa})")
                     col_l1, col_l2 = st.columns(2)
-                    luz_entre_tapas = col_l1.number_input("Luz entre tapas (mm)", value=3.0)
+                    luz_entre_tapas = col_l1.number_input("Luz entre tapas (mm)", value=3.0, key="luz_entre_cj")
                     
                     if tipo_tapa == "Superpuesta":
-                        luz_perimetral_tapa = col_l2.number_input("Luz total ancho (mm)", value=4.0)
+                        luz_perimetral_tapa = col_l2.number_input("Luz total ancho (mm)", value=4.0, key="luz_super_cj")
                     elif tipo_tapa == "Embutida": 
-                        alto_frentin_emb = col_l2.number_input("Altura Frentín Superior (mm)", value=30.0)
+                        alto_frentin_emb = col_l2.number_input("Altura Frentín Superior (mm)", value=30.0, key="alto_emb_cj")
                         luz_perimetral_tapa = 6.0 
                     else: # GOLA
-                        luz_perimetral_tapa = col_l2.number_input("Luz total ancho (mm)", value=4.0)
+                        luz_perimetral_tapa = col_l2.number_input("Luz total ancho (mm)", value=4.0, key="luz_gola_cj")
                     
-                    distribucion_tapas = col_l1.radio("Distribución", ["Iguales", "Proporcional (20/35/45)"])
+                    distribucion_tapas = col_l1.radio("Distribución", ["Iguales", "Proporcional (20/35/45)"], key="dist_tapas_cj")
                     
                     col_c1, col_c2 = st.columns(2)
-                    esp_corredera = col_c1.number_input("Espesor de Corredera (mm)", value=13.0)
-                    aire_trasero = col_c2.number_input("Espacio libre trasero (mm)", value=30.0)
+                    esp_corredera = col_c1.number_input("Espesor de Corredera (mm)", value=13.0, key="esp_corr_cj")
+                    aire_trasero = col_c2.number_input("Espacio libre trasero (mm)", value=30.0, key="aire_tras_cj")
 
                 elif tipo_modulo == "Bajo Mesada Gola":
-                    # --- NUEVA LÓGICA BAJO MESADA GOLA ---
                     st.markdown("#### 🍳 Parámetros de Bajo Mesada (Gola)")
                     
+                    # CORRECCIÓN: Definimos col_bm1 y lo usamos como col_bm1 (sin errores de nombres)
                     col_bm1, col_bm2 = st.columns(2)
-                    cant_puertas = c_bm1.selectbox("Cantidad de Puertas", [2, 3], key="cant_puertas_bm")
-                    tipo_estante = col_bm2.selectbox("Tipo de Estante", ["Completo", "Medio", "Ninguno"])
+                    cant_puertas = col_bm1.selectbox("Cantidad de Puertas", [2, 3], key="cant_puertas_bm")
+                    tipo_estante = col_bm2.selectbox("Tipo de Estante", ["Completo", "Medio", "Ninguno"], key="tipo_estante_bm")
                     
                     col_bm3, col_bm4 = st.columns(2)
-                    tipo_parante = col_bm3.selectbox("Tipo de Parante", ["Corto (100mm)", "Largo (Fondo Lateral)"])
-                    tipo_travesano = col_bm4.radio("Altura Travesaño Trasero", ["100 mm", "70 mm"])
+                    tipo_parante = col_bm3.selectbox("Tipo de Parante", ["Corto (100mm)", "Largo (Fondo Lateral)"], key="tipo_parante_bm")
+                    tipo_travesano = col_bm4.radio("Altura Travesaño Trasero", ["100 mm", "70 mm"], key="tipo_trav_bm")
                     
                     if cant_puertas == 3:
-                        dist_parante = st.number_input("Distancia Parante desde IZQ (mm)", value=ancho_m/3)
+                        dist_parante = st.number_input("Distancia Parante desde IZQ (mm)", value=ancho_m/3, key="dist_parante_bm")
                     
-                    # Definimos variables vacías para que el código no tire error al calcular costos
+                    # Limpieza de variables para que el resto del código no explote
                     cant_cajones = 0
                     precio_guia = 0
             # --- SECCIÓN 3: INTERIORES Y SIMETRÍA ---
@@ -911,6 +910,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
