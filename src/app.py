@@ -296,8 +296,8 @@ if menu == "Cotizador CNC":
         with col_in:
             # Agrupamos los datos básicos en un contenedor expandible
             with st.expander("🛠️ 1. Definición de Estructura", expanded=True):
-                cliente = st.text_input("Cliente", "")
-                mueble_nom = st.text_input("Mueble", "")
+                cliente = st.text_input("Cliente", "", key="cliente_input")
+                mueble_nom = st.text_input("Mueble", "", key="mueble_input")
                 
                 c1, c2, c3 = st.columns(3)
                 ancho_m = c1.number_input("Ancho Total (mm)", min_value=0.0, max_value=5000.0, value=0.0, step=0.5)
@@ -325,7 +325,7 @@ if menu == "Cotizador CNC":
                     precio_guia = config['telescopica_45'] if "45cm" in tipo_corredera else config['telescopica_soft']
                     
                     c_caj, c_hue = st.columns(2)
-                    cant_cajones = c_caj.number_input("Cant. Cajones", value=3, min_value=0)
+                    cant_cajones = c_caj.number_input("Cant. Cajones", value=3, min_value=0, key="cant_cajones_cj")
                     
                     opciones_estilo = ["Superpuesta", "Embutida"]
                     if cant_cajones == 3:
@@ -355,7 +355,7 @@ if menu == "Cotizador CNC":
                     st.markdown("#### 🍳 Parámetros de Bajo Mesada (Gola)")
                     
                     col_bm1, col_bm2 = st.columns(2)
-                    cant_puertas = col_bm1.selectbox("Cantidad de Puertas", [2, 3])
+                    cant_puertas = c_bm1.selectbox("Cantidad de Puertas", [2, 3], key="cant_puertas_bm")
                     tipo_estante = col_bm2.selectbox("Tipo de Estante", ["Completo", "Medio", "Ninguno"])
                     
                     col_bm3, col_bm4 = st.columns(2)
@@ -911,6 +911,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
