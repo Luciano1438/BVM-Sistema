@@ -435,7 +435,7 @@ if menu == "Cotizador CNC":
         if alto_m > 0 and ancho_m > 0:
             despiece = []
             ancho_interno_total = ancho_m - (esp_real * 2)
-            
+            altura_travesano = 100.0
             # --- OPCIÓN 1: BAJO MESADA GOLA (Lógica de tu viejo) ---
             if tipo_modulo == "Bajo Mesada Gola":
                 # 1. BASE: Ancho y profundidad de mueble
@@ -901,6 +901,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
