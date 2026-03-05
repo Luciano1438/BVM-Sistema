@@ -282,13 +282,14 @@ if menu == "Cotizador CNC":
             st.metric("💵 Cotización", f"${precio_final:,.0f}" if 'precio_final' in locals() else "$0", delta_color=color_precio)
         st.write("---")
         col_in, col_out = st.columns([1, 1.2])
+        ancho_hueco_cajon = 0.0
+        luz_e = config.get('luz_frente', 2.0)
+        luz_i = config.get('luz_entre', 3.0)
 
         with col_in:
             # Agrupamos los datos básicos en un contenedor expandible
             with st.expander("🏗️ 1. Definición de Estructura", expanded=True):
                 cliente = st.text_input("Cliente", "Consumidor Final", key="cliente_input")
-                
-                # Un solo selector de módulo, sin campos de texto extra
                 tipo_modulo = st.selectbox("Tipo de Módulo", ["Cajonera", "Bajo Mesada"], key="modulo_selector")
                 mueble_nom = tipo_modulo
                 
@@ -299,10 +300,8 @@ if menu == "Cotizador CNC":
 
                 # Materiales y Espesor
                 col_mat1, col_mat2 = st.columns(2)
-                # Usamos tus diccionarios de maderas y fondos
                 mat_principal = col_mat1.selectbox("Material Cuerpo", list(maderas.keys()), key="mat_cuerpo_sel")
-                mat_fondo_sel = col_mat2.selectbox("Material Fondo", list(fondos.keys()), key="mat_fondo_sel")
-                
+                mat_fondo_sel = col_mat2.selectbox("Material Fondo", list(fondos.keys()), key="mat_fondo_sel")   
                 esp_real = st.number_input("Espesor Real Placa (mm)", value=18.0, step=0.1, key="esp_real_input")
 
             # Agrupamos los módulos en otro contenedor
@@ -310,22 +309,19 @@ if menu == "Cotizador CNC":
                 cant_cajones = 0
                 precio_guia = 0.0
                 cant_puertas = 0
-                tipo_tapa = "Superpuesta"
-                luz_entre_tapas = 3.0
-                luz_perimetral_tapa = 4.0
-                esp_corredera = 13.0
-                aire_trasero = 30.0
+                ancho_hueco_interno = ancho_m - (esp_real * 2)
+                
                 # --- HERRAJES (Común para ambos) ---
                 tipo_bisagra = st.selectbox("Tipo de Bisagra", ["Cazoleta C0 Cierre Suave", "Especial"], key="bisagra_global")
                 precio_bisagra = config['bisagra_cazoleta']
 
-                # --- SELECTOR DE MUNDO: CAJONERA O BAJO MESADA ---
+                # --- SELECTOR DE MUNDO ---
                 if tipo_modulo == "Cajonera":
                     tipo_corredera = st.radio("Tipo de Corredera", ["Telescópica 45cm", "Cierre Suave Pesada"], key="tipo_corr_cj")
                     precio_guia = config['telescopica_45'] if "45cm" in tipo_corredera else config['telescopica_soft']
-                    
-                    c_caj, c_hue = st.columns(2)
                     cant_cajones = c_caj.number_input("Cant. Cajones", value=3, min_value=0, key="cant_cajones_cj")
+
+                    c_caj, c_hue = st.columns(2)
                     
                     opciones_estilo = ["Superpuesta", "Embutida"]
                     if cant_cajones == 3:
@@ -351,9 +347,7 @@ if menu == "Cotizador CNC":
                     aire_trasero = col_c2.number_input("Espacio libre trasero (mm)", value=30.0, key="aire_tras_cj")
 
                 elif tipo_modulo == "Bajo Mesada Gola":
-                    st.markdown("#### 🍳 Parámetros de Bajo Mesada (Gola)")
-                    
-                    # CORRECCIÓN: Definimos col_bm1 y lo usamos como col_bm1 (sin errores de nombres)
+                    st.markdown("#### 🍳 Parámetros de Bajo Mesada (Gola)")                  
                     col_bm1, col_bm2 = st.columns(2)
                     cant_puertas = col_bm1.selectbox("Cantidad de Puertas", [2, 3], key="cant_puertas_bm")
                     tipo_estante = col_bm2.selectbox("Tipo de Estante", ["Completo", "Medio", "Ninguno"], key="tipo_estante_bm")
@@ -911,6 +905,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
