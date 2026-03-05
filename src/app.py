@@ -266,6 +266,7 @@ if st.sidebar.button("🚪 Cerrar Sesión"):
 if menu == "Cotizador CNC":
     tipo_modulo = "Bajo Mesada Gola"  # Valor inicial para que el código no falle
     ancho_hueco_cajon = 0.0
+    c_caj, c_hue = None, None
     try:
         st.title("🏭 BVM | Control de Producción Industrial")
         # --- DASHBOARD DE CONTROL ---
@@ -908,6 +909,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
