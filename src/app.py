@@ -264,14 +264,6 @@ if st.sidebar.button("🚪 Cerrar Sesión"):
         del st.session_state[key]
     st.rerun()
 if menu == "Cotizador CNC":
-    df_corte = pd.DataFrame()
-    df_corte = pd.DataFrame(despiece)
-                
-                # REGLA DE SEGURIDAD BVM: Si por algún motivo falta la columna 'Tipo', la creamos
-    if 'Tipo' not in df_corte.columns:
-        df_corte['Tipo'] = 'Cuerpo'
-
-    st.data_editor(df_corte, use_container_width=True, hide_index=True)
 
                 # --- B. CÁLCULO DE COSTOS (CORREGIDO) ---
     gap = CONFIG_TECNICA["cnc_separacion_piezas"] if es_cnc else CONFIG_TECNICA["sierra_kerf"]
@@ -955,6 +947,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
