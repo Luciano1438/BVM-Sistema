@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 from supabase import create_client, Client
 from dotenv import load_dotenv
-from fpdf import FPDFwi
+from fpdf import FPDF
 from datetime import datetime, timedelta, timezone
 import urllib.parse
 
@@ -971,6 +971,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
