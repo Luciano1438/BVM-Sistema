@@ -265,10 +265,8 @@ if st.sidebar.button("🚪 Cerrar Sesión"):
     st.rerun()
 if menu == "Cotizador CNC":
     df_corte = pd.DataFrame()
-    m2_18mm, m2_fondo, precio_final = 0.0, 0.0, 0.0
-    ancho_puerta_final = 0.0
-    es_cnc = True
-    gap = CONFIG_TECNICA["cnc_separacion_piezas"]
+    m2_18mm, precio_final = 0.0, 0.0
+    es_cnc = True # Para que no de NameError
     try:
         st.title("🏭 BVM | Control de Producción Industrial")
         # --- DASHBOARD DE CONTROL ---
@@ -631,42 +629,50 @@ if menu == "Cotizador CNC":
                 # --- MOSTRAR RESULTADOS FINAL TIPO 1 ---
                 df_corte = pd.DataFrame(despiece)
                 
-                # SI LA TABLA TIENE DATOS, ASEGURAMOS QUE TENGA 'Tipo'
+               # --- 1. CONVERSIÓN A TABLA Y BLINDAJE DE 'TIPO' ---
+                df_corte = pd.DataFrame(despiece)
+                
                 if not df_corte.empty:
                     if 'Tipo' not in df_corte.columns:
                         df_corte['Tipo'] = 'Cuerpo'
                     df_corte['Tipo'] = df_corte['Tipo'].fillna('Cuerpo')
 
                 st.data_editor(df_corte, use_container_width=True, hide_index=True)
-                # --- B. CÁLCULO DE COSTOS ---
-            gap = CONFIG_TECNICA["cnc_separacion_piezas"] if es_cnc else CONFIG_TECNICA["sierra_kerf"]
-            m2_18mm = ((df_corte[df_corte['Tipo'] != 'Fondo']['L'] + gap) * (df_corte['A'] + gap) * df_corte['Cant']).sum() / 1_000_000
-            m2_fondo = (df_corte[df_corte['Tipo'] == 'Fondo']['L'] * df_corte['A'] * df_corte['Cant']).sum() / 1_000_000
-               
-                # --- B. CÁLCULO DE COSTOS CON REFILADO Y MAQUINARIA ---
-                # Si es manual, restamos limpieza de placa (20mm x lado) del área útil
-            limpieza = 0 if es_cnc else CONFIG_TECNICA["limpieza_placa_manual"]
-            gap = CONFIG_TECNICA["cnc_separacion_piezas"] if es_cnc else CONFIG_TECNICA["sierra_kerf"]
-                
-            m2_18mm = ((df_corte[df_corte.get('Tipo') != 'Fondo']['L'] + gap) * (df_corte['A'] + gap) * df_corte['Cant']).sum() / 1_000_000
-            m2_fondo = (df_corte[df_corte.get('Tipo') == 'Fondo']['L'] * df_corte['A'] * df_corte['Cant']).sum() / 1_000_000
 
-                # Impacto financiero del refilado en modo manual
-            if not es_cnc:
-                st.warning(f"⚠️ Modo Manual: Se descuentan {limpieza}mm perimetrales por limpieza de placa.")
-
-            costo_madera = (m2_18mm * maderas[mat_principal] / 5.03)
-            costo_fondo = (m2_fondo * fondos[mat_fondo_sel] / 5.03)
-            costo_herrajes = (cant_puertas * 2 * precio_bisagra) + (cant_cajones * precio_guia)
+                # --- 2. CÁLCULO DE COSTOS (Tu lógica completa) ---
+                limpieza = 0 if es_cnc else CONFIG_TECNICA["limpieza_placa_manual"]
+                gap_final = CONFIG_TECNICA["cnc_separacion_piezas"] if es_cnc else CONFIG_TECNICA["sierra_kerf"]
                 
-            costo_flete = 0
-            if flete_sel == "Capital": costo_flete = config['flete_capital']
-            elif flete_sel == "Zona Norte": costo_flete = config['flete_norte']
-                
-            costo_operativo = (dias_prod * config['gastos_fijos_diarios'])
-            total_costo = costo_madera + costo_fondo + costo_herrajes + costo_operativo + costo_base + costo_flete
-            if necesita_colocacion: total_costo += (dias_col * config['colocacion_dia'])
+                # Filtramos para m2
+                p_melamina = df_corte[df_corte['Tipo'] != 'Fondo']
+                p_fondo = df_corte[df_corte['Tipo'] == 'Fondo']
 
+                m2_18mm = ((p_melamina['L'] + gap_final) * (p_melamina['A'] + gap_final) * p_melamina['Cant']).sum() / 1_000_000
+                m2_fondo = (p_fondo['L'] * p_fondo['A'] * p_fondo['Cant']).sum() / 1_000_000
+
+                if not es_cnc:
+                    st.warning(f"⚠️ Modo Manual: Se descuentan {limpieza}mm perimetrales por limpieza.")
+
+                # --- 3. IMPACTO FINANCIERO TOTAL ---
+                costo_madera = (m2_18mm * maderas[mat_principal] / 5.03)
+                costo_fondo = (m2_fondo * fondos[mat_fondo_sel] / 5.03)
+                costo_herrajes = (cant_puertas * 2 * precio_bisagra) + (cant_cajones * precio_guia)
+                
+                costo_flete = 0
+                if flete_sel == "Capital": costo_flete = config['flete_capital']
+                elif flete_sel == "Zona Norte": costo_flete = config['flete_norte']
+                
+                costo_operativo = (dias_prod * config['gastos_fijos_diarios'])
+                
+                total_costo = costo_madera + costo_fondo + costo_herrajes + costo_operativo + costo_base + costo_flete
+                if necesita_colocacion: 
+                    total_costo += (dias_col * config['colocacion_dia'])
+                
+                precio_final = total_costo * (1 + config['ganancia_taller_pct'])
+
+                # BOTÓN DINÁMICO: Sube los resultados al Dashboard de arriba
+                if st.button("📊 Generar Presupuesto Final"):
+                    st.rerun()
                 # --- C. RETAZOS Y PRECIO FINAL (Igual que antes) ---
             st.write("---")
                # --- C. TU LÓGICA DE RETAZOS (REGLA EXPERTA: 150x400) ---
@@ -940,6 +946,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
