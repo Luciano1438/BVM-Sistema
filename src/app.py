@@ -266,6 +266,7 @@ if st.sidebar.button("🚪 Cerrar Sesión"):
 if menu == "Cotizador CNC":
     df_corte = pd.DataFrame()
     m2_18mm, precio_final = 0.0, 0.0
+    total_costo = 0.0
     es_cnc = True # Para que no de NameError
     try:
         st.title("🏭 BVM | Control de Producción Industrial")
@@ -946,6 +947,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
