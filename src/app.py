@@ -474,7 +474,6 @@ if menu == "Cotizador CNC":
             if tipo_modulo == "Bajo Mesada":
                 # 1. BASE: Ancho y profundidad de mueble
                 despiece.append(crear_pieza("Base Módulo", 1, ancho_m, prof_m, descontar=False))
-
                 # 2. LATERALES: alto mueble - espesor material
                 despiece.append(crear_pieza("Lateral Exterior", 2, alto_m - esp_real, prof_m, descontar=False))
 
@@ -516,8 +515,7 @@ if menu == "Cotizador CNC":
                     despiece.append(crear_pieza("Parante Vertical", 1, alto_m - esp_real, anc_parante, descontar=False))
 
                 # 7. FONDO: alto - 80mm - espesor | ancho - 20mm
-                despiece.append({"Pieza": "Fondo Mueble", "Cant": 1, "L": alto_m - 80 - esp_real, "A": ancho_m - 20, "Veta": "Vertical", "Tipo": "Fondo"})
-
+                despiece.append({"Pieza": "Fondo Mueble", "Cant": 1, "L": alto_m - 80 - esp_real, "A": ancho_m - 20, "Veta": "Vertical", "Tipo": "Fondo"})          
                 # 8. TRAVESAÑO TRASERO
                 if tipo_modulo == "Bajo Mesada":
                     # Agregamos los dos travesaños estándar
@@ -649,6 +647,10 @@ if menu == "Cotizador CNC":
                 
                 # --- MOSTRAR RESULTADOS FINAL TIPO 1 ---
                 df_corte = pd.DataFrame(despiece)
+                if not df_corte.empty:
+                    if 'Tipo' not in df_corte.columns:
+                        df_corte['Tipo'] = 'Cuerpo'
+                    df_corte['Tipo'] = df_corte['Tipo'].fillna('Cuerpo')
                 st.data_editor(df_corte, use_container_width=True, hide_index=True)
 
                 # --- B. CÁLCULO DE COSTOS ---
@@ -953,6 +955,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
