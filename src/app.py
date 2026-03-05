@@ -304,6 +304,8 @@ if menu == "Cotizador CNC":
                 alto_m = c2.number_input("Alto Total (mm)", min_value=0.0, max_value=5000.0, value=0.0, step=0.5)
                 prof_m = c3.number_input("Profundo (mm)", min_value=0.0, max_value=2000.0, value=0.0, step=0.5)
                 altura_travesano = st.number_input("Altura Travesaño Trasero (mm)", value=100.0, key="travesano_base")
+                mueble_nom = st.text_input("Mueble", "")
+                tipo_modulo = st.selectbox("Tipo de Módulo", ["Cajonera", "Bajo Mesada Gola"])
                 
                 mat_principal = st.selectbox("Material Cuerpo (18mm)", list(maderas.keys()))
                 tiene_veta = st.toggle("💎 El material tiene veta (Respetar orientación)", value=True)
@@ -311,48 +313,61 @@ if menu == "Cotizador CNC":
                 mat_fondo_sel = st.selectbox("Material Fondo", list(fondos.keys()))
 
             # Agrupamos los módulos en otro contenedor
-            with st.expander("🏗️ 2. Configuración de Módulos", expanded=False):
-                # Configuración de Herrajes
+          with st.expander("🏗️ 2. Configuración de Módulos", expanded=True):
+                # --- HERRAJES (Común para ambos) ---
                 tipo_bisagra = st.selectbox("Tipo de Bisagra", ["Cazoleta C0 Cierre Suave", "Especial"])
                 precio_bisagra = config['bisagra_cazoleta']
-                tipo_corredera = st.radio("Tipo de Corredera", ["Telescópica 45cm", "Cierre Suave Pesada"])
-                precio_guia = config['telescopica_45'] if "45cm" in tipo_corredera else config['telescopica_soft']
-                
-                c_caj, c_hue = st.columns(2)
-                cant_cajones = c_caj.number_input("Cant. Cajones", value=0, min_value=0)
-                tipo_tapa = "Superpuesta" 
-                alto_frentin_emb = 0.0
-                if tipo_tapa == "Tapa Embutida":
-                    alto_frentin_emb = st.number_input("Altura del Frentín Superior (mm)", value=30.0)
-                
-                opciones_estilo = ["Superpuesta", "Embutida"]
 
-                if cant_cajones > 0:
-                # 2. Si hay 3 cajones, le sumamos el Gola
-                   if cant_cajones == 3:
-                       opciones_estilo.append("Gola")
-                
-                # 3. Usamos la lista en el radio
-                tipo_tapa = st.radio("Estilo de Tapa", opciones_estilo)
-                st.markdown(f"#### 📏 Parámetros del Cajón ({tipo_tapa})")
-                col_l1, col_l2 = st.columns(2)
-                luz_entre_tapas = col_l1.number_input("Luz entre tapas (mm)", value=3.0)
-    
-                # Si es Tipo 1 pide luz de ancho, si es Tipo 2 pide el frentín de tu viejo
-                if tipo_tapa == "Superpuesta":
-                    luz_perimetral_tapa = col_l2.number_input("Luz total ancho (mm)", value=4.0)
-                elif tipo_tapa == "Embutida": 
-                    alto_frentin_emb = col_l2.number_input("Altura Frentín Superior (mm)", value=30.0)
-                    luz_perimetral_tapa = 6.0 # Valor fijo por fórmula para Tipo 2
-                else: # GOLA
-                    luz_perimetral_tapa = col_l2.number_input("Luz total ancho (mm)", value=4.0)
-                    alto_frentin_emb = 0.0
-                
-                distribucion_tapas = col_l1.radio("Distribución", ["Iguales", "Proporcional (20/35/45)"])
+                # --- SELECTOR DE MUNDO: CAJONERA O BAJO MESADA ---
+                if tipo_modulo == "Cajonera":
+                    # Mantenemos todo tu código original de cajones
+                    tipo_corredera = st.radio("Tipo de Corredera", ["Telescópica 45cm", "Cierre Suave Pesada"])
+                    precio_guia = config['telescopica_45'] if "45cm" in tipo_corredera else config['telescopica_soft']
+                    
+                    c_caj, c_hue = st.columns(2)
+                    cant_cajones = c_caj.number_input("Cant. Cajones", value=3, min_value=0)
+                    
+                    opciones_estilo = ["Superpuesta", "Embutida"]
+                    if cant_cajones == 3:
+                        opciones_estilo.append("Gola")
+                    
+                    tipo_tapa = st.radio("Estilo de Tapa", opciones_estilo)
+                    st.markdown(f"#### 📏 Parámetros del Cajón ({tipo_tapa})")
+                    col_l1, col_l2 = st.columns(2)
+                    luz_entre_tapas = col_l1.number_input("Luz entre tapas (mm)", value=3.0)
+                    
+                    if tipo_tapa == "Superpuesta":
+                        luz_perimetral_tapa = col_l2.number_input("Luz total ancho (mm)", value=4.0)
+                    elif tipo_tapa == "Embutida": 
+                        alto_frentin_emb = col_l2.number_input("Altura Frentín Superior (mm)", value=30.0)
+                        luz_perimetral_tapa = 6.0 
+                    else: # GOLA
+                        luz_perimetral_tapa = col_l2.number_input("Luz total ancho (mm)", value=4.0)
+                    
+                    distribucion_tapas = col_l1.radio("Distribución", ["Iguales", "Proporcional (20/35/45)"])
+                    
+                    col_c1, col_c2 = st.columns(2)
+                    esp_corredera = col_c1.number_input("Espesor de Corredera (mm)", value=13.0)
+                    aire_trasero = col_c2.number_input("Espacio libre trasero (mm)", value=30.0)
 
-                col_c1, col_c2 = st.columns(2)
-                esp_corredera = col_c1.number_input("Espesor de Corredera (mm)", value=13.0)
-                aire_trasero = col_c2.number_input("Espacio libre trasero (mm)", value=30.0)
+                elif tipo_modulo == "Bajo Mesada Gola":
+                    # --- NUEVA LÓGICA BAJO MESADA GOLA ---
+                    st.markdown("#### 🍳 Parámetros de Bajo Mesada (Gola)")
+                    
+                    col_bm1, col_bm2 = st.columns(2)
+                    cant_puertas = col_bm1.selectbox("Cantidad de Puertas", [2, 3])
+                    tipo_estante = col_bm2.selectbox("Tipo de Estante", ["Completo", "Medio", "Ninguno"])
+                    
+                    col_bm3, col_bm4 = st.columns(2)
+                    tipo_parante = col_bm3.selectbox("Tipo de Parante", ["Corto (100mm)", "Largo (Fondo Lateral)"])
+                    tipo_travesano = col_bm4.radio("Altura Travesaño Trasero", ["100 mm", "70 mm"])
+                    
+                    if cant_puertas == 3:
+                        dist_parante = st.number_input("Distancia Parante desde IZQ (mm)", value=ancho_m/3)
+                    
+                    # Definimos variables vacías para que el código no tire error al calcular costos
+                    cant_cajones = 0
+                    precio_guia = 0
             # --- SECCIÓN 3: INTERIORES Y SIMETRÍA ---
             with st.expander("⚖️ 3. Parante, Estantes y Simetría", expanded=False):
                 tiene_parante = st.checkbox("¿Lleva parante divisor?", value=False)
@@ -428,131 +443,171 @@ if menu == "Cotizador CNC":
                 nota_canto = f"Canto: {cant_l}L / {cant_a}A"
                 return {"Pieza": nombre, "Cant": cant, "L": round(l_f, 1), "A": round(a_f, 1), "Veta": veta_final, "Notas": nota_canto}
         if alto_m > 0 and ancho_m > 0:
-            despiece = []   
-             # --- LÓGICA DE ESTRUCTURA REAL BVM CON CANTEADO ---
-            altura_caja_real = alto_m
-            if tipo_base in ["Banquina de Obra", "Patas Plásticas"]:
-                altura_caja_real = alto_m - altura_base
-                # --- LÓGICA DE ESTRUCTURA REAL BVM (TIPO 1) ---
-
-            # 1. BASE (Piso): Ancho total y profundidad total
-            despiece.append(crear_pieza("Base Módulo", 1, ancho_m, prof_m, cant_l=1, cant_a=0, descontar=False))
-
-            # 2. LATERALES: (Altura - 1 espesor) y profundidad total
-            # Apoyan sobre la base, por eso descontamos solo 1 espesor real
-            altura_lateral_bvm = alto_m - esp_real
-            despiece.append(crear_pieza("Lateral Exterior", 2, altura_lateral_bvm, prof_m, cant_l=2, cant_a=0, descontar=False))
-
-            # 3. TRAVESAÑO TRASERO Y FRENTÍN (Horizontales)
-            # Ambos van entre laterales, por eso descuentan (esp_real * 2)
-            ancho_hueco_interno = ancho_m - (esp_real * 2)
-            # Hacemos que ambos nombres valgan lo mismo para que no de error
-            ancho_interno_total = ancho_hueco_interno
-            despiece.append(crear_pieza("Travesaño Trasero", 1, ancho_hueco_interno, altura_travesano, cant_l=1, cant_a=0, descontar=False))
-            despiece.append(crear_pieza("Frentín Frontal", 1, ancho_hueco_interno, 50, cant_l=1, cant_a=0, descontar=False))
-
-            # 4. FONDO DEL MUEBLE: -20mm en ambos lados
-            despiece.append({
-                "Pieza": "Fondo Mueble", 
-                "Cant": 1, 
-                "L": alto_m - 20, 
-                "A": ancho_m - 20, 
-                "Veta": "Vertical", 
-                "Tipo": "Fondo"
-            })
-                        
-                # 3. ZÓCALOS DE MADERA: Si existen, llevan canto al frente
-            if tipo_base == "Zócalo de Madera":
-                despiece.append(crear_pieza("Zócalo Frontal", 2, altura_base, ancho_interno_total, cant_l=1, cant_a=0, descontar=False))
-                despiece.append(crear_pieza("Zócalo Lateral", 2, altura_base, prof_m - 50, cant_l=1, cant_a=0, descontar=False))
-                
-                # 4. PARANTE DIVISOR: Altura interna y canto al frente
-            if tiene_parante:
-                altura_interna = altura_caja_real - (esp_real * 2)
-                despiece.append(crear_pieza("Parante Divisor", 1, altura_interna, prof_m - 20, cant_l=1, cant_a=0, descontar=False))
-                    
-                hueco_izq = distancia_parante
-                hueco_der = ancho_interno_total - distancia_parante - esp_real
-                st.info(f"📏 Luz Interna Izquierda: {hueco_izq:.1f}mm")
-                st.info(f"📏 Luz Interna Derecha: {hueco_der:.1f}mm")
-
-                # 5. ESTANTES: Respetan el canteado frontal
-            for i, e_ancho in enumerate(medidas_estantes):
-                if e_ancho > 0: 
-                    despiece.append(crear_pieza(f"Estante {i+1}", 1, e_ancho, prof_m - 20, cant_l=1, cant_a=0))
-                
-                # 6. TRAVESAÑOS: Respetan el canteado frontal
-            for i, trav in enumerate(medidas_travesaños):
-                if trav['L'] > 0: 
-                    despiece.append(crear_pieza(f"Travesaño {i+1}", 1, trav['L'], trav['A'], cant_l=1, cant_a=0))
-                # 2. Frentes (Puertas y Cajones con Altura de Caja Real)
-            if cant_puertas > 0:
-                w_pue, h_pue = calcular_medida_frente(ancho_sugerido, altura_caja_real, "Superpuesto")
-                if usa_gola: h_pue -= 20 
-                for i in range(int(cant_puertas)):
-                    despiece.append(crear_pieza(f"Puerta {i+1} ({tipo_agarre})", 1, h_pue, w_pue))
-
-            if cant_cajones > 0:
-                # Si es TIPO 1 (Superpuesta), mantenés tus fórmulas originales:
-                if "Superpuesta" in tipo_tapa:
-                    espacio_util_total = alto_m - 30 - ((cant_cajones - 1) * luz_entre_tapas)
-                    ancho_tapa_bvm = ancho_m - luz_perimetral_tapa
-                    largo_lateral_caja = prof_m - aire_trasero # Tu fórmula de siempre
-                
-                # Si es TIPO 2 (Embutida),
-                elif tipo_tapa == "Embutida":
-                    # Altura: Fórmula de tu viejo
-                    espacio_util_total = alto_m - alto_frentin_emb - esp_real - ((cant_cajones + 1) * luz_entre_tapas)
-                    ancho_tapa_bvm = ancho_interno_total - 6
-                    largo_lateral_caja = prof_m - 30 - esp_real
-                else:
-                    # Tu fórmula: (Alto - 60 - luces) / 3
-                    espacio_util_total = alto_m - 60 - ((cant_cajones - 1) * luz_entre_tapas)
-                    ancho_tapa_bvm = ancho_m - luz_perimetral_tapa
-                    largo_lateral_caja = prof_m - aire_trasero
-                    
-                    # AGREGAMOS LAS 4 PIEZAS DE LA "L" ESTRUCTURAL
-                    # Van entre laterales, por eso usamos 'ancho_interno_total'
-                    despiece.append(crear_pieza("Frentín Gola L (A)", 2, 40, ancho_interno_total, cant_l=1, cant_a=0, descontar=False))
-                    despiece.append(crear_pieza("Frentín Gola L (B)", 2, 50, ancho_interno_total, cant_l=1, cant_a=0, descontar=False))
-
-                # 2. Lógica de Alturas (Simétrica o Proporcional)
-                alturas_tapas = []
-                if distribucion_tapas == "Proporcional (20/35/45)" and cant_cajones == 3:
-                    alturas_tapas = [
-                        espacio_util_total * 0.20, # Tapa Superior
-                        espacio_util_total * 0.35, # Tapa Media
-                        espacio_util_total * 0.45  # Tapa Inferior
-                    ]
-                else:
-                    alto_igual = espacio_util_total / cant_cajones
-                    alturas_tapas = [alto_igual] * int(cant_cajones)
-
-                # 3. Generamos las Tapas en el despiece
-                for i, alto_tapa in enumerate(alturas_tapas):
-                    despiece.append(crear_pieza(f"Tapa de Cajon {i+1}", 1, alto_tapa, ancho_tapa_bvm, descontar=False))
-                ancho_caja_total = ancho_interno_total - (esp_corredera * 2)
-                    
-                # Laterales de 150mm (2 por cajón)
-                despiece.append(crear_pieza("Lateral Cajón", cant_cajones * 2, 150, largo_lateral_caja, cant_l=1, cant_a=0, descontar=False))
-                    
-                 # Frente/Fondo de la caja (Van entre laterales de la caja)
-                ancho_frente_interno = ancho_caja_total - (esp_real * 2)
-                despiece.append(crear_pieza("Frente/Fondo Interno", cant_cajones * 2, 150, ancho_frente_interno, cant_l=1, cant_a=0, descontar=False))
-                    
-               # --- PISO DEL CAJÓN (ANCHO CAJA - 20 Y PROF CAJA - 20) ---
-                despiece.append({
-                    "Pieza": "Piso Cajón", 
-                    "Cant": int(cant_cajones), 
-                    "L": round(largo_lateral_caja - 20, 1), 
-                    "A": round(ancho_caja_total - 20, 1), 
-                    "Veta": "Horizontal", 
-                    "Tipo": "Piso"
-                            })
+            despiece = []
+            ancho_interno_total = ancho_m - (esp_real * 2)
             
-            # --- MOSTRAR RESULTADOS FINAL TIPO 1 ---
-            df_corte = pd.DataFrame(despiece)
-            st.data_editor(df_corte, use_container_width=True, hide_index=True)
+            # --- OPCIÓN 1: BAJO MESADA GOLA (Lógica de tu viejo) ---
+            if tipo_modulo == "Bajo Mesada Gola":
+                # 1. BASE: Ancho y profundidad de mueble
+                despiece.append(crear_pieza("Base Módulo", 1, ancho_m, prof_m, descontar=False))
+
+                # 2. LATERALES: alto mueble - espesor material
+                despiece.append(crear_pieza("Lateral Exterior", 2, alto_m - esp_real, prof_m, descontar=False))
+
+                # 3. ESTANTES
+                if tipo_estante == "Completo":
+                    despiece.append(crear_pieza("Estante Completo", 1, ancho_interno_total, prof_m - 20))
+                elif tipo_estante == "Medio":
+                    despiece.append(crear_pieza("Medio Estante", 1, ancho_interno_total / 2, prof_m - 20))
+
+                # 4. FRENTÍN GOLA (Piezas de 40mm y 50mm)
+                despiece.append(crear_pieza("Frentín Gola (Pieza A)", 1, 40, ancho_interno_total, descontar=False))
+                despiece.append(crear_pieza("Frentín Gola (Pieza B)", 1, 50, ancho_interno_total, descontar=False))
+
+                # 5. PUERTAS
+                if cant_puertas == 2:
+                    w_pue = (ancho_m - 8) / 2
+                    despiece.append(crear_pieza("Puerta", 2, alto_m - 30, w_pue))
+                elif cant_puertas == 3:
+                    w_pue = (ancho_m - 12) / 3
+                    despiece.append(crear_pieza("Puerta", 3, alto_m - 30, w_pue))
+
+                # 6. PARANTE (Solo para 3 puertas)
+                if cant_puertas == 3:
+                    anc_parante = 100 if "Corto" in tipo_parante else prof_m
+                    despiece.append(crear_pieza("Parante Vertical", 1, alto_m - esp_real, anc_parante, descontar=False))
+
+                # 7. FONDO: alto - 80mm - espesor | ancho - 20mm
+                despiece.append({"Pieza": "Fondo Mueble", "Cant": 1, "L": alto_m - 80 - esp_real, "A": ancho_m - 20, "Veta": "Vertical", "Tipo": "Fondo"})
+
+                # 8. TRAVESAÑO TRASERO
+                alt_trav = 100 if "100" in tipo_travesano else 70
+                despiece.append(crear_pieza("Travesaño Trasero", 1, alt_trav, ancho_interno_total, descontar=False))
+             # --- LÓGICA CAJONERA---
+            else: 
+                altura_caja_real = alto_m
+                if tipo_base in ["Banquina de Obra", "Patas Plásticas"]:
+                    altura_caja_real = alto_m - altura_base
+                    # --- LÓGICA DE ESTRUCTURA REAL BVM (TIPO 1) ---
+    
+                # 1. BASE (Piso): Ancho total y profundidad total
+                despiece.append(crear_pieza("Base Módulo", 1, ancho_m, prof_m, cant_l=1, cant_a=0, descontar=False))
+    
+                # 2. LATERALES: (Altura - 1 espesor) y profundidad total
+                # Apoyan sobre la base, por eso descontamos solo 1 espesor real
+                altura_lateral_bvm = alto_m - esp_real
+                despiece.append(crear_pieza("Lateral Exterior", 2, altura_lateral_bvm, prof_m, cant_l=2, cant_a=0, descontar=False))
+    
+                # 3. TRAVESAÑO TRASERO Y FRENTÍN (Horizontales)
+                # Ambos van entre laterales, por eso descuentan (esp_real * 2)
+                ancho_hueco_interno = ancho_m - (esp_real * 2)
+                # Hacemos que ambos nombres valgan lo mismo para que no de error
+                ancho_interno_total = ancho_hueco_interno
+                despiece.append(crear_pieza("Travesaño Trasero", 1, ancho_hueco_interno, altura_travesano, cant_l=1, cant_a=0, descontar=False))
+                despiece.append(crear_pieza("Frentín Frontal", 1, ancho_hueco_interno, 50, cant_l=1, cant_a=0, descontar=False))
+    
+                # 4. FONDO DEL MUEBLE: -20mm en ambos lados
+                despiece.append({
+                    "Pieza": "Fondo Mueble", 
+                    "Cant": 1, 
+                    "L": alto_m - 20, 
+                    "A": ancho_m - 20, 
+                    "Veta": "Vertical", 
+                    "Tipo": "Fondo"
+                })
+                            
+                    # 3. ZÓCALOS DE MADERA: Si existen, llevan canto al frente
+                if tipo_base == "Zócalo de Madera":
+                    despiece.append(crear_pieza("Zócalo Frontal", 2, altura_base, ancho_interno_total, cant_l=1, cant_a=0, descontar=False))
+                    despiece.append(crear_pieza("Zócalo Lateral", 2, altura_base, prof_m - 50, cant_l=1, cant_a=0, descontar=False))
+                    
+                    # 4. PARANTE DIVISOR: Altura interna y canto al frente
+                if tiene_parante:
+                    altura_interna = altura_caja_real - (esp_real * 2)
+                    despiece.append(crear_pieza("Parante Divisor", 1, altura_interna, prof_m - 20, cant_l=1, cant_a=0, descontar=False))
+                        
+                    hueco_izq = distancia_parante
+                    hueco_der = ancho_interno_total - distancia_parante - esp_real
+                    st.info(f"📏 Luz Interna Izquierda: {hueco_izq:.1f}mm")
+                    st.info(f"📏 Luz Interna Derecha: {hueco_der:.1f}mm")
+    
+                    # 5. ESTANTES: Respetan el canteado frontal
+                for i, e_ancho in enumerate(medidas_estantes):
+                    if e_ancho > 0: 
+                        despiece.append(crear_pieza(f"Estante {i+1}", 1, e_ancho, prof_m - 20, cant_l=1, cant_a=0))
+                    
+                    # 6. TRAVESAÑOS: Respetan el canteado frontal
+                for i, trav in enumerate(medidas_travesaños):
+                    if trav['L'] > 0: 
+                        despiece.append(crear_pieza(f"Travesaño {i+1}", 1, trav['L'], trav['A'], cant_l=1, cant_a=0))
+                    # 2. Frentes (Puertas y Cajones con Altura de Caja Real)
+                if cant_puertas > 0:
+                    w_pue, h_pue = calcular_medida_frente(ancho_sugerido, altura_caja_real, "Superpuesto")
+                    if usa_gola: h_pue -= 20 
+                    for i in range(int(cant_puertas)):
+                        despiece.append(crear_pieza(f"Puerta {i+1} ({tipo_agarre})", 1, h_pue, w_pue))
+    
+                if cant_cajones > 0:
+                    # Si es TIPO 1 (Superpuesta), mantenés tus fórmulas originales:
+                    if "Superpuesta" in tipo_tapa:
+                        espacio_util_total = alto_m - 30 - ((cant_cajones - 1) * luz_entre_tapas)
+                        ancho_tapa_bvm = ancho_m - luz_perimetral_tapa
+                        largo_lateral_caja = prof_m - aire_trasero # Tu fórmula de siempre
+                    
+                    # Si es TIPO 2 (Embutida),
+                    elif tipo_tapa == "Embutida":
+                        # Altura: Fórmula de tu viejo
+                        espacio_util_total = alto_m - alto_frentin_emb - esp_real - ((cant_cajones + 1) * luz_entre_tapas)
+                        ancho_tapa_bvm = ancho_interno_total - 6
+                        largo_lateral_caja = prof_m - 30 - esp_real
+                    else:
+                        # Tu fórmula: (Alto - 60 - luces) / 3
+                        espacio_util_total = alto_m - 60 - ((cant_cajones - 1) * luz_entre_tapas)
+                        ancho_tapa_bvm = ancho_m - luz_perimetral_tapa
+                        largo_lateral_caja = prof_m - aire_trasero
+                        
+                        # AGREGAMOS LAS 4 PIEZAS DE LA "L" ESTRUCTURAL
+                        # Van entre laterales, por eso usamos 'ancho_interno_total'
+                        despiece.append(crear_pieza("Frentín Gola L (A)", 2, 40, ancho_interno_total, cant_l=1, cant_a=0, descontar=False))
+                        despiece.append(crear_pieza("Frentín Gola L (B)", 2, 50, ancho_interno_total, cant_l=1, cant_a=0, descontar=False))
+    
+                    # 2. Lógica de Alturas (Simétrica o Proporcional)
+                    alturas_tapas = []
+                    if distribucion_tapas == "Proporcional (20/35/45)" and cant_cajones == 3:
+                        alturas_tapas = [
+                            espacio_util_total * 0.20, # Tapa Superior
+                            espacio_util_total * 0.35, # Tapa Media
+                            espacio_util_total * 0.45  # Tapa Inferior
+                        ]
+                    else:
+                        alto_igual = espacio_util_total / cant_cajones
+                        alturas_tapas = [alto_igual] * int(cant_cajones)
+    
+                    # 3. Generamos las Tapas en el despiece
+                    for i, alto_tapa in enumerate(alturas_tapas):
+                        despiece.append(crear_pieza(f"Tapa de Cajon {i+1}", 1, alto_tapa, ancho_tapa_bvm, descontar=False))
+                    ancho_caja_total = ancho_interno_total - (esp_corredera * 2)
+                        
+                    # Laterales de 150mm (2 por cajón)
+                    despiece.append(crear_pieza("Lateral Cajón", cant_cajones * 2, 150, largo_lateral_caja, cant_l=1, cant_a=0, descontar=False))
+                        
+                     # Frente/Fondo de la caja (Van entre laterales de la caja)
+                    ancho_frente_interno = ancho_caja_total - (esp_real * 2)
+                    despiece.append(crear_pieza("Frente/Fondo Interno", cant_cajones * 2, 150, ancho_frente_interno, cant_l=1, cant_a=0, descontar=False))
+                        
+                   # --- PISO DEL CAJÓN (ANCHO CAJA - 20 Y PROF CAJA - 20) ---
+                    despiece.append({
+                        "Pieza": "Piso Cajón", 
+                        "Cant": int(cant_cajones), 
+                        "L": round(largo_lateral_caja - 20, 1), 
+                        "A": round(ancho_caja_total - 20, 1), 
+                        "Veta": "Horizontal", 
+                        "Tipo": "Piso"
+                                })
+                
+                # --- MOSTRAR RESULTADOS FINAL TIPO 1 ---
+                df_corte = pd.DataFrame(despiece)
+                st.data_editor(df_corte, use_container_width=True, hide_index=True)
 
                 # --- B. CÁLCULO DE COSTOS ---
             gap = CONFIG_TECNICA["cnc_separacion_piezas"] if es_cnc else CONFIG_TECNICA["sierra_kerf"]
@@ -856,6 +911,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
