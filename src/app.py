@@ -276,6 +276,9 @@ if menu == "Cotizador CNC":
         # --- DASHBOARD DE CONTROL ---
         st.write("---")
         m1, m2, m3, m4 = st.columns(4)
+        cantidad_piezas = len(df_corte) if 'df_corte' in locals() else 0
+        consumo_tablero = f"{m2_18mm:.2f} m²" if 'm2_18mm' in locals() else "0.0 m²"
+        valor_total = f"${precio_final:,.0f}" if 'precio_final' in locals() else "$0"
         with m1:
             st.metric("📦 Piezas Totales", f"{len(df_corte) if 'df_corte' in locals() else 0}")
         with m2:
@@ -942,6 +945,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
