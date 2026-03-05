@@ -313,7 +313,7 @@ if menu == "Cotizador CNC":
                 mat_fondo_sel = st.selectbox("Material Fondo", list(fondos.keys()))
 
             # Agrupamos los módulos en otro contenedor
-          with st.expander("🏗️ 2. Configuración de Módulos", expanded=True):
+            with st.expander("🏗️ 2. Configuración de Módulos", expanded=True):
                 # --- HERRAJES (Común para ambos) ---
                 tipo_bisagra = st.selectbox("Tipo de Bisagra", ["Cazoleta C0 Cierre Suave", "Especial"])
                 precio_bisagra = config['bisagra_cazoleta']
@@ -911,6 +911,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
