@@ -635,18 +635,11 @@ if menu == "Cotizador CNC":
                 # --- MOSTRAR RESULTADOS FINAL TIPO 1 ---
                 df_corte = pd.DataFrame(despiece)
                 st.data_editor(df_corte, use_container_width=True, hide_index=True)
-
-                 gap = CONFIG_TECNICA["cnc_separacion_piezas"] if es_cnc else CONFIG_TECNICA["sierra_kerf"]
-                 m2_18mm = ((df_corte[df_corte['Tipo'] != 'Fondo']['L'] + gap) * (df_corte['A'] + gap) * df_corte['Cant']).sum() / 1_000_000
-                 m2_fondo = (df_corte[df_corte['Tipo'] == 'Fondo']['L'] * df_corte['A'] * df_corte['Cant']).sum() / 1_000_000
-               
-                    # --- B. CÁLCULO DE COSTOS CON REFILADO Y MAQUINARIA ---
-                    # Si es manual, restamos limpieza de placa (20mm x lado) del área útil
-                 limpieza = 0 if es_cnc else CONFIG_TECNICA["limpieza_placa_manual"]
-                 gap = CONFIG_TECNICA["cnc_separacion_piezas"] if es_cnc else CONFIG_TECNICA["sierra_kerf"]
-                
-                 m2_18mm = ((df_corte[df_corte.get('Tipo') != 'Fondo']['L'] + gap) * (df_corte['A'] + gap) * df_corte['Cant']).sum() / 1_000_000
-                 m2_fondo = (df_corte[df_corte.get('Tipo') == 'Fondo']['L'] * df_corte['A'] * df_corte['Cant']).sum() / 1_000_000
+                gap = CONFIG_TECNICA["cnc_separacion_piezas"] if es_cnc else CONFIG_TECNICA["sierra_kerf"]
+                m2_18mm = ((df_corte[df_corte['Tipo'] != 'Fondo']['L'] + gap) * (df_corte['A'] + gap) * df_corte['Cant']).sum() / 1_000_000
+                m2_fondo = (df_corte[df_corte['Tipo'] == 'Fondo']['L'] * df_corte['A'] * df_corte['Cant']).sum() / 1_000_000
+                limpieza = 0 if es_cnc else CONFIG_TECNICA["limpieza_placa_manual"]
+                 
                 if not es_cnc:
                     st.warning(f"⚠️ Modo Manual: Se descuentan {limpieza}mm perimetrales por limpieza.")
 
@@ -946,6 +939,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
