@@ -290,6 +290,7 @@ if menu == "Cotizador CNC":
                 
                 # Un solo selector de módulo, sin campos de texto extra
                 tipo_modulo = st.selectbox("Tipo de Módulo", ["Cajonera", "Bajo Mesada"], key="modulo_selector")
+                mueble_nom = tipo_modulo
                 
                 c1, c2, c3 = st.columns(3)
                 ancho_m = c1.number_input("Ancho Total (mm)", min_value=0.0, value=600.0, step=1.0)
@@ -901,6 +902,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
