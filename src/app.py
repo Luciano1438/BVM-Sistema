@@ -353,24 +353,33 @@ if menu == "Cotizador CNC":
                     aire_trasero = col_c2.number_input("Espacio libre trasero (mm)", value=30.0, key="aire_tras_cj")
 
                 elif tipo_modulo == "Bajo Mesada":
-                    st.markdown("#### 🍳 Parámetros de Bajo Mesada (Gola)")                  
+                    variante_bm = st.selectbox("Variante", ["Gola", "Estándar", "Perfil J"], key="var_bm_final")
+                    
                     col_bm1, col_bm2 = st.columns(2)
-                    cant_puertas = col_bm1.selectbox("Cantidad de Puertas", [2, 3], key="cant_puertas_bm")
-                    tipo_estante = col_bm2.selectbox("Tipo de Estante", ["Completo", "Medio", "Ninguno"], key="tipo_estante_bm")
+                    cant_puertas = col_bm1.number_input("Cantidad de Puertas", value=2, min_value=1, key="cant_p_bm")
+                    tipo_estante = col_bm2.selectbox("Estante Interno", ["Completo", "Medio", "Ninguno"], key="est_p_bm")
                     
                     col_bm3, col_bm4 = st.columns(2)
                     tipo_parante = col_bm3.selectbox("Tipo de Parante", ["Corto (100mm)", "Largo (Fondo Lateral)"], key="tipo_parante_bm")
                     tipo_travesano = col_bm4.radio("Altura Travesaño Trasero", ["100 mm", "70 mm"], key="tipo_trav_bm")
                     
-                    if cant_puertas == 3:
-                        dist_parante = st.number_input("Distancia Parante desde IZQ (mm)", value=ancho_m/3, key="dist_parante_bm")
-                    
-                    # Limpieza de variables para que el resto del código no explote
+                    if cant_puertas >= 3:
+                        st.subheader("📏 Configuración de Parante")
+                        tipo_parante = st.selectbox("Tipo de Parante", ["Corto (100mm)", "Largo (Fondo Lateral)"], key="par_p_bm")
+                        distancia_parante = st.number_input("Distancia Parante desde IZQ (mm)", value=ancho_m/cant_puertas, key="dist_p_bm")
+                        tiene_parante = True
+                    else:
+                        tiene_parante = False
+                        distancia_parante = 0.0
+
+                    usa_gola = True if variante_bm == "Gola" else False
                     cant_cajones = 0
-                    precio_guia = 0
+                    precio_guia = 0.0
             # --- SECCIÓN 3: INTERIORES Y SIMETRÍA ---
             with st.expander("⚖️ 3. Parante, Estantes y Simetría", expanded=False):
-                tiene_parante = st.checkbox("¿Lleva parante divisor?", value=False)
+                # 1) LÓGICA DE PARANTE (Se mantiene porque sirve para cualquier módulo)
+                # Si es Bajo Mesada de 3 puertas, podrías forzarlo a True arriba, pero aquí queda el control
+                tiene_parante = st.checkbox("¿Lleva parante divisor?", value=tiene_parante if 'tiene_parante' in locals() else False)
                 distancia_parante = 0.0
                 ancho_hueco_disponible = float(ancho_m - (esp_real * 2)) if ancho_m > (esp_real * 2) else 0.0
                 
@@ -380,34 +389,38 @@ if menu == "Cotizador CNC":
                         "Distancia Parante desde borde IZQ interno (mm)", 
                         min_value=0.0, 
                         max_value=max_pos, 
-                        value=ancho_hueco_cajon if ancho_hueco_cajon > 0 else (max_pos / 2),
+                        value=distancia_parante if 'distancia_parante' in locals() and distancia_parante > 0 else (max_pos / 2),
                         step=0.5
                     )
                 
-                c_pue, c_est = st.columns(2)
-                cant_puertas = c_pue.number_input("Cant. Puertas", value=0, min_value=0, key="cant_pue_p")
-                cant_estantes = c_est.number_input("Cant. Estantes", value=0, min_value=0, key="cant_est_p")
+                st.write("---")
                 
-                # Inteligencia de Simetría BVM (Cálculo Automático)
+                # 2) VISUALIZACIÓN DE SIMETRÍA AUTOMÁTICA
+                # Ya no pedimos los anchos de puertas uno por uno, los calculamos:
                 if cant_puertas > 0 and ancho_m > 0:
                     esp_parante_din = esp_real if tiene_parante else 0
-                    ancho_disp_p = ancho_m - (esp_real * 2) - ancho_hueco_cajon - esp_parante_din
+                    # El vano libre real restando costados y parante
+                    ancho_disp_p = ancho_m - (esp_real * 2) - esp_parante_din
+                    
+                    # Restamos las luces (perimetrales y entre puertas)
                     total_luces = (luz_e * 2) + (luz_i * (cant_puertas - 1))
                     ancho_sugerido = (ancho_disp_p - total_luces) / cant_puertas
-                    st.info(f"💡 Simetría BVM (Espesor {esp_real}mm): {ancho_sugerido:.1f} mm c/u")
+                    
+                    st.success(f"💡 Simetría BVM: {cant_puertas} puertas de {ancho_sugerido:.1f} mm c/u")
+                    
+                    # Guardamos el valor para el despiece automático
+                    ancho_puerta_final = ancho_sugerido
+                else:
+                    ancho_puerta_final = 0.0
 
-                medidas_puertas = [st.number_input(f"Ancho Puerta {i+1} (mm)", value=0.0, key=f"pue_{i}", step=0.5) for i in range(int(cant_puertas))]
-                medidas_estantes = [st.number_input(f"Ancho Estante {i+1} (mm)", value=0.0, key=f"est_{i}", step=0.5) for i in range(int(cant_estantes))]
+                # 3) INFORMACIÓN DE ESTANTES Y TRAVESAÑOS
+                # En lugar de inputs, mostramos lo que el sistema ya sabe
+                if tipo_modulo == "Bajo Mesada":
+                    st.info(f"📋 Estructura: 1 Estante {tipo_estante} | 2 Travesaños (100mm y 70mm)")
+                    # Aquí el código ya sabe que debe sumar las piezas al despiece sin preguntar anchos.
                 
-                st.write("---")
-                cant_travesaños = st.number_input("Cantidad de Travesaños", value=0, min_value=0)
-                medidas_travesaños = []
-                for i in range(int(cant_travesaños)):
-                    ct1, ct2 = st.columns(2)
-                    l_sug = float(ancho_m - (esp_real * 2) if ancho_m > (esp_real * 2) else 0)
-                    l_t = ct1.number_input(f"Largo Travesaño {i+1}", value=l_sug, key=f"lt_{i}", step=0.5)
-                    a_t = ct2.number_input(f"Ancho Travesaño {i+1}", value=100.0, key=f"at_{i}", step=0.5)
-                    medidas_travesaños.append({"L": l_t, "A": a_t})
+                elif tipo_modulo == "Cajonera":
+                    st.info(f"📋 Estructura: {cant_cajones} Cajones | Travesaños según profundidad")
 
             # --- SECCIÓN 4: PARÁMETROS FINANCIEROS Y ENVÍO ---
             with st.expander("💰 4. Soporte y Logística", expanded=False):
@@ -911,6 +924,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
