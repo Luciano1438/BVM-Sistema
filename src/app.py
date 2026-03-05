@@ -269,6 +269,7 @@ if menu == "Cotizador CNC":
     ancho_hueco_cajon = 0.0
     usa_gola = False
     tipo_agarre = "Gola"
+    df_corte = pd.DataFrame()
     
     m2_18mm = 0.0
     try:
@@ -945,6 +946,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
