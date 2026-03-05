@@ -278,7 +278,7 @@ if menu == "Cotizador CNC":
         with m2: st.metric("🪵 Consumo Placa", f"{m2_18mm:.2f} m²" if 'm2_18mm' in locals() else "0.0 m²")
         with m3: st.metric("📈 Margen Bruto", f"{config['ganancia_taller_pct']*100:.0f}%")
         with m4: color_precio = "normal" if 'precio_final' in locals() else "off"
-            st.metric("💵 Cotización", f"${precio_final:,.0f}" if 'precio_final' in locals() else "$0", delta_color=color_precio)
+                 st.metric("💵 Cotización", f"${precio_final:,.0f}" if 'precio_final' in locals() else "$0", delta_color=color_precio)
         st.write("---")
         col_in, col_out = st.columns([1, 1.2])
         luz_e = config.get('luz_frente', 2.0)
@@ -935,6 +935,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
