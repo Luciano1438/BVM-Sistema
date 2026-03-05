@@ -269,6 +269,8 @@ if menu == "Cotizador CNC":
     total_costo, utilidad = 0.0, 0.0
     costo_madera, costo_fondo, costo_herrajes = 0.0, 0.0, 0.0
     costo_operativo, costo_flete, ahorro_madera = 0.0, 0.0, 0.0
+    medidas_estantes = []    # <--- ESTA ES LA CLAVE
+    medidas_travesaños = []
     es_cnc = True
     ancho_puerta_final = 0.0
     es_cnc = True # Para que no de NameError
@@ -968,6 +970,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
