@@ -264,20 +264,11 @@ if st.sidebar.button("🚪 Cerrar Sesión"):
         del st.session_state[key]
     st.rerun()
 if menu == "Cotizador CNC":
-    # --- 1. BLINDAJE DE SEGURIDAD (Esto evita los errores de NameError y KeyError) ---
-    es_cnc = True 
-    df_corte = pd.DataFrame() 
+    df_corte = pd.DataFrame()
     m2_18mm, m2_fondo, precio_final = 0.0, 0.0, 0.0
     ancho_puerta_final = 0.0
+    es_cnc = True
     gap = CONFIG_TECNICA["cnc_separacion_piezas"]
-
-    # --- 2. EL MOTOR DE COSTOS SOLO ACTÚA SI HAY DATOS (Esto mata el KeyError: 'Tipo') ---
-    if 'df_corte' in locals() and not df_corte.empty and 'Tipo' in df_corte.columns:
-        piezas_melamina = df_corte[df_corte['Tipo'] != 'Fondo']
-        piezas_fondo = df_corte[df_corte['Tipo'] == 'Fondo']
-        
-        m2_18mm = ((piezas_melamina['L'] + gap) * (piezas_melamina['A'] + gap) * piezas_melamina['Cant']).sum() / 1_000_000
-        m2_fondo = (piezas_fondo['L'] * piezas_fondo['A'] * piezas_fondo['Cant']).sum() / 1_000_000
     try:
         st.title("🏭 BVM | Control de Producción Industrial")
         # --- DASHBOARD DE CONTROL ---
@@ -639,12 +630,14 @@ if menu == "Cotizador CNC":
                 
                 # --- MOSTRAR RESULTADOS FINAL TIPO 1 ---
                 df_corte = pd.DataFrame(despiece)
+                
+                # SI LA TABLA TIENE DATOS, ASEGURAMOS QUE TENGA 'Tipo'
                 if not df_corte.empty:
                     if 'Tipo' not in df_corte.columns:
                         df_corte['Tipo'] = 'Cuerpo'
                     df_corte['Tipo'] = df_corte['Tipo'].fillna('Cuerpo')
-                st.data_editor(df_corte, use_container_width=True, hide_index=True)
 
+                st.data_editor(df_corte, use_container_width=True, hide_index=True)
                 # --- B. CÁLCULO DE COSTOS ---
             gap = CONFIG_TECNICA["cnc_separacion_piezas"] if es_cnc else CONFIG_TECNICA["sierra_kerf"]
             m2_18mm = ((df_corte[df_corte['Tipo'] != 'Fondo']['L'] + gap) * (df_corte['A'] + gap) * df_corte['Cant']).sum() / 1_000_000
@@ -947,6 +940,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
