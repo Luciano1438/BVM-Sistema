@@ -453,7 +453,7 @@ if menu == "Cotizador CNC":
                 return {"Pieza": nombre, "Cant": cant, "L": round(l_f, 1), "A": round(a_f, 1), "Notas": nota_canto, "Tipo": tipo_p}
    
         if alto_m > 0 and ancho_m > 0:
-        despiece = []
+            despiece = []
     
             ancho_interno_total = ancho_m - (esp_real * 2)
             altura_travesano = 100.0
@@ -946,6 +946,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
