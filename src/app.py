@@ -447,7 +447,7 @@ if menu == "Cotizador CNC":
             pvc_2mm = c_prec2.checkbox("¿Usa PVC 2mm?", value=True)
             esp_canto = 2.0 if pvc_2mm else 0.5
                 
-            def crear_pieza(nombre, cant, largo, ancho, cant_l=2, cant_a=0, descontar=True):
+            def crear_pieza(nombre, cant, largo, ancho, cant_l=2, cant_a=0, descontar=True, tipo_p="Cuerpo"):
                 if descontar:
                     l_f = largo - (esp_canto * cant_l)
                     a_f = ancho - (esp_canto * cant_a)
@@ -455,7 +455,8 @@ if menu == "Cotizador CNC":
                     l_f, a_f = largo, ancho
                         
                 nota_canto = f"Canto: {cant_l}L / {cant_a}A"
-                return {"Pieza": nombre, "Cant": cant, "L": round(l_f, 1), "A": round(a_f, 1), "Notas": nota_canto}
+                # Agregamos 'Tipo' directamente aquí para que NUNCA falte
+                return {"Pieza": nombre, "Cant": cant, "L": round(l_f, 1), "A": round(a_f, 1), "Notas": nota_canto, "Tipo": tipo_p}
         if alto_m > 0 and ancho_m > 0:
             despiece = []
             ancho_interno_total = ancho_m - (esp_real * 2)
@@ -943,6 +944,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
