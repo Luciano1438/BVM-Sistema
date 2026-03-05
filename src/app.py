@@ -265,6 +265,23 @@ if st.sidebar.button("🚪 Cerrar Sesión"):
     st.rerun()
 if menu == "Cotizador CNC":
     df_corte = pd.DataFrame()
+    df_corte = pd.DataFrame(despiece)
+                
+                # REGLA DE SEGURIDAD BVM: Si por algún motivo falta la columna 'Tipo', la creamos
+    if 'Tipo' not in df_corte.columns:
+        df_corte['Tipo'] = 'Cuerpo'
+
+    st.data_editor(df_corte, use_container_width=True, hide_index=True)
+
+                # --- B. CÁLCULO DE COSTOS (CORREGIDO) ---
+    gap = CONFIG_TECNICA["cnc_separacion_piezas"] if es_cnc else CONFIG_TECNICA["sierra_kerf"]
+                
+                # Filtramos con .get() o verificando existencia para que no explote
+    piezas_melamina = df_corte[df_corte['Tipo'] != 'Fondo']
+    piezas_fondo = df_corte[df_corte['Tipo'] == 'Fondo']
+
+    m2_18mm = ((piezas_melamina['L'] + gap) * (piezas_melamina['A'] + gap) * piezas_melamina['Cant']).sum() / 1_000_000
+    m2_fondo = (piezas_fondo['L'] * piezas_fondo['A'] * piezas_fondo['Cant']).sum() / 1_000_000
     m2_18mm, precio_final = 0.0, 0.0
     ancho_puerta_final = 0.0
     
@@ -936,6 +953,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
