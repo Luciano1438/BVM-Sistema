@@ -437,22 +437,15 @@ if menu == "Cotizador CNC":
                 dias_col = st.number_input("Días de obra", value=0) if necesita_colocacion else 0
         df_corte = pd.DataFrame(despiece)
         
-        if not df_corte.empty:
-            # 2. Aseguramos que la columna 'Tipo' exista para que no de error rosa
-            if 'Tipo' not in df_corte.columns:
-                df_corte['Tipo'] = 'Cuerpo'
-            df_corte['Tipo'] = df_corte['Tipo'].fillna('Cuerpo')
-            df_corte = df_corte.infer_objects()
         with col_out:
             st.subheader("📐 Planilla de Corte e Inteligencia de Materiales")
             
-            df_editado = st.data_editor(
-                df_corte, 
-                use_container_width=True, 
-                hide_index=True,
-                key="editor_corte_v1" 
-            )
-            
+            if not df_corte.empty:
+                # Sanitización para el error rosa
+                df_corte['Tipo'] = df_corte.get('Tipo', 'Cuerpo').fillna('Cuerpo').astype(str)
+        
+                st.subheader("📐 Planilla de Corte")
+                df_editado = st.data_editor(df_corte, key="editor_final", use_container_width=True)
                 # --- A. CONFIGURACIÓN DE PRECISIÓN ---
             st.markdown("---")
             c_prec1, c_prec2 = st.columns(2)
@@ -971,6 +964,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
