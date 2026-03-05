@@ -265,11 +265,8 @@ if st.sidebar.button("🚪 Cerrar Sesión"):
     st.rerun()
 if menu == "Cotizador CNC":
     df_corte = pd.DataFrame()
-    m2_18mm, m2_fondo, precio_final = 0.0, 0.0, 0.0
-    tiene_parante, usa_gola = False, False
-    distancia_parante, cant_cajones, cant_puertas = 0.0, 0, 0
-    tipo_modulo = "Bajo Mesada" # Valor por defecto"Gola"
-    df_corte = pd.DataFrame()
+    m2_18mm, precio_final = 0.0, 0.0
+    ancho_puerta_final = 0.0
     
     m2_18mm = 0.0
     try:
@@ -277,21 +274,15 @@ if menu == "Cotizador CNC":
         # --- DASHBOARD DE CONTROL ---
         st.write("---")
         m1, m2, m3, m4 = st.columns(4)
-        with m1:
-            st.metric("📦 Piezas Totales", f"{len(df_corte) if 'df_corte' in locals() else 0}")
-        with m2:
-            st.metric("🪵 Consumo Placa", f"{m2_18mm:.2f} m²" if 'm2_18mm' in locals() else "0.0 m²")
-        with m3:
-            st.metric("📈 Margen Bruto", f"{config['ganancia_taller_pct']*100:.0f}%")
-        with m4:
-            color_precio = "normal" if 'precio_final' in locals() else "off"
+        with m1: st.metric("📦 Piezas Totales", f"{len(df_corte) if 'df_corte' in locals() else 0}")
+        with m2: st.metric("🪵 Consumo Placa", f"{m2_18mm:.2f} m²" if 'm2_18mm' in locals() else "0.0 m²")
+        with m3: st.metric("📈 Margen Bruto", f"{config['ganancia_taller_pct']*100:.0f}%")
+        with m4: color_precio = "normal" if 'precio_final' in locals() else "off"
             st.metric("💵 Cotización", f"${precio_final:,.0f}" if 'precio_final' in locals() else "$0", delta_color=color_precio)
         st.write("---")
         col_in, col_out = st.columns([1, 1.2])
         luz_e = config.get('luz_frente', 2.0)
         luz_i = config.get('luz_entre', 3.0)
-        usa_gola = True if tipo_modulo == "Bajo Mesada Gola" else False
-        tipo_agarre = "Gola" if usa_gola else "Estándar"
 
         with col_in:
             # Agrupamos los datos básicos en un contenedor expandible
@@ -944,6 +935,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
