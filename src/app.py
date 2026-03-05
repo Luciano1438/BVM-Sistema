@@ -723,16 +723,19 @@ if menu == "Cotizador CNC":
                     "Monto": [costo_madera + costo_fondo, costo_herrajes, costo_operativo + costo_base, costo_flete, utilidad]
                 }
                 df_grafico = pd.DataFrame(datos_grafico)
-                
-                # Mostramos un gráfico de barras horizontal para comparar pesos
                 st.bar_chart(data=df_grafico, x="Categoría", y="Monto", color="#2e7d32")
 
-                # Alerta de Rentabilidad Estilo Burry
-                pct_utilidad_real = (utilidad / precio_final) * 100
-                if pct_utilidad_real < 12:
-                    st.error(f"⚠️ ALERTA DE MARGEN: La rentabilidad es del {pct_utilidad_real:.1f}%. Revisar costos fijos.")
+                if precio_final > 0:
+                    # MOVIDO AQUÍ ADENTRO: Solo divide si el precio no es cero
+                    pct_utilidad_real = (utilidad / precio_final) * 100
+                    
+                    if pct_utilidad_real < 12:
+                        st.error(f"⚠️ ALERTA DE MARGEN: La rentabilidad es del {pct_utilidad_real:.1f}%. Revisar costos fijos.")
+                    else:
+                        st.success(f"✅ OPERACIÓN RENTABLE: Margen del {pct_utilidad_real:.1f}%")
                 else:
-                    st.success(f"✅ OPERACIÓN RENTABLE: Margen del {pct_utilidad_real:.1f}%")
+                    st.info("💡 Cargue las medidas para calcular el margen de rentabilidad.")
+
                 st.subheader(f"PRECIO FINAL: ${precio_final:,.2f}")
 
             # --- 1. GESTIÓN DE GUARDADO (ADMINISTRACIÓN) ---
@@ -951,6 +954,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
