@@ -328,6 +328,7 @@ if menu == "Cotizador CNC":
                     cant_cajones = c_caj.number_input("Cant. Cajones", value=3, min_value=0, key="cant_cajones_cj")
 
                     c_caj, c_hue = st.columns(2)
+                    cant_cajones = c_caj.number_input("Cant. Cajones", value=3, min_value=0, key="cant_cajones_cj")
                     
                     opciones_estilo = ["Superpuesta", "Embutida"]
                     if cant_cajones == 3:
@@ -911,6 +912,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
