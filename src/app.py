@@ -24,19 +24,10 @@ CONFIG_TECNICA = {
 
 def obtener_veta_automatica(nombre_pieza, material_seleccionado):
     """
-    Si es Blanco, la veta es libre. Si es enchapado, sigue la regla de BVM.
+    Devuelve un valor genérico para evitar errores de cálculo 
+    mientras la lógica de veta está desactivada.
     """
-    material_lower = material_seleccionado.lower()
-    # REGLA DE EFICIENCIA: Si es blanco, no desperdiciamos placa con orientaciones fijas
-    if "blanco" in material_lower:
-        return "Libre (Cualquier sentido)"
- 
-
-    # Regla de tu viejo para materiales con veta (enchapados/colores)
-    nombre_lower = nombre_pieza.lower()
-    if any(x in nombre_lower for x in ["lateral exterior", "puerta", "tapa de cajon", "fondo"]):
-        return "Vertical (Hacia Arriba)"
-    return "Horizontal (Izquierda a Derecha)"
+    return "N/A""
 
 def calcular_medida_frente(ancho_hueco, alto_hueco, tipo_montaje="Superpuesto", es_doble=False):
     """
@@ -912,6 +903,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
