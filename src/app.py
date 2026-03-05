@@ -307,6 +307,14 @@ if menu == "Cotizador CNC":
 
             # Agrupamos los módulos en otro contenedor
             with st.expander("🏗️ 2. Configuración de Módulos", expanded=True):
+                cant_cajones = 0
+                precio_guia = 0.0
+                cant_puertas = 0
+                tipo_tapa = "Superpuesta"
+                luz_entre_tapas = 3.0
+                luz_perimetral_tapa = 4.0
+                esp_corredera = 13.0
+                aire_trasero = 30.0
                 # --- HERRAJES (Común para ambos) ---
                 tipo_bisagra = st.selectbox("Tipo de Bisagra", ["Cazoleta C0 Cierre Suave", "Especial"], key="bisagra_global")
                 precio_bisagra = config['bisagra_cazoleta']
@@ -902,6 +910,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
