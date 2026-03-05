@@ -285,6 +285,8 @@ if menu == "Cotizador CNC":
         ancho_hueco_cajon = 0.0
         luz_e = config.get('luz_frente', 2.0)
         luz_i = config.get('luz_entre', 3.0)
+        usa_gola = True if tipo_modulo == "Bajo Mesada Gola" else False
+        tipo_agarre = "Gola" if usa_gola else "Estándar"
 
         with col_in:
             # Agrupamos los datos básicos en un contenedor expandible
@@ -905,6 +907,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
