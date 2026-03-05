@@ -264,6 +264,10 @@ if st.sidebar.button("🚪 Cerrar Sesión"):
         del st.session_state[key]
     st.rerun()
 if menu == "Cotizador CNC":
+    es_cnc = True  # Valor por defecto para que no falle la línea 269
+    df_corte = pd.DataFrame()
+    m2_18mm, m2_fondo, precio_final = 0.0, 0.0, 0.0
+    ancho_puerta_final = 0.0
 
                 # --- B. CÁLCULO DE COSTOS (CORREGIDO) ---
     gap = CONFIG_TECNICA["cnc_separacion_piezas"] if es_cnc else CONFIG_TECNICA["sierra_kerf"]
@@ -947,6 +951,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
