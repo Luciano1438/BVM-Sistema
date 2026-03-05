@@ -264,6 +264,8 @@ if st.sidebar.button("🚪 Cerrar Sesión"):
         del st.session_state[key]
     st.rerun()
 if menu == "Cotizador CNC":
+    tipo_modulo = "Bajo Mesada Gola"  # Valor inicial para que el código no falle
+    ancho_hueco_cajon = 0.0
     try:
         st.title("🏭 BVM | Control de Producción Industrial")
         # --- DASHBOARD DE CONTROL ---
@@ -282,7 +284,6 @@ if menu == "Cotizador CNC":
             st.metric("💵 Cotización", f"${precio_final:,.0f}" if 'precio_final' in locals() else "$0", delta_color=color_precio)
         st.write("---")
         col_in, col_out = st.columns([1, 1.2])
-        ancho_hueco_cajon = 0.0
         luz_e = config.get('luz_frente', 2.0)
         luz_i = config.get('luz_entre', 3.0)
         usa_gola = True if tipo_modulo == "Bajo Mesada Gola" else False
@@ -907,6 +908,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
