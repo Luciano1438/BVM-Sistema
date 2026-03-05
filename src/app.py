@@ -24,10 +24,9 @@ CONFIG_TECNICA = {
 
 def obtener_veta_automatica(nombre_pieza, material_seleccionado):
     """
-    Devuelve un valor genérico para evitar errores de cálculo 
-    mientras la lógica de veta está desactivada.
+    Retorna N/A para simplificar el despiece.
     """
-    return "N/A""
+    return "N/A"
 
 def calcular_medida_frente(ancho_hueco, alto_hueco, tipo_montaje="Superpuesto", es_doble=False):
     """
@@ -903,6 +902,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
