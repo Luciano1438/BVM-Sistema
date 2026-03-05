@@ -437,6 +437,17 @@ if menu == "Cotizador CNC":
                 dias_col = st.number_input("Días de obra", value=0) if necesita_colocacion else 0
         with col_out:
             st.subheader("📐 Planilla de Corte e Inteligencia de Materiales")
+            if not df_corte.empty:
+                # Blindaje rápido de columna Tipo
+                if 'Tipo' not in df_corte.columns: df_corte['Tipo'] = 'Cuerpo'
+                df_corte['Tipo'] = df_corte['Tipo'].fillna('Cuerpo')
+
+                st.data_editor(df_corte, use_container_width=True, hide_index=True)
+                
+                if st.button("📊 Sincronizar y Calcular Presupuesto"):
+                    st.rerun()
+            else:
+                st.info("💡 Complete las medidas para generar el despiece.")
             
                 # --- A. CONFIGURACIÓN DE PRECISIÓN ---
             c_prec1, c_prec2 = st.columns(2)
@@ -454,20 +465,7 @@ if menu == "Cotizador CNC":
                 nota_canto = f"Canto: {cant_l}L / {cant_a}A"
                 # Agregamos 'Tipo' directamente aquí para que NUNCA falte
                 return {"Pieza": nombre, "Cant": cant, "L": round(l_f, 1), "A": round(a_f, 1), "Notas": nota_canto, "Tipo": tipo_p}
-            if not df_corte.empty:
-                # Aseguramos el blindaje de la columna 'Tipo' para evitar el error rosa
-                if 'Tipo' not in df_corte.columns:
-                    df_corte['Tipo'] = 'Cuerpo'
-                df_corte['Tipo'] = df_corte['Tipo'].fillna('Cuerpo')
-
-                # DIBUJAMOS LA PLANILLA
-                st.data_editor(df_corte, use_container_width=True, hide_index=True)
-                
-                # Botón de actualización final
-                if st.button("📊 Sincronizar y Calcular Presupuesto"):
-                    st.rerun()
-            else:
-                st.info("💡 Cargue las medidas a la izquierda para generar el despiece.")
+            
         if alto_m > 0 and ancho_m > 0:
             despiece = []
             ancho_interno_total = ancho_m - (esp_real * 2)
@@ -970,6 +968,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
