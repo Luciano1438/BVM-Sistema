@@ -295,22 +295,24 @@ if menu == "Cotizador CNC":
 
         with col_in:
             # Agrupamos los datos básicos en un contenedor expandible
-            with st.expander("🛠️ 1. Definición de Estructura", expanded=True):
-                cliente = st.text_input("Cliente", "", key="cliente_input")
-                mueble_nom = st.text_input("Mueble", "", key="mueble_input")
+            with st.expander("🏗️ 1. Definición de Estructura", expanded=True):
+                cliente = st.text_input("Cliente", "Consumidor Final", key="cliente_input")
+                
+                # Un solo selector de módulo, sin campos de texto extra
+                tipo_modulo = st.selectbox("Tipo de Módulo", ["Cajonera", "Bajo Mesada"], key="modulo_selector")
                 
                 c1, c2, c3 = st.columns(3)
-                ancho_m = c1.number_input("Ancho Total (mm)", min_value=0.0, max_value=5000.0, value=0.0, step=0.5)
-                alto_m = c2.number_input("Alto Total (mm)", min_value=0.0, max_value=5000.0, value=0.0, step=0.5)
-                prof_m = c3.number_input("Profundo (mm)", min_value=0.0, max_value=2000.0, value=0.0, step=0.5)
-                altura_travesano = st.number_input("Altura Travesaño Trasero (mm)", value=100.0, key="travesano_base")
-                mueble_nom = st.text_input("Mueble", "")
-                tipo_modulo = st.selectbox("Tipo de Módulo", ["Cajonera", "Bajo Mesada Gola"])
+                ancho_m = c1.number_input("Ancho Total (mm)", min_value=0.0, value=600.0, step=1.0)
+                alto_m = c2.number_input("Alto Total (mm)", min_value=0.0, value=800.0, step=1.0)
+                prof_m = c3.number_input("Profundo (mm)", min_value=0.0, value=550.0, step=1.0)
+
+                # Materiales y Espesor
+                col_mat1, col_mat2 = st.columns(2)
+                # Usamos tus diccionarios de maderas y fondos
+                mat_principal = col_mat1.selectbox("Material Cuerpo", list(maderas.keys()), key="mat_cuerpo_sel")
+                mat_fondo_sel = col_mat2.selectbox("Material Fondo", list(fondos.keys()), key="mat_fondo_sel")
                 
-                mat_principal = st.selectbox("Material Cuerpo (18mm)", list(maderas.keys()))
-                tiene_veta = st.toggle("💎 El material tiene veta (Respetar orientación)", value=True)
-                esp_real = st.number_input("Espesor Real Placa (mm)", min_value=1.0, max_value=50.0, value=18.0, step=0.1)
-                mat_fondo_sel = st.selectbox("Material Fondo", list(fondos.keys()))
+                esp_real = st.number_input("Espesor Real Placa (mm)", value=18.0, step=0.1, key="esp_real_input")
 
             # Agrupamos los módulos en otro contenedor
             with st.expander("🏗️ 2. Configuración de Módulos", expanded=True):
@@ -910,6 +912,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
