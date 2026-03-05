@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 from supabase import create_client, Client
 from dotenv import load_dotenv
-from fpdf import FPDF
+from fpdf import FPDFwi
 from datetime import datetime, timedelta, timezone
 import urllib.parse
 
@@ -435,25 +435,37 @@ if menu == "Cotizador CNC":
                 necesita_colocacion = st.checkbox("¿Requiere Colocación?")
                 flete_sel = st.selectbox("Zona Envío", ["Ninguno", "Capital", "Zona Norte"])
                 dias_col = st.number_input("Días de obra", value=0) if necesita_colocacion else 0
+        df_corte = pd.DataFrame(despiece)
+        
+        if not df_corte.empty:
+            # 2. Aseguramos que la columna 'Tipo' exista para que no de error rosa
+            if 'Tipo' not in df_corte.columns:
+                df_corte['Tipo'] = 'Cuerpo'
+            df_corte['Tipo'] = df_corte['Tipo'].fillna('Cuerpo')
+            df_corte = df_corte.infer_objects()
         with col_out:
             st.subheader("📐 Planilla de Corte e Inteligencia de Materiales")
-            if not df_corte.empty:
-                # Blindaje rápido de columna Tipo
-                if 'Tipo' not in df_corte.columns: df_corte['Tipo'] = 'Cuerpo'
-                df_corte['Tipo'] = df_corte['Tipo'].fillna('Cuerpo')
-
-                st.data_editor(df_corte, use_container_width=True, hide_index=True)
-                
-                if st.button("📊 Sincronizar y Calcular Presupuesto"):
-                    st.rerun()
-            else:
-                st.info("💡 Complete las medidas para generar el despiece.")
+            
+            df_editado = st.data_editor(
+                df_corte, 
+                use_container_width=True, 
+                hide_index=True,
+                key="editor_corte_v1" 
+            )
             
                 # --- A. CONFIGURACIÓN DE PRECISIÓN ---
+            st.markdown("---")
             c_prec1, c_prec2 = st.columns(2)
             es_cnc = c_prec1.toggle("🚀 Modo CNC (Margen 25mm)", value=True)
-            pvc_2mm = c_prec2.checkbox("¿Usa PVC 2mm?", value=True)
-            esp_canto = 2.0 if pvc_2mm else 0.5
+            pvc_2mm = c_prec2.checkbox("¿Usa PVC 2mm?") 
+
+            # --- B. ACCIÓN FINAL ---
+            if st.button("📊 Sincronizar y Calcular Presupuesto", type="primary", use_container_width=True):
+                # Guardamos TODO en el estado para que el motor de presupuesto lo use
+                st.session_state['df_final'] = df_editado
+                st.session_state['es_cnc'] = es_cnc
+                st.session_state['pvc_2mm'] = pvc_2mm
+                st.rerun()
                 
             def crear_pieza(nombre, cant, largo, ancho, cant_l=2, cant_a=0, descontar=True, tipo_p="Cuerpo"):
                 if descontar:
@@ -647,15 +659,6 @@ if menu == "Cotizador CNC":
                 
                 # --- MOSTRAR RESULTADOS FINAL TIPO 1 ---
                 df_corte = pd.DataFrame(despiece)
-                
-               # --- 1. CONVERSIÓN A TABLA Y BLINDAJE DE 'TIPO' ---
-                df_corte = pd.DataFrame(despiece)
-                
-                if not df_corte.empty:
-                    if 'Tipo' not in df_corte.columns:
-                        df_corte['Tipo'] = 'Cuerpo'
-                    df_corte['Tipo'] = df_corte['Tipo'].fillna('Cuerpo')
-
                 st.data_editor(df_corte, use_container_width=True, hide_index=True)
 
                 # --- 2. CÁLCULO DE COSTOS (Tu lógica completa) ---
@@ -968,6 +971,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
