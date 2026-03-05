@@ -352,7 +352,7 @@ if menu == "Cotizador CNC":
                     esp_corredera = col_c1.number_input("Espesor de Corredera (mm)", value=13.0, key="esp_corr_cj")
                     aire_trasero = col_c2.number_input("Espacio libre trasero (mm)", value=30.0, key="aire_tras_cj")
 
-                elif tipo_modulo == "Bajo Mesada Gola":
+                elif tipo_modulo == "Bajo Mesada":
                     st.markdown("#### 🍳 Parámetros de Bajo Mesada (Gola)")                  
                     col_bm1, col_bm2 = st.columns(2)
                     cant_puertas = col_bm1.selectbox("Cantidad de Puertas", [2, 3], key="cant_puertas_bm")
@@ -911,6 +911,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
