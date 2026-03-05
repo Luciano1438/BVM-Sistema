@@ -264,24 +264,20 @@ if st.sidebar.button("🚪 Cerrar Sesión"):
         del st.session_state[key]
     st.rerun()
 if menu == "Cotizador CNC":
-    es_cnc = True  # Valor por defecto para que no falle la línea 269
-    df_corte = pd.DataFrame()
+    # --- 1. BLINDAJE DE SEGURIDAD (Esto evita los errores de NameError y KeyError) ---
+    es_cnc = True 
+    df_corte = pd.DataFrame() 
     m2_18mm, m2_fondo, precio_final = 0.0, 0.0, 0.0
     ancho_puerta_final = 0.0
+    gap = CONFIG_TECNICA["cnc_separacion_piezas"]
 
-                # --- B. CÁLCULO DE COSTOS (CORREGIDO) ---
-    gap = CONFIG_TECNICA["cnc_separacion_piezas"] if es_cnc else CONFIG_TECNICA["sierra_kerf"]
-                
-                # Filtramos con .get() o verificando existencia para que no explote
-    piezas_melamina = df_corte[df_corte['Tipo'] != 'Fondo']
-    piezas_fondo = df_corte[df_corte['Tipo'] == 'Fondo']
-
-    m2_18mm = ((piezas_melamina['L'] + gap) * (piezas_melamina['A'] + gap) * piezas_melamina['Cant']).sum() / 1_000_000
-    m2_fondo = (piezas_fondo['L'] * piezas_fondo['A'] * piezas_fondo['Cant']).sum() / 1_000_000
-    m2_18mm, precio_final = 0.0, 0.0
-    ancho_puerta_final = 0.0
-    
-    m2_18mm = 0.0
+    # --- 2. EL MOTOR DE COSTOS SOLO ACTÚA SI HAY DATOS (Esto mata el KeyError: 'Tipo') ---
+    if 'df_corte' in locals() and not df_corte.empty and 'Tipo' in df_corte.columns:
+        piezas_melamina = df_corte[df_corte['Tipo'] != 'Fondo']
+        piezas_fondo = df_corte[df_corte['Tipo'] == 'Fondo']
+        
+        m2_18mm = ((piezas_melamina['L'] + gap) * (piezas_melamina['A'] + gap) * piezas_melamina['Cant']).sum() / 1_000_000
+        m2_fondo = (piezas_fondo['L'] * piezas_fondo['A'] * piezas_fondo['Cant']).sum() / 1_000_000
     try:
         st.title("🏭 BVM | Control de Producción Industrial")
         # --- DASHBOARD DE CONTROL ---
@@ -951,6 +947,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
