@@ -438,19 +438,17 @@ if menu == "Cotizador CNC":
             st.subheader("📐 Planilla de Corte e Inteligencia de Materiales")
             st.markdown("---")
             c_prec1, c_prec2 = st.columns(2)
-            es_cnc = c_prec1.toggle("🚀 Modo CNC (Margen 25mm)", value=True)
-            pvc_2mm = c_prec2.checkbox("¿Usa PVC 2mm?") 
+            
                 
-            def crear_pieza(nombre, cant, largo, ancho, cant_l=2, cant_a=0, descontar=True, tipo_p="Cuerpo"):
-                if descontar:
-                    l_f = largo - (esp_canto * cant_l)
-                    a_f = ancho - (esp_canto * cant_a)
-                else:
-                    l_f, a_f = largo, ancho
-                        
-                nota_canto = f"Canto: {cant_l}L / {cant_a}A"
-                # Agregamos 'Tipo' directamente aquí para que NUNCA falte
-                return {"Pieza": nombre, "Cant": cant, "L": round(l_f, 1), "A": round(a_f, 1), "Notas": nota_canto, "Tipo": tipo_p}
+            def crear_pieza(nombre, cant, largo, ancho, tipo_p="Cuerpo", notas=""):
+                return {
+                    "Pieza": nombre, 
+                    "Cant": cant, 
+                    "L": round(largo, 1), 
+                    "A": round(ancho, 1), 
+                    "Tipo": tipo_p,
+                    "Notas": notas
+                }
    
         if alto_m > 0 and ancho_m > 0:
             despiece = []
@@ -460,9 +458,9 @@ if menu == "Cotizador CNC":
             # --- OPCIÓN 1: BAJO MESADA GOLA (Lógica de tu viejo) ---
             if tipo_modulo == "Bajo Mesada":
                 # 1. BASE: Ancho y profundidad de mueble
-                despiece.append(crear_pieza("Base Módulo", 1, ancho_m, prof_m, descontar=False))
+                despiece.append(crear_pieza("Base Módulo", 1, ancho_m, prof_m))
                 # 2. LATERALES: alto mueble - espesor material
-                despiece.append(crear_pieza("Lateral Exterior", 2, alto_m - esp_real, prof_m, descontar=False))
+                despiece.append(crear_pieza("Lateral Exterior", 2, alto_m - esp_real, prof_m)
 
                 # 3. ESTANTES
                 if tipo_modulo == "Bajo Mesada":
@@ -485,8 +483,8 @@ if menu == "Cotizador CNC":
                                 despiece.append(crear_pieza(f"Estante {i+1}", 1, e_ancho, prof_m - 20, cant_l=1, cant_a=0))
 
                 # 4. FRENTÍN GOLA (Piezas de 40mm y 50mm)
-                despiece.append(crear_pieza("Frentín Gola (Pieza A)", 1, 40, ancho_interno_total, descontar=False))
-                despiece.append(crear_pieza("Frentín Gola (Pieza B)", 1, 50, ancho_interno_total, descontar=False))
+                despiece.append(crear_pieza("Frentín Gola (Pieza A)", 1, 40, ancho_interno_total))
+                despiece.append(crear_pieza("Frentín Gola (Pieza B)", 1, 50, ancho_interno_total))
 
                 # 5. PUERTAS
                 if cant_puertas == 2:
@@ -499,15 +497,15 @@ if menu == "Cotizador CNC":
                 # 6. PARANTE (Solo para 3 puertas)
                 if cant_puertas == 3:
                     anc_parante = 100 if "Corto" in tipo_parante else prof_m
-                    despiece.append(crear_pieza("Parante Vertical", 1, alto_m - esp_real, anc_parante, descontar=False))
+                    despiece.append(crear_pieza("Parante Vertical", 1, alto_m - esp_real, anc_parante))
 
                 # 7. FONDO: alto - 80mm - espesor | ancho - 20mm
                 despiece.append({"Pieza": "Fondo Mueble", "Cant": 1, "L": alto_m - 80 - esp_real, "A": ancho_m - 20, "Veta": "Vertical", "Tipo": "Fondo"})          
                 # 8. TRAVESAÑO TRASERO
                 if tipo_modulo == "Bajo Mesada":
                     # Agregamos los dos travesaños estándar
-                    despiece.append(crear_pieza("Travesaño Superior (Frontal)", 1, 100, ancho_interno_total, cant_l=1, cant_a=0, descontar=False))
-                    despiece.append(crear_pieza("Travesaño Trasero", 1, 70, ancho_interno_total, cant_l=1, cant_a=0, descontar=False))
+                    despiece.append(crear_pieza("Travesaño Superior (Frontal)", 1, 100, ancho_interno_total, cant_l=1, cant_a=0))
+                    despiece.append(crear_pieza("Travesaño Trasero", 1, 70, ancho_interno_total, cant_l=1, cant_a=0))
             
             # Borramos el bucle de 'medidas_travesaños' que pedía datos manuales
              # --- LÓGICA CAJONERA---
@@ -518,20 +516,20 @@ if menu == "Cotizador CNC":
                     # --- LÓGICA DE ESTRUCTURA REAL BVM (TIPO 1) ---
     
                 # 1. BASE (Piso): Ancho total y profundidad total
-                despiece.append(crear_pieza("Base Módulo", 1, ancho_m, prof_m, cant_l=1, cant_a=0, descontar=False))
+                despiece.append(crear_pieza("Base Módulo", 1, ancho_m, prof_m, cant_l=1, cant_a=0))
     
                 # 2. LATERALES: (Altura - 1 espesor) y profundidad total
                 # Apoyan sobre la base, por eso descontamos solo 1 espesor real
                 altura_lateral_bvm = alto_m - esp_real
-                despiece.append(crear_pieza("Lateral Exterior", 2, altura_lateral_bvm, prof_m, cant_l=2, cant_a=0, descontar=False))
+                despiece.append(crear_pieza("Lateral Exterior", 2, altura_lateral_bvm, prof_m, cant_l=2, cant_a=0))
     
                 # 3. TRAVESAÑO TRASERO Y FRENTÍN (Horizontales)
                 # Ambos van entre laterales, por eso descuentan (esp_real * 2)
                 ancho_hueco_interno = ancho_m - (esp_real * 2)
                 # Hacemos que ambos nombres valgan lo mismo para que no de error
                 ancho_interno_total = ancho_hueco_interno
-                despiece.append(crear_pieza("Travesaño Trasero", 1, ancho_hueco_interno, altura_travesano, cant_l=1, cant_a=0, descontar=False))
-                despiece.append(crear_pieza("Frentín Frontal", 1, ancho_hueco_interno, 50, cant_l=1, cant_a=0, descontar=False))
+                despiece.append(crear_pieza("Travesaño Trasero", 1, ancho_hueco_interno, altura_travesano, cant_l=1, cant_a=0,))
+                despiece.append(crear_pieza("Frentín Frontal", 1, ancho_hueco_interno, 50, cant_l=1, cant_a=0))
     
                 # 4. FONDO DEL MUEBLE: -20mm en ambos lados
                 despiece.append({
@@ -545,13 +543,13 @@ if menu == "Cotizador CNC":
                             
                     # 3. ZÓCALOS DE MADERA: Si existen, llevan canto al frente
                 if tipo_base == "Zócalo de Madera":
-                    despiece.append(crear_pieza("Zócalo Frontal", 2, altura_base, ancho_interno_total, cant_l=1, cant_a=0, descontar=False))
-                    despiece.append(crear_pieza("Zócalo Lateral", 2, altura_base, prof_m - 50, cant_l=1, cant_a=0, descontar=False))
+                    despiece.append(crear_pieza("Zócalo Frontal", 2, altura_base, ancho_interno_total, cant_l=1, cant_a=0))
+                    despiece.append(crear_pieza("Zócalo Lateral", 2, altura_base, prof_m - 50, cant_l=1, cant_a=0))
                     
                     # 4. PARANTE DIVISOR: Altura interna y canto al frente
                 if tiene_parante:
                     altura_interna = altura_caja_real - (esp_real * 2)
-                    despiece.append(crear_pieza("Parante Divisor", 1, altura_interna, prof_m - 20, cant_l=1, cant_a=0, descontar=False))
+                    despiece.append(crear_pieza("Parante Divisor", 1, altura_interna, prof_m - 20, cant_l=1, cant_a=0))
                         
                     hueco_izq = distancia_parante
                     hueco_der = ancho_interno_total - distancia_parante - esp_real
@@ -595,8 +593,8 @@ if menu == "Cotizador CNC":
                         
                         # AGREGAMOS LAS 4 PIEZAS DE LA "L" ESTRUCTURAL
                         # Van entre laterales, por eso usamos 'ancho_interno_total'
-                        despiece.append(crear_pieza("Frentín Gola L (A)", 2, 40, ancho_interno_total, cant_l=1, cant_a=0, descontar=False))
-                        despiece.append(crear_pieza("Frentín Gola L (B)", 2, 50, ancho_interno_total, cant_l=1, cant_a=0, descontar=False))
+                        despiece.append(crear_pieza("Frentín Gola L (A)", 2, 40, ancho_interno_total, cant_l=1, cant_a=0))
+                        despiece.append(crear_pieza("Frentín Gola L (B)", 2, 50, ancho_interno_total, cant_l=1, cant_a=0))
     
                     # 2. Lógica de Alturas (Simétrica o Proporcional)
                     alturas_tapas = []
@@ -612,15 +610,15 @@ if menu == "Cotizador CNC":
     
                     # 3. Generamos las Tapas en el despiece
                     for i, alto_tapa in enumerate(alturas_tapas):
-                        despiece.append(crear_pieza(f"Tapa de Cajon {i+1}", 1, alto_tapa, ancho_tapa_bvm, descontar=False))
+                        despiece.append(crear_pieza(f"Tapa de Cajon {i+1}", 1, alto_tapa, ancho_tapa_bvm))
                     ancho_caja_total = ancho_interno_total - (esp_corredera * 2)
                         
                     # Laterales de 150mm (2 por cajón)
-                    despiece.append(crear_pieza("Lateral Cajón", cant_cajones * 2, 150, largo_lateral_caja, cant_l=1, cant_a=0, descontar=False))
+                    despiece.append(crear_pieza("Lateral Cajón", cant_cajones * 2, 150, largo_lateral_caja, cant_l=1, cant_a=0))
                         
                      # Frente/Fondo de la caja (Van entre laterales de la caja)
                     ancho_frente_interno = ancho_caja_total - (esp_real * 2)
-                    despiece.append(crear_pieza("Frente/Fondo Interno", cant_cajones * 2, 150, ancho_frente_interno, cant_l=1, cant_a=0, descontar=False))
+                    despiece.append(crear_pieza("Frente/Fondo Interno", cant_cajones * 2, 150, ancho_frente_interno, cant_l=1, cant_a=0))
                         
                    # --- PISO DEL CAJÓN (ANCHO CAJA - 20 Y PROF CAJA - 20) ---
                     despiece.append({
@@ -939,6 +937,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
