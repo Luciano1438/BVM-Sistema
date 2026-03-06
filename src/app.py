@@ -271,6 +271,7 @@ if st.sidebar.button("🚪 Cerrar Sesión"):
 if menu == "Cotizador CNC":
     try:
         st.title("🏭 BVM | Control de Producción Industrial")
+        costo_madera = 0.0
         # --- DASHBOARD DE CONTROL ---
         st.write("---")
         # Calculamos la rentabilidad proyectada (usamos valores base si no hay datos)
@@ -799,6 +800,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
