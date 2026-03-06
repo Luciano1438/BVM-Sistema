@@ -422,14 +422,16 @@ if menu == "Cotizador CNC":
                 # --- A. CONFIGURACIÓN DE PRECISIÓN ---
             c_prec1, c_prec2 = st.columns(2)
                 
-            def crear_pieza(nombre, cant, largo, ancho):
-                if descontar:
-                    l_f = largo - (esp_canto * cant_l)
-                    a_f = ancho - (esp_canto * cant_a)
-                else:
-                    l_f, a_f = largo, ancho
-                        
-                return {"Pieza": nombre, "Cant": cant, "L": round(l_f, 1), "A": round(a_f, 1), "Notas": nota_canto}
+            def crear_pieza(nombre, cant, largo, ancho, **kwargs):
+    """Atrapa cualquier argumento extra sin explotar."""
+                return {
+                    "Pieza": nombre, 
+                    "Cant": cant, 
+                    "L": round(largo, 1), 
+                    "A": round(ancho, 1), 
+                    "Tipo": kwargs.get('tipo_p', 'Cuerpo'),
+                    "Notas": kwargs.get('notas', '')
+                }
         if alto_m > 0 and ancho_m > 0:
             despiece = []   
              # --- LÓGICA DE ESTRUCTURA REAL BVM CON CANTEADO ---
@@ -1008,6 +1010,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
 
 
                
+
 
 
 
