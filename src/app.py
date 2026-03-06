@@ -433,11 +433,29 @@ if menu == "Cotizador CNC":
                 dias_prod = st.number_input("Días de taller", value=0.0, step=0.5)
                 necesita_colocacion = st.checkbox("¿Requiere Colocación?")
                 flete_sel = st.selectbox("Zona Envío", ["Ninguno", "Capital", "Zona Norte"])
-                dias_col = st.number_input("Días de obra", value=0) if necesita_colocacion else 0        
+                dias_col = st.number_input("Días de obra", value=0) if necesita_colocacion else 0     
+    # --- ESTO VA FUERA DE TODO (Sin espacios a la izquierda) ---
+df_corte = pd.DataFrame(despiece) if 'despiece' in locals() else pd.DataFrame()
         with col_out:
             st.subheader("📐 Planilla de Corte e Inteligencia de Materiales")
-            st.markdown("---")
-            c_prec1, c_prec2 = st.columns(2)
+    
+            if not df_corte.empty:
+                        # Esto evita el famoso "error rosa"
+                df_corte['Tipo'] = df_corte.get('Tipo', 'Cuerpo').fillna('Cuerpo').astype(str)
+        
+        # El editor de la Imagen 4
+                df_editado = st.data_editor(
+                    df_corte, 
+                    key="editor_final_bvm", 
+                    use_container_width=True,
+                    hide_index=True
+                )
+        
+        st.markdown("---")
+        # El botón de sincronizar para recalcular los dólares
+        if st.button("📊 Sincronizar y Calcular Presupuesto", type="primary", use_container_width=True):
+            st.session_state['df_final'] = df_editado
+            st.rerun()
             
                 
             def crear_pieza(nombre, cant, largo, ancho, **kwargs):
@@ -939,6 +957,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
