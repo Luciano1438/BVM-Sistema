@@ -355,7 +355,6 @@ if menu == "Cotizador CNC":
                 if tipo_modulo == "Bajo Mesada":
                     st.subheader("📏 Configuración de Frente y División")
                     c_pue, c_par = st.columns(2)
-                    cant_puertas = c_pue.selectbox("Cantidad de Puertas", [2, 3], index=0, key="cant_p_bm_final")
                     tiene_parante = c_par.checkbox("¿Lleva parante divisor?", value=(cant_puertas == 3), key="check_parante")
         
                     if tiene_parante:
@@ -447,13 +446,7 @@ if menu == "Cotizador CNC":
                 hueco_izq = distancia_parante
                 hueco_der = ancho_interno_total - distancia_parante - esp_real
                 st.info(f"📏 Luz Interna Izquierda: {hueco_izq:.1f}mm")
-                st.info(f"📏 Luz Interna Derecha: {hueco_der:.1f}mm")
-
-                # 2. Frentes (Puertas y Cajones con Altura de Caja Real)
-            if cant_puertas > 0:
-                w_pue, h_pue = calcular_medida_frente(ancho_sugerido, altura_caja_real, "Superpuesto")
-                for i in range(int(cant_puertas)):
-                    despiece.append(crear_pieza(f"Puerta {i+1}", 1, h_pue, w_pue))
+                st.info(f"📏 Luz Interna Derecha: {hueco_der:.1f}mm")            
 
             if cant_cajones > 0:
                 # Si es TIPO 1 (Superpuesta), mantenés tus fórmulas originales:
@@ -719,22 +712,7 @@ elif menu == "⚙️ Configuración de Precios":
     with st.expander("💰 Margen de Ganancia"):
         config['ganancia_taller_pct'] = st.slider("Porcentaje de Utilidad Bruta", 0.0, 1.0, float(config['ganancia_taller_pct']), 0.05)
         st.write(f"Margen actual: {config['ganancia_taller_pct']*100}%")
-    with st.expander("📐 Estándares de Taller (Luces y Holguras)"):
-        st.info("Configurá las reglas que BVM aplicará a todos tus despieces automáticamente.")
-        c_tec1, c_tec2 = st.columns(2)
-        
-        # Leemos de 'config' (que ya traes de Supabase) o ponemos el default técnico
-        luz_f = c_tec1.number_input("Luz Perimetral Frentes (mm)", 
-                                   value=float(config.get('luz_frente', 2.0)), step=0.5)
-        luz_e = c_tec2.number_input("Luz entre Puertas/Cajones (mm)", 
-                                   value=float(config.get('luz_entre', 3.0)), step=0.5)
-        desc_f = c_tec1.number_input("Descuento Fondo vs Vano (mm)", 
-                                    value=float(config.get('desc_fondo', 5.0)), step=1.0)
-        
-        # Actualizamos el diccionario para que el despiece lo tome en tiempo real
-        config['luz_frente'] = luz_f
-        config['luz_entre'] = luz_e
-        config['desc_fondo'] = desc_f
+   
     if st.button("💾 Guardar Precios Permanentemente"):
         # 1. Guardamos las maderas (lo que ya tenés)
         for madera, precio in maderas.items():
@@ -803,6 +781,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
