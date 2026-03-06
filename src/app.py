@@ -278,6 +278,7 @@ if menu == "Cotizador CNC":
         st.title("🏭 BVM | Control de Producción Industrial")
         cant_puertas = 0
         cant_cajones = 0
+        despiece = []
         variante_bm = "Estándar"
         # --- DASHBOARD DE CONTROL ---
         st.write("---")
@@ -1053,6 +1054,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
 
 
                
+
 
 
 
