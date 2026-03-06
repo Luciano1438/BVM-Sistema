@@ -384,8 +384,14 @@ if menu == "Cotizador CNC":
                 # --- A. CONFIGURACIÓN DE PRECISIÓN ---
             c_prec1, c_prec2 = st.columns(2)                
             def crear_pieza(nombre, cant, largo, ancho):
-               
-                return {"Pieza": nombre, "Cant": cant, "L": round(l_f, 1), "A": round(a_f, 1)}
+    # Ya no descontamos nada, usamos los valores directos
+                return {
+                    "Pieza": nombre, 
+                    "Cant": cant, 
+                    "L": round(largo, 1), 
+                    "A": round(ancho, 1), 
+                    "Notas": ""
+                }
         if alto_m > 0 and ancho_m > 0:
             despiece = []   
              # --- LÓGICA DE ESTRUCTURA REAL BVM CON CANTEADO ---
@@ -799,6 +805,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
