@@ -460,12 +460,6 @@ if menu == "Cotizador CNC":
                     use_container_width=True,
                     hide_index=True
                 )
-        
-        st.markdown("---")
-        # El botón de sincronizar para recalcular los dólares
-        if st.button("📊 Sincronizar y Calcular Presupuesto", type="primary", use_container_width=True):
-            st.session_state['df_final'] = df_editado
-            st.rerun()
    
         if alto_m > 0 and ancho_m > 0:
             despiece = []
@@ -954,6 +948,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
