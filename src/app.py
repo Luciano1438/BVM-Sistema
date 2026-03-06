@@ -516,7 +516,7 @@ if menu == "Cotizador CNC":
             # 2. LATERALES: (Altura - 1 espesor) y profundidad total
             # Apoyan sobre la base, por eso descontamos solo 1 espesor real
             altura_lateral_bvm = alto_m - esp_real
-            despiece.append(crear_pieza("Lateral Exterior", 2, altura_lateral_bvm, prof_m, cant_l=2, cant_a=0)
+            despiece.append(crear_pieza("Lateral Exterior", 2, altura_lateral_bvm, prof_m, cant_l=2, cant_a=0))
 
             # 3. TRAVESAÑO TRASERO Y FRENTÍN (Horizontales)
             # Ambos van entre laterales, por eso descuentan (esp_real * 2)
@@ -1051,6 +1051,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
 
 
                
+
 
 
 
