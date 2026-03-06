@@ -290,7 +290,7 @@ if menu == "Cotizador CNC":
 
         with col_in:
             # Agrupamos los datos básicos en un contenedor expandible
-            with st.expander("🛠️ 1. Definición de Estructura", expanded=True):
+            with st.expander("🛠️ Definición de Estructura", expanded=True):
                 cliente = st.text_input("Cliente", "")
                 tipo_modulo = st.selectbox("Tipo de Mueble", ["Cajonera", "Bajo Mesada"], key="tipo_mueble_sel")
                 
@@ -304,7 +304,7 @@ if menu == "Cotizador CNC":
                 mat_fondo_sel = st.selectbox("Material Fondo", list(fondos.keys()))
 
             # Agrupamos los módulos en otro contenedor
-            with st.expander("🏗️ 2. Configuración de Módulos", expanded=False):
+            with st.expander("🏗️ Configuración de Módulos", expanded=False):
                 # Configuración de Herrajes
                 tipo_bisagra = st.selectbox("Tipo de Bisagra", ["Cazoleta C0 Cierre Suave", "Especial"])
                 precio_bisagra = config['bisagra_cazoleta']
@@ -347,47 +347,24 @@ if menu == "Cotizador CNC":
                 esp_corredera = col_c1.number_input("Espesor de Corredera (mm)", value=13.0)
                 aire_trasero = col_c2.number_input("Espacio libre trasero (mm)", value=30.0)
             # --- SECCIÓN 3: INTERIORES Y SIMETRÍA ---
-            with st.expander("⚖️ 3. Parante, Estantes y Simetría", expanded=False):
-                tiene_parante = st.checkbox("¿Lleva parante divisor?", value=False)
-                distancia_parante = 0.0
-                
-                if tiene_parante:
-                    max_pos = float(ancho_m - (esp_real * 2)) if ancho_m > (esp_real * 2) else 0.0
-                    distancia_parante = st.number_input(
-                        "Distancia Parante desde borde IZQ interno (mm)", 
-                        min_value=0.0, 
-                        max_value=max_pos, 
-                        value=ancho_hueco_cajon if ancho_hueco_cajon > 0 else (max_pos / 2),
-                        step=0.5
-                    )
-                
-                c_pue, c_est = st.columns(2)
-                cant_puertas = c_pue.number_input("Cant. Puertas", value=0, min_value=0, key="cant_pue_p")
-                cant_estantes = c_est.number_input("Cant. Estantes", value=0, min_value=0, key="cant_est_p")
-                
-                # Inteligencia de Simetría BVM (Cálculo Automático)
-                if cant_puertas > 0 and ancho_m > 0:
-                    esp_parante_din = esp_real if tiene_parante else 0
-                    ancho_disp_p = ancho_m - (esp_real * 2) - ancho_hueco_cajon - esp_parante_din
-                    total_luces = (luz_e * 2) + (luz_i * (cant_puertas - 1))
-                    ancho_sugerido = (ancho_disp_p - total_luces) / cant_puertas
-                    st.info(f"💡 Simetría BVM (Espesor {esp_real}mm): {ancho_sugerido:.1f} mm c/u")
-
-                medidas_puertas = [st.number_input(f"Ancho Puerta {i+1} (mm)", value=0.0, key=f"pue_{i}", step=0.5) for i in range(int(cant_puertas))]
-                medidas_estantes = [st.number_input(f"Ancho Estante {i+1} (mm)", value=0.0, key=f"est_{i}", step=0.5) for i in range(int(cant_estantes))]
-                
-                st.write("---")
-                cant_travesaños = st.number_input("Cantidad de Travesaños", value=0, min_value=0)
-                medidas_travesaños = []
-                for i in range(int(cant_travesaños)):
-                    ct1, ct2 = st.columns(2)
-                    l_sug = float(ancho_m - (esp_real * 2) if ancho_m > (esp_real * 2) else 0)
-                    l_t = ct1.number_input(f"Largo Travesaño {i+1}", value=l_sug, key=f"lt_{i}", step=0.5)
-                    a_t = ct2.number_input(f"Ancho Travesaño {i+1}", value=100.0, key=f"at_{i}", step=0.5)
-                    medidas_travesaños.append({"L": l_t, "A": a_t})
-
+            with st.expander("⚖️ Parante, Estantes y Simetría", expanded=False):
+                if tipo_modulo == "Bajo Mesada":
+                    st.subheader("📏 Configuración de Frente y División")
+                    c_pue, c_par = st.columns(2)
+                    cant_puertas = c_pue.selectbox("Cantidad de Puertas", [2, 3], index=0, key="cant_p_bm_final")
+                    tiene_parante = c_par.checkbox("¿Lleva parante divisor?", value=(cant_puertas == 3), key="check_parante")
+        
+                    if tiene_parante:
+                        tipo_parante = st.selectbox("Tipo de Parante", ["Corto (100mm)", "Largo (Fondo Lateral)"], key="tipo_parante_bm")
+            
+                    st.write("---")
+                    st.info("💡 La simetría de frentes y los travesaños (100mm/70mm) se calculan automáticamente según el estándar BVM.")
+    
+                else:
+                    st.success("✅ Estructura de Cajonera optimizada. No se requieren parantes ni frentes de puerta.")
+                        
             # --- SECCIÓN 4: PARÁMETROS FINANCIEROS Y ENVÍO ---
-            with st.expander("💰 4. Soporte y Logística", expanded=False):
+            with st.expander("💰 Soporte y Logística", expanded=False):
                 tipo_base = st.selectbox("Tipo de Soporte", ["Zócalo de Madera", "Banquina", "Patas Plásticas", "Nada"])
                 costo_base = 5000 if tipo_base == "Patas Plásticas" else 0
                 altura_base = st.number_input("Altura de Base/Zócalo (mm)", min_value=0.0, value=100.0, step=5.0)
@@ -822,6 +799,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
