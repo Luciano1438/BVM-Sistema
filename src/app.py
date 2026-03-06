@@ -9,6 +9,16 @@ from fpdf import FPDF
 from datetime import datetime, timedelta, timezone
 import urllib.parse
 
+def crear_pieza(nombre, cant, largo, ancho, **kwargs):
+    """Atrapa cant_l, cant_a y descontar para que no rompa el código viejo."""
+    return {
+        "Pieza": nombre, 
+        "Cant": cant, 
+        "L": round(largo, 1), 
+        "A": round(ancho, 1), 
+        "Tipo": kwargs.get('tipo_p', 'Cuerpo'),
+        "Notas": kwargs.get('notas', '')
+    }
 # --- PARÁMETROS TÉCNICOS DE TALLER ---
 CONFIG_TECNICA = {
     "cnc_margen_seguridad": 25,  # mm por lado
@@ -456,19 +466,6 @@ if menu == "Cotizador CNC":
         if st.button("📊 Sincronizar y Calcular Presupuesto", type="primary", use_container_width=True):
             st.session_state['df_final'] = df_editado
             st.rerun()
-            
-                
-            def crear_pieza(nombre, cant, largo, ancho, **kwargs):
-                # El **kwargs atrapa cualquier argumento extra (como cant_l, cant_a, descontar) 
-                # y hace que la función no se rompa aunque esos datos sigan en el código.
-                return {
-                    "Pieza": nombre, 
-                    "Cant": cant, 
-                    "L": round(largo, 1), 
-                    "A": round(ancho, 1), 
-                    "Tipo": kwargs.get('tipo_p', 'Cuerpo'),
-                    "Notas": kwargs.get('notas', '')
-                }
    
         if alto_m > 0 and ancho_m > 0:
             despiece = []
@@ -957,6 +954,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
