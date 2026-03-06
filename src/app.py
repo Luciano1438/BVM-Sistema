@@ -371,7 +371,7 @@ if menu == "Cotizador CNC":
                     
                     if cant_puertas >= 3:
                         st.subheader("📏 Configuración de Parante")
-                        distancia_parante = st.number_input("Distancia Parante desde IZQ (mm)", value=ancho_m/cant_puertas, key="dist_p_bm")
+                        distancia_parante = st.number_input("Distancia Parante desde IZQ (mm)", value=ancho_m/cant_puertas, key="dist_p_bm_global")
                         tiene_parante = True
                     else:
                         tiene_parante = False
@@ -989,6 +989,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
 
 
                
+
 
 
 
