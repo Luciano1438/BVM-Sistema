@@ -907,7 +907,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
         nueva_pass = c2.text_input("Contraseña Inicial", type="password")
         nom_carpinteria = st.text_input("Nombre del Negocio")
         
-         if st.button("🚀 Activar Licencia", key="btn_admin_activar_licencia_saas"):
+        if st.button("🚀 Activar Licencia", key="btn_admin_activar_licencia_saas"):
             if nuevo_user and nueva_pass:
                 try:
                     # 1. Creamos el usuario alineado a tu tabla de Supabase
@@ -991,6 +991,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
 
 
                
+
 
 
 
