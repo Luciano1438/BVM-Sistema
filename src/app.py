@@ -423,7 +423,6 @@ if menu == "Cotizador CNC":
             c_prec1, c_prec2 = st.columns(2)
                 
             def crear_pieza(nombre, cant, largo, ancho, **kwargs):
-    """Atrapa cualquier argumento extra sin explotar."""
                 return {
                     "Pieza": nombre, 
                     "Cant": cant, 
@@ -1010,6 +1009,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
 
 
                
+
 
 
 
