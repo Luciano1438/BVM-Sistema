@@ -316,7 +316,7 @@ if menu == "Cotizador CNC":
                 precio_guia = config['telescopica_45'] if "45cm" in tipo_corredera else config['telescopica_soft']
                 
                 c_caj, c_hue = st.columns(2)
-                cant_cajones = c_caj.number_input("Cant. Cajones", value=0, min_value=0)
+                cant_cajones = c_caj.number_input("Cant. Cajones", value=0, min_value=1)
                 tipo_tapa = "Superpuesta" 
                 alto_frentin_emb = 0.0
                 if tipo_tapa == "Tapa Embutida":
@@ -479,9 +479,8 @@ if menu == "Cotizador CNC":
                         espacio_util_total * 0.45  # Tapa Inferior
                     ]
                 else:
-                    divisor_seguro = max(1, cant_cajones)
-                    alto_igual = espacio_util_total / divisor_seguro
-                    alturas_tapas = [alto_igual] * int(divisor_seguro)    
+                    alto_igual = espacio_util_total / cant_cajones
+                    alturas_tapas = [alto_igual] * int(cant_cajones)    
 
                 # 3. Generamos las Tapas en el despiece
                 for i, alto_tapa in enumerate(alturas_tapas):
@@ -779,6 +778,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
