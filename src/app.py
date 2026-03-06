@@ -448,7 +448,6 @@ if menu == "Cotizador CNC":
                 # 2. Frentes (Puertas y Cajones con Altura de Caja Real)
             if cant_puertas > 0:
                 w_pue, h_pue = calcular_medida_frente(ancho_sugerido, altura_caja_real, "Superpuesto")
-                if usa_gola: h_pue -= 20 
                 for i in range(int(cant_puertas)):
                     despiece.append(crear_pieza(f"Puerta {i+1}", 1, h_pue, w_pue))
 
@@ -800,6 +799,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
