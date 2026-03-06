@@ -460,7 +460,7 @@ if menu == "Cotizador CNC":
                 # 1. BASE: Ancho y profundidad de mueble
                 despiece.append(crear_pieza("Base Módulo", 1, ancho_m, prof_m))
                 # 2. LATERALES: alto mueble - espesor material
-                despiece.append(crear_pieza("Lateral Exterior", 2, alto_m - esp_real, prof_m)
+                despiece.append(crear_pieza("Lateral Exterior", 2, alto_m - esp_real, prof_m))
 
                 # 3. ESTANTES
                 if tipo_modulo == "Bajo Mesada":
@@ -937,6 +937,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
