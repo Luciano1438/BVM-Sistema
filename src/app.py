@@ -353,16 +353,16 @@ if menu == "Cotizador CNC":
                 col_c1, col_c2 = st.columns(2)
                 esp_corredera = col_c1.number_input("Espesor de Corredera (mm)", value=13.0)
                 aire_trasero = col_c2.number_input("Espacio libre trasero (mm)", value=30.0)
-            if tipo_modulo == "Bajo Mesada":
-                variante_bm = st.selectbox("Variante", ["Gola", "Estándar", "Perfil J"], key="var_bm_final")
+                if tipo_modulo == "Bajo Mesada":
+                    variante_bm = st.selectbox("Variante", ["Gola", "Estándar", "Perfil J"], key="var_bm_final")
                     
-                col_bm1, col_bm2 = st.columns(2)
-                cant_puertas = col_bm1.number_input("Cantidad de Puertas", value=2, min_value=1, key="cant_p_bm")
-                tipo_estante = col_bm2.selectbox("Estante Interno", ["Completo", "Medio", "Ninguno"], key="est_p_bm")
+                    col_bm1, col_bm2 = st.columns(2)
+                    cant_puertas = col_bm1.number_input("Cantidad de Puertas", value=2, min_value=1, key="cant_p_bm")
+                    tipo_estante = col_bm2.selectbox("Estante Interno", ["Completo", "Medio", "Ninguno"], key="est_p_bm")
                     
-                col_bm3, col_bm4 = st.columns(2)
-                tipo_parante = col_bm3.selectbox("Tipo de Parante", ["Corto (100mm)", "Largo (Fondo Lateral)"], key="tipo_parante_bm")
-                tipo_travesano = col_bm4.radio("Altura Travesaño Trasero", ["100 mm", "70 mm"], key="tipo_trav_bm")
+                    col_bm3, col_bm4 = st.columns(2)
+                    tipo_parante = col_bm3.selectbox("Tipo de Parante", ["Corto (100mm)", "Largo (Fondo Lateral)"], key="tipo_parante_bm")
+                    tipo_travesano = col_bm4.radio("Altura Travesaño Trasero", ["100 mm", "70 mm"], key="tipo_trav_bm")
                     
                 if cant_puertas >= 3:
                     st.subheader("📏 Configuración de Parante")
@@ -1051,6 +1051,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
 
 
                
+
 
 
 
