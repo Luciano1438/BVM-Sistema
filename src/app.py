@@ -854,8 +854,8 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     data_user = {
                         "usuario": nuevo_user, 
                         "password": nueva_pass, 
-                        "nombre_carpinteria": nom_carpinteria, # <-- Corregido según image_add0a8
-                        "role": "cliente"                      # <-- Corregido según image_add0a8
+                        "nombre_carpinteria": nom_carpinteria, 
+                        "role": "cliente"                     
                     }
                     supabase.table("usuarios").insert(data_user).execute()
                     
@@ -1008,6 +1008,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
 
 
                
+
 
 
 
