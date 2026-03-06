@@ -375,7 +375,7 @@ if menu == "Cotizador CNC":
                         step=0.5
                     )
                 
-            st.write("---")
+                st.write("---")
                 
                 # 2) VISUALIZACIÓN DE SIMETRÍA AUTOMÁTICA
                 # Ya no pedimos los anchos de puertas uno por uno, los calculamos:
@@ -1033,6 +1033,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
 
 
                
+
 
 
 
