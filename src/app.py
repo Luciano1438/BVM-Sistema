@@ -292,16 +292,14 @@ if menu == "Cotizador CNC":
             # Agrupamos los datos básicos en un contenedor expandible
             with st.expander("🛠️ 1. Definición de Estructura", expanded=True):
                 cliente = st.text_input("Cliente", "")
-                mueble_nom = st.text_input("Mueble", "")
+                tipo_modulo = st.selectbox("Tipo de Mueble", ["Cajonera", "Bajo Mesada"], key="tipo_mueble_sel")
                 
                 c1, c2, c3 = st.columns(3)
                 ancho_m = c1.number_input("Ancho Total (mm)", min_value=0.0, max_value=5000.0, value=0.0, step=0.5)
                 alto_m = c2.number_input("Alto Total (mm)", min_value=0.0, max_value=5000.0, value=0.0, step=0.5)
                 prof_m = c3.number_input("Profundo (mm)", min_value=0.0, max_value=2000.0, value=0.0, step=0.5)
-                altura_travesano = st.number_input("Altura Travesaño Trasero (mm)", value=100.0, key="travesano_base")
                 
                 mat_principal = st.selectbox("Material Cuerpo (18mm)", list(maderas.keys()))
-                tiene_veta = st.toggle("💎 El material tiene veta (Respetar orientación)", value=True)
                 esp_real = st.number_input("Espesor Real Placa (mm)", min_value=1.0, max_value=50.0, value=18.0, step=0.1)
                 mat_fondo_sel = st.selectbox("Material Fondo", list(fondos.keys()))
 
@@ -824,6 +822,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
