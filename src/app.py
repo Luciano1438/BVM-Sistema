@@ -670,7 +670,7 @@ if menu == "Cotizador CNC":
         
         precio_final = total_costo * (1 + config['ganancia_taller_pct'])
          # BOTÓN DINÁMICO: Sube los resultados al Dashboard de arriba
-                if st.button("📊 Generar Presupuesto Final"):
+        if st.button("📊 Generar Presupuesto Final"):
                     st.rerun()
                 # --- C. RETAZOS Y PRECIO FINAL (Igual que antes) ---
             st.write("---")
@@ -991,6 +991,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
 
 
                
+
 
 
 
