@@ -473,7 +473,7 @@ if menu == "Cotizador CNC":
 
                 # 2. Lógica de Alturas (Simétrica o Proporcional)
                 alturas_tapas = []
-                if cant_cajones > 0: 
+            if cant_cajones > 0: 
                 if distribucion_tapas == "Proporcional (20/35/45)" and cant_cajones == 3:
                     alturas_tapas = [
                         espacio_util_total * 0.20, # Tapa Superior
@@ -781,6 +781,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
