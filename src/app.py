@@ -517,14 +517,14 @@ if menu == "Cotizador CNC":
                     # Agregamos los dos travesaños estándar
                     despiece.append(crear_pieza("Travesaño Superior (Frontal)", 1, 100, ancho_interno_total, cant_l=1, cant_a=0))
                     despiece.append(crear_pieza("Travesaño Trasero", 1, 70, ancho_interno_total, cant_l=1, cant_a=0))
-            
-            # Borramos el bucle de 'medidas_travesaños' que pedía datos manuales
-             # --- LÓGICA CAJONERA---
+       # Borramos el bucle de 'medidas_travesaños' que pedía datos manuales
+            # --- LÓGICA CAJONERA---
             else: 
                 altura_caja_real = alto_m
                 if tipo_base in ["Banquina de Obra", "Patas Plásticas"]:
                     altura_caja_real = alto_m - altura_base
-                    # --- LÓGICA DE ESTRUCTURA REAL BVM (TIPO 1) ---
+                
+                # --- LÓGICA DE ESTRUCTURA REAL BVM (TIPO 1) ---
     
                 # 1. BASE (Piso): Ancho total y profundidad total
                 despiece.append(crear_pieza("Base Módulo", 1, ancho_m, prof_m, cant_l=1, cant_a=0))
@@ -552,12 +552,12 @@ if menu == "Cotizador CNC":
                     "Tipo": "Fondo"
                 })
                             
-                    # 3. ZÓCALOS DE MADERA: Si existen, llevan canto al frente
+                # 3. ZÓCALOS DE MADERA: Si existen, llevan canto al frente
                 if tipo_base == "Zócalo de Madera":
                     despiece.append(crear_pieza("Zócalo Frontal", 2, altura_base, ancho_interno_total, cant_l=1, cant_a=0))
                     despiece.append(crear_pieza("Zócalo Lateral", 2, altura_base, prof_m - 50, cant_l=1, cant_a=0))
                     
-                    # 4. PARANTE DIVISOR: Altura interna y canto al frente
+                # 4. PARANTE DIVISOR: Altura interna y canto al frente
                 if tiene_parante:
                     altura_interna = altura_caja_real - (esp_real * 2)
                     despiece.append(crear_pieza("Parante Divisor", 1, altura_interna, prof_m - 20, cant_l=1, cant_a=0))
@@ -567,16 +567,17 @@ if menu == "Cotizador CNC":
                     st.info(f"📏 Luz Interna Izquierda: {hueco_izq:.1f}mm")
                     st.info(f"📏 Luz Interna Derecha: {hueco_der:.1f}mm")
     
-                    # 5. ESTANTES: Respetan el canteado frontal
+                # 5. ESTANTES: Respetan el canteado frontal
                 for i, e_ancho in enumerate(medidas_estantes):
                     if e_ancho > 0: 
                         despiece.append(crear_pieza(f"Estante {i+1}", 1, e_ancho, prof_m - 20, cant_l=1, cant_a=0))
                     
-                    # 6. TRAVESAÑOS: Respetan el canteado frontal
+                # 6. TRAVESAÑOS: Respetan el canteado frontal
                 for i, trav in enumerate(medidas_travesaños):
                     if trav['L'] > 0: 
                         despiece.append(crear_pieza(f"Travesaño {i+1}", 1, trav['L'], trav['A'], cant_l=1, cant_a=0))
-                    # 2. Frentes (Puertas y Cajones con Altura de Caja Real)
+
+                # 2. Frentes (Puertas y Cajones con Altura de Caja Real)
                 if cant_puertas > 0:
                     w_pue, h_pue = calcular_medida_frente(ancho_sugerido, altura_caja_real, "Superpuesto")
                     if usa_gola: h_pue -= 20 
@@ -584,26 +585,23 @@ if menu == "Cotizador CNC":
                         despiece.append(crear_pieza(f"Puerta {i+1} ({tipo_agarre})", 1, h_pue, w_pue))
     
                 if cant_cajones > 0:
-                    # Si es TIPO 1 (Superpuesta), mantenés tus fórmulas originales:
+                    # Si es TIPO 1 (Superpuesta)
                     if "Superpuesta" in tipo_tapa:
                         espacio_util_total = alto_m - 30 - ((cant_cajones - 1) * luz_entre_tapas)
                         ancho_tapa_bvm = ancho_m - luz_perimetral_tapa
-                        largo_lateral_caja = prof_m - aire_trasero # Tu fórmula de siempre
+                        largo_lateral_caja = prof_m - aire_trasero 
                     
-                    # Si es TIPO 2 (Embutida),
+                    # Si es TIPO 2 (Embutida)
                     elif tipo_tapa == "Embutida":
-                        # Altura: Fórmula de tu viejo
                         espacio_util_total = alto_m - alto_frentin_emb - esp_real - ((cant_cajones + 1) * luz_entre_tapas)
                         ancho_tapa_bvm = ancho_interno_total - 6
                         largo_lateral_caja = prof_m - 30 - esp_real
                     else:
-                        # Tu fórmula: (Alto - 60 - luces) / 3
                         espacio_util_total = alto_m - 60 - ((cant_cajones - 1) * luz_entre_tapas)
                         ancho_tapa_bvm = ancho_m - luz_perimetral_tapa
                         largo_lateral_caja = prof_m - aire_trasero
                         
                         # AGREGAMOS LAS 4 PIEZAS DE LA "L" ESTRUCTURAL
-                        # Van entre laterales, por eso usamos 'ancho_interno_total'
                         despiece.append(crear_pieza("Frentín Gola L (A)", 2, 40, ancho_interno_total, cant_l=1, cant_a=0))
                         despiece.append(crear_pieza("Frentín Gola L (B)", 2, 50, ancho_interno_total, cant_l=1, cant_a=0))
     
@@ -622,16 +620,17 @@ if menu == "Cotizador CNC":
                     # 3. Generamos las Tapas en el despiece
                     for i, alto_tapa in enumerate(alturas_tapas):
                         despiece.append(crear_pieza(f"Tapa de Cajon {i+1}", 1, alto_tapa, ancho_tapa_bvm))
+                    
                     ancho_caja_total = ancho_interno_total - (esp_corredera * 2)
                         
                     # Laterales de 150mm (2 por cajón)
                     despiece.append(crear_pieza("Lateral Cajón", cant_cajones * 2, 150, largo_lateral_caja, cant_l=1, cant_a=0))
                         
-                     # Frente/Fondo de la caja (Van entre laterales de la caja)
+                    # Frente/Fondo de la caja (Van entre laterales de la caja)
                     ancho_frente_interno = ancho_caja_total - (esp_real * 2)
                     despiece.append(crear_pieza("Frente/Fondo Interno", cant_cajones * 2, 150, ancho_frente_interno, cant_l=1, cant_a=0))
                         
-                   # --- PISO DEL CAJÓN (ANCHO CAJA - 20 Y PROF CAJA - 20) ---
+                    # --- PISO DEL CAJÓN ---
                     despiece.append({
                         "Pieza": "Piso Cajón", 
                         "Cant": int(cant_cajones), 
@@ -639,35 +638,37 @@ if menu == "Cotizador CNC":
                         "A": round(ancho_caja_total - 20, 1), 
                         "Veta": "Horizontal", 
                         "Tipo": "Piso"
-                                })
+                    })
                 
-                # --- MOSTRAR RESULTADOS FINAL TIPO 1 ---
+        # --- MOSTRAR RESULTADOS (FUERA DEL ELSE PARA QUE FUNCIONE EN AMBOS MÓDULOS) ---
         df_corte = pd.DataFrame(despiece)
         st.data_editor(df_corte, use_container_width=True, hide_index=True)
+        
         gap = CONFIG_TECNICA["cnc_separacion_piezas"] if es_cnc else CONFIG_TECNICA["sierra_kerf"]
         m2_18mm = ((df_corte[df_corte['Tipo'] != 'Fondo']['L'] + gap) * (df_corte['A'] + gap) * df_corte['Cant']).sum() / 1_000_000
         m2_fondo = (df_corte[df_corte['Tipo'] == 'Fondo']['L'] * df_corte['A'] * df_corte['Cant']).sum() / 1_000_000
+        
         limpieza = 0 if es_cnc else CONFIG_TECNICA["limpieza_placa_manual"]
                  
-                if not es_cnc:
-                    st.warning(f"⚠️ Modo Manual: Se descuentan {limpieza}mm perimetrales por limpieza.")
+        if not es_cnc:
+            st.warning(f"⚠️ Modo Manual: Se descuentan {limpieza}mm perimetrales por limpieza.")
 
-                # --- 3. IMPACTO FINANCIERO TOTAL ---
-                costo_madera = (m2_18mm * maderas[mat_principal] / 5.03)
-                costo_fondo = (m2_fondo * fondos[mat_fondo_sel] / 5.03)
-                costo_herrajes = (cant_puertas * 2 * precio_bisagra) + (cant_cajones * precio_guia)
-                
-                costo_flete = 0
-                if flete_sel == "Capital": costo_flete = config['flete_capital']
-                elif flete_sel == "Zona Norte": costo_flete = config['flete_norte']
-                
-                costo_operativo = (dias_prod * config['gastos_fijos_diarios'])
-                
-                total_costo = costo_madera + costo_fondo + costo_herrajes + costo_operativo + costo_base + costo_flete
-                if necesita_colocacion: 
-                    total_costo += (dias_col * config['colocacion_dia'])
-                
-                precio_final = total_costo * (1 + config['ganancia_taller_pct'])
+        # --- 3. IMPACTO FINANCIERO TOTAL ---
+        costo_madera = (m2_18mm * maderas[mat_principal] / 5.03)
+        costo_fondo = (m2_fondo * fondos[mat_fondo_sel] / 5.03)
+        costo_herrajes = (cant_puertas * 2 * precio_bisagra) + (cant_cajones * precio_guia)
+        
+        costo_flete = 0
+        if flete_sel == "Capital": costo_flete = config['flete_capital']
+        elif flete_sel == "Zona Norte": costo_flete = config['flete_norte']
+        
+        costo_operativo = (dias_prod * config['gastos_fijos_diarios'])
+        
+        total_costo = costo_madera + costo_fondo + costo_herrajes + costo_operativo + costo_base + costo_flete
+        if necesita_colocacion: 
+            total_costo += (dias_col * config['colocacion_dia'])
+        
+        precio_final = total_costo * (1 + config['ganancia_taller_pct'])
 
                 # BOTÓN DINÁMICO: Sube los resultados al Dashboard de arriba
                 if st.button("📊 Generar Presupuesto Final"):
@@ -948,6 +949,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
