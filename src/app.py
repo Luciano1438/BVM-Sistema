@@ -438,7 +438,7 @@ if menu == "Cotizador CNC":
         df_corte = pd.DataFrame(despiece) if 'despiece' in locals() else pd.DataFrame()
         with col_out:
             st.subheader("📐 Planilla de Corte e Inteligencia de Materiales")
-    
+            df_editado = df_corte
             if not df_corte.empty:
                         # Esto evita el famoso "error rosa"
                 df_corte['Tipo'] = df_corte.get('Tipo', 'Cuerpo').fillna('Cuerpo').astype(str)
@@ -957,6 +957,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
