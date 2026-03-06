@@ -298,6 +298,7 @@ if menu == "Cotizador CNC":
             with st.expander("🛠️ 1. Definición de Estructura", expanded=True):
                 cliente = st.text_input("Cliente", "")
                 mueble_nom = st.text_input("Mueble", "")
+                tipo_modulo = st.selectbox("Tipo de Módulo", ["Cajonera", "Bajo Mesada"])
                 
                 c1, c2, c3 = st.columns(3)
                 ancho_m = c1.number_input("Ancho Total (mm)", min_value=0.0, max_value=5000.0, value=0.0, step=0.5)
@@ -1051,6 +1052,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
 
 
                
+
 
 
 
