@@ -393,7 +393,8 @@ if menu == "Cotizador CNC":
                     "Notas": ""
                 }
         if alto_m > 0 and ancho_m > 0:
-            despiece = []   
+            despiece = [] 
+            ancho_interno = ancho_m - (esp_real * 2)
              # --- LÓGICA DE ESTRUCTURA REAL BVM CON CANTEADO ---
             altura_caja_real = alto_m
             if tipo_base in ["Banquina de Obra", "Patas Plásticas"]:
@@ -806,6 +807,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
