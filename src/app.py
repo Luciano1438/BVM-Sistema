@@ -440,14 +440,16 @@ if menu == "Cotizador CNC":
             c_prec1, c_prec2 = st.columns(2)
             
                 
-            def crear_pieza(nombre, cant, largo, ancho, tipo_p="Cuerpo", notas=""):
+            def crear_pieza(nombre, cant, largo, ancho, **kwargs):
+                # El **kwargs atrapa cualquier argumento extra (como cant_l, cant_a, descontar) 
+                # y hace que la función no se rompa aunque esos datos sigan en el código.
                 return {
                     "Pieza": nombre, 
                     "Cant": cant, 
                     "L": round(largo, 1), 
                     "A": round(ancho, 1), 
-                    "Tipo": tipo_p,
-                    "Notas": notas
+                    "Tipo": kwargs.get('tipo_p', 'Cuerpo'),
+                    "Notas": kwargs.get('notas', '')
                 }
    
         if alto_m > 0 and ancho_m > 0:
@@ -937,6 +939,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
