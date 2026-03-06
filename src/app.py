@@ -454,7 +454,6 @@ if menu == "Cotizador CNC":
                     espacio_util_total = alto_m - 30 - ((cant_cajones - 1) * luz_entre_tapas)
                     ancho_tapa_bvm = ancho_m - luz_perimetral_tapa
                     largo_lateral_caja = prof_m - aire_trasero # Tu fórmula de siempre
-                
                 # Si es TIPO 2 (Embutida),
                 elif tipo_tapa == "Embutida":
                     # Altura: Fórmula de tu viejo
@@ -465,8 +464,7 @@ if menu == "Cotizador CNC":
                     # Tu fórmula: (Alto - 60 - luces) / 3
                     espacio_util_total = alto_m - 60 - ((cant_cajones - 1) * luz_entre_tapas)
                     ancho_tapa_bvm = ancho_m - luz_perimetral_tapa
-                    largo_lateral_caja = prof_m - aire_trasero
-                    
+                    largo_lateral_caja = prof_m - aire_trasero   
                     # AGREGAMOS LAS 4 PIEZAS DE LA "L" ESTRUCTURAL
                     # Van entre laterales, por eso usamos 'ancho_interno_total'
                     despiece.append(crear_pieza("Frentín Gola L (A)", 2, 40, ancho_interno_total))
@@ -474,7 +472,6 @@ if menu == "Cotizador CNC":
 
                     # 2. Lógica de Alturas (Simétrica o Proporcional)
                 alturas_tapas = []
-            if cant_cajones > 0:
                 if distribucion_tapas == "Proporcional (20/35/45)" and cant_cajones == 3:
                     alturas_tapas = [
                         espacio_util_total * 0.20, # Tapa Superior
@@ -483,7 +480,6 @@ if menu == "Cotizador CNC":
                     ]
                 else:
                     divisor_seguro = max(1, cant_cajones)
-                    alto_igual = espacio_util_total / cant_cajones
                     alturas_tapas = [alto_igual] * int(cant_cajones)
 
                 # 3. Generamos las Tapas en el despiece
@@ -782,6 +778,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
