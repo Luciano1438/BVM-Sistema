@@ -472,16 +472,16 @@ if menu == "Cotizador CNC":
 
                     # 2. Lógica de Alturas (Simétrica o Proporcional)
                 alturas_tapas = []
-                if distribucion_tapas == "Proporcional (20/35/45)" and cant_cajones == 3:
+                if cant_cajones > 0:  # <--- AGREGÁ ESTA LÍNEA DE PROTECCIÓN
+                    if distribucion_tapas == "Proporcional (20/35/45)" and cant_cajones == 3:
                     alturas_tapas = [
-                        espacio_util_total * 0.20, # Tapa Superior
-                        espacio_util_total * 0.35, # Tapa Media
-                        espacio_util_total * 0.45  # Tapa Inferior
+                        espacio_util_total * 0.20,
+                        espacio_util_total * 0.35,
+                        espacio_util_total * 0.45 
                     ]
                 else:
-                    divisor_seguro = cant_cajones if cant_cajones > 0 else 1
-                    alto_igual = espacio_util_total / divisor_seguro
-                    alturas_tapas = [alto_igual] * int(cant_cajones)    
+                    alto_igual = espacio_util_total / cant_cajones
+                    alturas_tapas = [alto_igual] * int(cant_cajones)   
 
                 # 3. Generamos las Tapas en el despiece
                 for i, alto_tapa in enumerate(alturas_tapas):
@@ -570,8 +570,11 @@ if menu == "Cotizador CNC":
                 # Mostramos un gráfico de barras horizontal para comparar pesos
                 st.bar_chart(data=df_grafico, x="Categoría", y="Monto", color="#2e7d32")
 
-                # Alerta de Rentabilidad Estilo Burry
-                pct_utilidad_real = (utilidad / precio_final) * 100
+                # Alerta de Rentabilidad Estilo Burry con protección
+        if precio_final > 0:
+            pct_utilidad_real = (utilidad / precio_final) * 100
+        else:
+            pct_utilidad_real = 0.0
                 if pct_utilidad_real < 12:
                     st.error(f"⚠️ ALERTA DE MARGEN: La rentabilidad es del {pct_utilidad_real:.1f}%. Revisar costos fijos.")
                 else:
@@ -779,6 +782,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
