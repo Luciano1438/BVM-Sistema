@@ -422,11 +422,8 @@ if menu == "Cotizador CNC":
             
                 # --- A. CONFIGURACIÓN DE PRECISIÓN ---
             c_prec1, c_prec2 = st.columns(2)
-            es_cnc = c_prec1.toggle("🚀 Modo CNC (Margen 25mm)", value=True)
-            pvc_2mm = c_prec2.checkbox("¿Usa PVC 2mm?", value=True)
-            esp_canto = 2.0 if pvc_2mm else 0.5
                 
-            def crear_pieza(nombre, cant, largo, ancho, cant_l=2, cant_a=0, descontar=True):
+            def crear_pieza(nombre, cant, largo, ancho):
                 if descontar:
                     l_f = largo - (esp_canto * cant_l)
                     a_f = ancho - (esp_canto * cant_a)
@@ -444,8 +441,7 @@ if menu == "Cotizador CNC":
                 # 1. BASE: Ancho y profundidad de mueble
                 despiece.append(crear_pieza("Base Módulo", 1, ancho_m, prof_m))
                 # 2. LATERALES: alto mueble - espesor material
-                despiece.append(crear_pieza("Lateral Exterior", 2, alto_m - esp_real, prof_m))
-
+                despiece.append(crear_pieza("Lateral Exterior", 2, alto_m - esp_real, prof_m))        
             # 3.ESTANTES
                 if tipo_modulo == "Bajo Mesada":
                     if tipo_estante == "Completo":
@@ -477,18 +473,6 @@ if menu == "Cotizador CNC":
                     despiece.append(crear_pieza("Travesaño Superior (Frontal)", 1, 100, ancho_interno_total, cant_l=1, cant_a=0))
                     despiece.append(crear_pieza("Travesaño Trasero", 1, 70, ancho_interno_total, cant_l=1, cant_a=0))
                 
-                # Dejamos este seguro por si usás la Cajonera
-                elif 'medidas_estantes' in locals():
-                    for i, e_ancho in enumerate(medidas_estantes):
-                        if e_ancho > 0: 
-                            despiece.append(crear_pieza(f"Estante {i+1}", 1, e_ancho, prof_m - 20, cant_l=1, cant_a=0))
-                
-                else:
-                    # Para otros módulos, si llegaras a necesitar la lógica de lista:
-                    if 'medidas_estantes' in locals():
-                        for i, e_ancho in enumerate(medidas_estantes):
-                            if e_ancho > 0: 
-                                despiece.append(crear_pieza(f"Estante {i+1}", 1, e_ancho, prof_m - 20, cant_l=1, cant_a=0))
         else: 
             altura_caja_real = alto_m
             if tipo_base in ["Banquina de Obra", "Patas Plásticas"]:
@@ -544,12 +528,6 @@ if menu == "Cotizador CNC":
                 if trav['L'] > 0: 
                     despiece.append(crear_pieza(f"Travesaño {i+1}", 1, trav['L'], trav['A'], cant_l=1, cant_a=0))
                 # 2. Frentes (Puertas y Cajones con Altura de Caja Real)
-            if cant_puertas > 0:
-                w_pue, h_pue = calcular_medida_frente(ancho_sugerido, altura_caja_real, "Superpuesto")
-                if usa_gola: h_pue -= 20 
-                for i in range(int(cant_puertas)):
-                    despiece.append(crear_pieza(f"Puerta {i+1} ({tipo_agarre})", 1, h_pue, w_pue))
-            # 2. Frentes (Puertas y Cajones con Altura de Caja Real)
             if cant_puertas > 0:
                 w_pue, h_pue = calcular_medida_frente(ancho_sugerido, altura_caja_real, "Superpuesto")
                 if usa_gola: h_pue -= 20 
@@ -640,8 +618,6 @@ if menu == "Cotizador CNC":
             total_costo = costo_madera + costo_fondo + costo_herrajes + costo_operativo + costo_base + costo_flete
             if necesita_colocacion: total_costo += (dias_col * config['colocacion_dia'])
 
-                # --- C. RETAZOS Y PRECIO FINAL (Igual que antes) ---
-            st.write("---")
                # --- C. TU LÓGICA DE RETAZOS (REGLA EXPERTA: 150x400) ---
             st.write("---")
             retazos_en_stock = consultar_retazos_disponibles(mat_principal)
@@ -1033,6 +1009,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
 
 
                
+
 
 
 
