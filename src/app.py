@@ -463,7 +463,7 @@ if menu == "Cotizador CNC":
                 despiece.append(crear_pieza("Lateral Exterior", 2, alto_m - esp_real, prof_m))
 
             # 3.ESTANTES
-             if tipo_modulo == "Bajo Mesada":
+                if tipo_modulo == "Bajo Mesada":
                     if tipo_estante == "Completo":
                         despiece.append(crear_pieza("Estante Cuerpo", 1, ancho_interno_total, prof_m - 20, cant_l=1, cant_a=0))
                     elif tipo_estante == "Medio":
@@ -1051,6 +1051,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
 
 
                
+
 
 
 
