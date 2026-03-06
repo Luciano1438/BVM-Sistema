@@ -673,7 +673,7 @@ if menu == "Cotizador CNC":
         if st.button("📊 Generar Presupuesto Final"):
                     st.rerun()
                 # --- C. RETAZOS Y PRECIO FINAL (Igual que antes) ---
-            st.write("---")
+        st.write("---")
                # --- C. TU LÓGICA DE RETAZOS (REGLA EXPERTA: 150x400) ---
             st.write("---")
             retazos_en_stock = consultar_retazos_disponibles(mat_principal)
@@ -991,6 +991,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
 
 
                
+
 
 
 
