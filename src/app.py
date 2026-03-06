@@ -152,10 +152,10 @@ def verificar_password():
     if not st.session_state["autenticado"]:
         with st.sidebar:
             st.title("🔐 Acceso BVM Pro")
-            user_input = st.text_input("Usuario")
-            pass_input = st.text_input("Contraseña", type="password")
+            user_input = st.text_input("Usuario", key="login_user_input")
+            pass_input = st.text_input("Contraseña", type="password", key="login_pass_input")
             
-            if st.button("Ingresar"):
+            if st.button("Ingresar", key="btn_login_acceso"):
                 try:
                     # Consultamos si el usuario existe y la password coincide
                     res = supabase.table("usuarios").select("*").eq("usuario", user_input).eq("password", pass_input).execute()
@@ -670,7 +670,7 @@ if menu == "Cotizador CNC":
         
         precio_final = total_costo * (1 + config['ganancia_taller_pct'])
          # BOTÓN DINÁMICO: Sube los resultados al Dashboard de arriba
-        if st.button("📊 Generar Presupuesto Final"):
+        if st.button("📊 Generar Presupuesto Final", key="btn_generar_presupuesto_final_bvm"):
                     st.rerun()
                 # --- C. RETAZOS Y PRECIO FINAL (Igual que antes) ---
         st.write("---")
@@ -736,11 +736,11 @@ if menu == "Cotizador CNC":
                 st.write("---")
                 c_save1, c_save2 = st.columns(2)
                 with c_save1:
-                    if st.button("💾 Guardar Local"):
+                    if st.button("💾 Guardar Local", key="btn_guardar_local_cotizador"):
                         ejecutar_query("INSERT INTO ventas (mueble, precio_final, estado) VALUES (?, ?, ?)", (mueble_nom, precio_final, "Pendiente"))
                         st.success("Guardado Local.")
                 with c_save2:
-                    if st.button("💾 Guardar en Nube"):
+                    if st.button("💾 Guardar en Nube", key="btn_guardar_nube_cotizador"):
                         guardar_presupuesto_nube(cliente, mueble_nom, precio_final)
 
                # --- 2. GESTIÓN DE INVENTARIO (RETAZOS CORREGIDO A 150x400) ---
@@ -750,7 +750,7 @@ if menu == "Cotizador CNC":
                     ancho_r = c_ret1.number_input("Ancho (mm)", value=0, key="anc_r")
                     largo_r = c_ret2.number_input("Largo (mm)", value=0, key="lar_r")
     
-                    if st.button("💾 Guardar en Inventario de Retazos"):
+                    if st.button("💾 Guardar en Inventario de Retazos", key="btn_guardar_retazo_inventario"):
                         # Aplicamos la Regla de Oro de tu viejo: 150x400
                         if (ancho_r >= 150 and largo_r >= 400) or (ancho_r >= 400 and largo_r >= 150):
                             registrar_retazo(mat_principal, largo_r, ancho_r)
@@ -791,7 +791,7 @@ if menu == "Cotizador CNC":
             
                 # 6. --- GENERACIÓN DE ETIQUETAS (VALOR PRO) ---
                 st.write("---") # Una línea divisoria para separar administración de taller
-                if st.button("🖨️ Generar Etiquetas de Taller"):
+                if st.button("🖨️ Generar Etiquetas de Taller", key="btn_generar_etiquetas_taller_bvm"):
                     st.info(f"Generando etiquetas para las {len(df_corte)} piezas...")
                     # Creamos una cuadrícula para que las etiquetas no ocupen toda la pantalla hacia abajo
                     cols_etiquetas = st.columns(2) 
@@ -880,7 +880,7 @@ elif menu == "⚙️ Configuración de Precios":
         config['luz_frente'] = luz_f
         config['luz_entre'] = luz_e
         config['desc_fondo'] = desc_f
-    if st.button("💾 Guardar Precios Permanentemente"):
+    if st.button("💾 Guardar Precios Permanentemente", key="btn_guardar_precios_config"):
         # 1. Guardamos las maderas (lo que ya tenés)
         for madera, precio in maderas.items():
             actualizar_precio_nube(madera, precio)
@@ -907,7 +907,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
         nueva_pass = c2.text_input("Contraseña Inicial", type="password")
         nom_carpinteria = st.text_input("Nombre del Negocio")
         
-        if st.button("🚀 Activar Licencia"):
+         if st.button("🚀 Activar Licencia", key="btn_admin_activar_licencia_saas"):
             if nuevo_user and nueva_pass:
                 try:
                     # 1. Creamos el usuario alineado a tu tabla de Supabase
@@ -991,6 +991,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
 
 
                
+
 
 
 
