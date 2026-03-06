@@ -480,7 +480,8 @@ if menu == "Cotizador CNC":
                     ]
                 else:
                     divisor_seguro = max(1, cant_cajones)
-                    alturas_tapas = [alto_igual] * int(cant_cajones)
+                    alto_igual = espacio_util_total / divisor_seguro
+                    alturas_tapas = [alto_igual] * int(cant_cajones)    
 
                 # 3. Generamos las Tapas en el despiece
                 for i, alto_tapa in enumerate(alturas_tapas):
@@ -778,6 +779,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
