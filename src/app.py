@@ -355,7 +355,7 @@ if menu == "Cotizador CNC":
                 if tipo_modulo == "Bajo Mesada":
                     st.subheader("📏 Configuración de Frente y División")
                     c_pue, c_par = st.columns(2)
-                    tiene_parante = c_par.checkbox("¿Lleva parante divisor?", value=(cant_puertas == 3), key="check_parante")
+                    tiene_parante = c_par.checkbox("¿Lleva parante divisor?", key="check_parante")
         
                     if tiene_parante:
                         tipo_parante = st.selectbox("Tipo de Parante", ["Corto (100mm)", "Largo (Fondo Lateral)"], key="tipo_parante_bm")
@@ -781,6 +781,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
