@@ -228,7 +228,6 @@ def ejecutar_query(query, params=(), fetch=False):
         cursor.execute(query, params)
         if fetch: return cursor.fetchall()
         conn.commit()
-import urllib.parse
 
 def generar_link_whatsapp(datos):
     # Formato limpio y profesional sin caracteres especiales
@@ -991,6 +990,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
 
 
                
+
 
 
 
