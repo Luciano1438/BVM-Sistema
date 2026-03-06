@@ -381,7 +381,6 @@ if menu == "Cotizador CNC":
                 # Ya no pedimos los anchos de puertas uno por uno, los calculamos:
                 if cant_puertas > 0 and ancho_m > 0:
                     esp_parante_din = esp_real if tiene_parante else 0
-                    # El vano libre real restando costados y parante
                     ancho_disp_p = ancho_m - (esp_real * 2) - esp_parante_din
                     
                     # Restamos las luces (perimetrales y entre puertas)
@@ -1034,6 +1033,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
 
 
                
+
 
 
 
