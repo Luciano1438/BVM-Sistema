@@ -443,15 +443,6 @@ if menu == "Cotizador CNC":
                 st.info(f"📏 Luz Interna Izquierda: {hueco_izq:.1f}mm")
                 st.info(f"📏 Luz Interna Derecha: {hueco_der:.1f}mm")
 
-                # 5. ESTANTES: Respetan el canteado frontal
-            for i, e_ancho in enumerate(medidas_estantes):
-                if e_ancho > 0: 
-                    despiece.append(crear_pieza(f"Estante {i+1}", 1, e_ancho, prof_m - 20))
-                
-                # 6. TRAVESAÑOS: Respetan el canteado frontal
-            for i, trav in enumerate(medidas_travesaños):
-                if trav['L'] > 0: 
-                    despiece.append(crear_pieza(f"Travesaño {i+1}", 1, trav['L'], trav['A']))
                 # 2. Frentes (Puertas y Cajones con Altura de Caja Real)
             if cant_puertas > 0:
                 w_pue, h_pue = calcular_medida_frente(ancho_sugerido, altura_caja_real, "Superpuesto")
@@ -807,6 +798,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
