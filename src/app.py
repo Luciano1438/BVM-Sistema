@@ -734,7 +734,7 @@ if menu == "Cotizador CNC":
                 st.write("---")
                 c_save1, c_save2 = st.columns(2)
                 with c_save1:
-                    if st.button("💾 Guardar Local", key="btn_save_local_final_v1"):
+                    if st.button("💾 Guardar Local", key="btn_save_v2_atómico"):
                         ejecutar_query("INSERT INTO ventas (mueble, precio_final, estado) VALUES (?, ?, ?)", (mueble_nom, precio_final, "Pendiente"))
                         st.success("Guardado Local.")
                 with c_save2:
@@ -989,6 +989,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
 
 
                
+
 
 
 
