@@ -413,7 +413,8 @@ if menu == "Cotizador CNC":
             ancho_hueco_interno = ancho_m - (esp_real * 2)
             # Hacemos que ambos nombres valgan lo mismo para que no de error
             ancho_interno_total = ancho_hueco_interno
-            despiece.append(crear_pieza("Travesaño Trasero", 1, ancho_hueco_interno, altura_travesano))
+            despiece.append(crear_pieza("Travesaño Superior", 1, ancho_interno, 100))
+            despiece.append(crear_pieza("Travesaño Trasero", 1, ancho_interno, 70))
             despiece.append(crear_pieza("Frentín Frontal", 1, ancho_hueco_interno, 50))
 
             # 4. FONDO DEL MUEBLE: -20mm en ambos lados
@@ -805,6 +806,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
