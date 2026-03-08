@@ -142,97 +142,97 @@ def registrar_retazo(material, largo, ancho):
                          distancia_parante, cant_cajones, tipo_tapa, tipo_base, altura_base, 
                          luz_entre_tapas, luz_perimetral_tapa, alto_frentin_emb, 
                          aire_trasero, esp_corredera, distribucion_tapas):
-    despiece = []
-    ancho_interno = ancho_m - (esp_real * 2)
+        despiece = []
+        ancho_interno = ancho_m - (esp_real * 2)
 
-    if tipo == "Bajo Mesada":
+        if tipo == "Bajo Mesada":
         # 1. BASE
-        despiece.append({"Pieza": "Base Módulo", "Cant": 1, "L": ancho_m, "A": prof_m, "Tipo": "Cuerpo"})
+            despiece.append({"Pieza": "Base Módulo", "Cant": 1, "L": ancho_m, "A": prof_m, "Tipo": "Cuerpo"})
         
         # 2. LATERALES (Apoyan sobre base)
-        altura_lateral = alto_m - esp_real
-        despiece.append({"Pieza": "Lateral Exterior", "Cant": 2, "L": altura_lateral, "A": prof_m, "Tipo": "Cuerpo"})
+            altura_lateral = alto_m - esp_real
+            despiece.append({"Pieza": "Lateral Exterior", "Cant": 2, "L": altura_lateral, "A": prof_m, "Tipo": "Cuerpo"})
         
         # 3. FRENTINES GOLA (La "L" estructural)
-        despiece.append({"Pieza": "Frentín Gola L (A)", "Cant": 1, "L": ancho_interno, "A": 40, "Tipo": "Cuerpo"})
-        despiece.append({"Pieza": "Frentín Gola L (B)", "Cant": 1, "L": ancho_interno, "A": 50, "Tipo": "Cuerpo"})
+            despiece.append({"Pieza": "Frentín Gola L (A)", "Cant": 1, "L": ancho_interno, "A": 40, "Tipo": "Cuerpo"})
+            despiece.append({"Pieza": "Frentín Gola L (B)", "Cant": 1, "L": ancho_interno, "A": 50, "Tipo": "Cuerpo"})
         
         # 4. TRAVESAÑOS TRASEROS (Doble refuerzo)
-        despiece.append({"Pieza": "Travesaño Trasero (100)", "Cant": 1, "L": ancho_interno, "A": 100, "Tipo": "Cuerpo"})
-        despiece.append({"Pieza": "Travesaño Trasero (70)", "Cant": 1, "L": ancho_interno, "A": 70, "Tipo": "Cuerpo"})
+            despiece.append({"Pieza": "Travesaño Trasero (100)", "Cant": 1, "L": ancho_interno, "A": 100, "Tipo": "Cuerpo"})
+            despiece.append({"Pieza": "Travesaño Trasero (70)", "Cant": 1, "L": ancho_interno, "A": 70, "Tipo": "Cuerpo"})
         
         # 5. FONDO (Regla 80mm alto y 20mm ancho)
-        alto_fondo = alto_m - 80 - esp_real
-        despiece.append({"Pieza": "Fondo Mueble", "Cant": 1, "L": alto_fondo, "A": ancho_m - 20, "Tipo": "Fondo"})
+            alto_fondo = alto_m - 80 - esp_real
+            despiece.append({"Pieza": "Fondo Mueble", "Cant": 1, "L": alto_fondo, "A": ancho_m - 20, "Tipo": "Fondo"})
 
         # 6. INTERIORES Y PUERTAS
-        alto_puerta = alto_m - 30
-        if tiene_parante:
+            alto_puerta = alto_m - 30
+            if tiene_parante:
             # Parante y Medio Estante
-            ancho_par = prof_m if tipo_parante == "Largo (Fondo Lateral)" else 100
-            despiece.append({"Pieza": "Parante Divisor", "Cant": 1, "L": altura_lateral, "A": ancho_par, "Tipo": "Cuerpo"})
-            despiece.append({"Pieza": "Medio Estante", "Cant": 2, "L": ancho_interno / 2, "A": prof_m - 20, "Tipo": "Cuerpo"})
+                ancho_par = prof_m if tipo_parante == "Largo (Fondo Lateral)" else 100
+                despiece.append({"Pieza": "Parante Divisor", "Cant": 1, "L": altura_lateral, "A": ancho_par, "Tipo": "Cuerpo"})
+                despiece.append({"Pieza": "Medio Estante", "Cant": 2, "L": ancho_interno / 2, "A": prof_m - 20, "Tipo": "Cuerpo"})
             # Puertas (Caso 3 puertas iguales)
-            despiece.append({"Pieza": "Puerta", "Cant": 3, "L": alto_puerta, "A": (ancho_m - 12) / 3, "Tipo": "Frente"})
-        else:
-            # Estante Completo y Puertas (Caso 2 puertas)
-            despiece.append({"Pieza": "Estante Completo", "Cant": 1, "L": ancho_interno, "A": prof_m - 20, "Tipo": "Cuerpo"})
-            despiece.append({"Pieza": "Puerta", "Cant": 2, "L": alto_puerta, "A": (ancho_m - 8) / 2, "Tipo": "Frente"})
-            
-    elif tipo == "Cajonera":
-        # --- TU LÓGICA DE CAJONERA ORIGINAL (INTACTA) ---
-        altura_caja_real = alto_m
-        if tipo_base in ["Banquina de Obra", "Patas Plásticas"]:
-            altura_caja_real = alto_m - altura_base
-
-        despiece.append({"Pieza": "Base Módulo", "Cant": 1, "L": ancho_m, "A": prof_m, "Tipo": "Cuerpo"})
-        altura_lateral_bvm = alto_m - esp_real
-        despiece.append({"Pieza": "Lateral Exterior", "Cant": 2, "L": altura_lateral_bvm, "A": prof_m, "Tipo": "Cuerpo"})
-        despiece.append({"Pieza": "Travesaño Superior", "Cant": 1, "L": ancho_interno_total, "A": 100, "Tipo": "Cuerpo"})
-        despiece.append({"Pieza": "Travesaño Trasero", "Cant": 1, "L": ancho_interno_total, "A": 70, "Tipo": "Cuerpo"})
-        despiece.append({"Pieza": "Frentín Frontal", "Cant": 1, "L": ancho_interno_total, "A": 50, "Tipo": "Cuerpo"})
-        despiece.append({"Pieza": "Fondo Mueble", "Cant": 1, "L": alto_m - 20, "A": ancho_m - 20, "Tipo": "Fondo"})
-
-        if tipo_base == "Zócalo de Madera":
-            despiece.append({"Pieza": "Zócalo Frontal", "Cant": 2, "L": altura_base, "A": ancho_interno_total, "Tipo": "Cuerpo"})
-            despiece.append({"Pieza": "Zócalo Lateral", "Cant": 2, "L": altura_base, "A": prof_m - 50, "Tipo": "Cuerpo"})
-
-        if tiene_parante:
-            altura_interna = altura_caja_real - (esp_real * 2)
-            despiece.append({"Pieza": "Parante Divisor", "Cant": 1, "L": altura_interna, "A": prof_m - 20, "Tipo": "Cuerpo"})
-
-        if cant_cajones > 0:
-            if "Superpuesta" in tipo_tapa:
-                espacio_util_total = alto_m - 30 - ((cant_cajones - 1) * luz_entre_tapas)
-                ancho_tapa_bvm = ancho_m - luz_perimetral_tapa
-                largo_lateral_caja = prof_m - aire_trasero
-            elif tipo_tapa == "Embutida":
-                espacio_util_total = alto_m - alto_frentin_emb - esp_real - ((cant_cajones + 1) * luz_entre_tapas)
-                ancho_tapa_bvm = ancho_interno_total - 6
-                largo_lateral_caja = prof_m - 30 - esp_real
-            else: # GOLA
-                espacio_util_total = alto_m - 60 - ((cant_cajones - 1) * luz_entre_tapas)
-                ancho_tapa_bvm = ancho_m - luz_perimetral_tapa
-                largo_lateral_caja = prof_m - aire_trasero   
-                despiece.append({"Pieza": "Frentín Gola L (A)", "Cant": 2, "L": 40, "A": ancho_interno_total, "Tipo": "Cuerpo"})
-                despiece.append({"Pieza": "Frentín Gola L (B)", "Cant": 2, "L": 50, "A": ancho_interno_total, "Tipo": "Cuerpo"})
-
-            if distribucion_tapas == "Proporcional (20/35/45)" and cant_cajones == 3:
-                alturas_tapas = [espacio_util_total * 0.20, espacio_util_total * 0.35, espacio_util_total * 0.45]
+                despiece.append({"Pieza": "Puerta", "Cant": 3, "L": alto_puerta, "A": (ancho_m - 12) / 3, "Tipo": "Frente"})
             else:
-                divisor_seguro = cant_cajones if cant_cajones > 0 else 1
-                alturas_tapas = [espacio_util_total / divisor_seguro] * int(cant_cajones)
+                # Estante Completo y Puertas (Caso 2 puertas)
+                despiece.append({"Pieza": "Estante Completo", "Cant": 1, "L": ancho_interno, "A": prof_m - 20, "Tipo": "Cuerpo"})
+                despiece.append({"Pieza": "Puerta", "Cant": 2, "L": alto_puerta, "A": (ancho_m - 8) / 2, "Tipo": "Frente"})
+            
+        elif tipo == "Cajonera":
+        # --- TU LÓGICA DE CAJONERA ORIGINAL (INTACTA) ---
+            altura_caja_real = alto_m
+            if tipo_base in ["Banquina de Obra", "Patas Plásticas"]:
+                altura_caja_real = alto_m - altura_base
 
-            for i, alto_tapa in enumerate(alturas_tapas):
-                despiece.append({"Pieza": f"Tapa de Cajon {i+1}", "Cant": 1, "L": round(alto_tapa,1), "A": ancho_tapa_bvm, "Tipo": "Frente"})
+            despiece.append({"Pieza": "Base Módulo", "Cant": 1, "L": ancho_m, "A": prof_m, "Tipo": "Cuerpo"})
+            altura_lateral_bvm = alto_m - esp_real
+            despiece.append({"Pieza": "Lateral Exterior", "Cant": 2, "L": altura_lateral_bvm, "A": prof_m, "Tipo": "Cuerpo"})
+            despiece.append({"Pieza": "Travesaño Superior", "Cant": 1, "L": ancho_interno_total, "A": 100, "Tipo": "Cuerpo"})
+            despiece.append({"Pieza": "Travesaño Trasero", "Cant": 1, "L": ancho_interno_total, "A": 70, "Tipo": "Cuerpo"})
+            despiece.append({"Pieza": "Frentín Frontal", "Cant": 1, "L": ancho_interno_total, "A": 50, "Tipo": "Cuerpo"})
+            despiece.append({"Pieza": "Fondo Mueble", "Cant": 1, "L": alto_m - 20, "A": ancho_m - 20, "Tipo": "Fondo"})
 
-            ancho_caja_total = ancho_interno_total - (esp_corredera * 2)
-            despiece.append({"Pieza": "Lateral Cajón", "Cant": int(cant_cajones * 2), "L": 150, "A": largo_lateral_caja, "Tipo": "Cuerpo"})
-            ancho_frente_interno = ancho_caja_total - (esp_real * 2)
-            despiece.append({"Pieza": "Frente/Fondo Interno", "Cant": int(cant_cajones * 2), "L": 150, "A": ancho_frente_interno, "Tipo": "Cuerpo"})
-            despiece.append({"Pieza": "Piso Cajón", "Cant": int(cant_cajones), "L": round(largo_lateral_caja - 20, 1), "A": round(ancho_caja_total - 20, 1), "Tipo": "Piso"})
+            if tipo_base == "Zócalo de Madera":
+                despiece.append({"Pieza": "Zócalo Frontal", "Cant": 2, "L": altura_base, "A": ancho_interno_total, "Tipo": "Cuerpo"})
+                despiece.append({"Pieza": "Zócalo Lateral", "Cant": 2, "L": altura_base, "A": prof_m - 50, "Tipo": "Cuerpo"})
 
-    return despiece
+            if tiene_parante:
+                altura_interna = altura_caja_real - (esp_real * 2)
+                despiece.append({"Pieza": "Parante Divisor", "Cant": 1, "L": altura_interna, "A": prof_m - 20, "Tipo": "Cuerpo"})
+
+            if cant_cajones > 0:
+                if "Superpuesta" in tipo_tapa:
+                    espacio_util_total = alto_m - 30 - ((cant_cajones - 1) * luz_entre_tapas)
+                    ancho_tapa_bvm = ancho_m - luz_perimetral_tapa
+                    largo_lateral_caja = prof_m - aire_trasero
+                elif tipo_tapa == "Embutida":
+                    espacio_util_total = alto_m - alto_frentin_emb - esp_real - ((cant_cajones + 1) * luz_entre_tapas)
+                    ancho_tapa_bvm = ancho_interno_total - 6
+                    largo_lateral_caja = prof_m - 30 - esp_real
+                else: # GOLA
+                    espacio_util_total = alto_m - 60 - ((cant_cajones - 1) * luz_entre_tapas)
+                    ancho_tapa_bvm = ancho_m - luz_perimetral_tapa
+                    largo_lateral_caja = prof_m - aire_trasero   
+                    despiece.append({"Pieza": "Frentín Gola L (A)", "Cant": 2, "L": 40, "A": ancho_interno_total, "Tipo": "Cuerpo"})
+                    despiece.append({"Pieza": "Frentín Gola L (B)", "Cant": 2, "L": 50, "A": ancho_interno_total, "Tipo": "Cuerpo"})
+
+                if distribucion_tapas == "Proporcional (20/35/45)" and cant_cajones == 3:
+                    alturas_tapas = [espacio_util_total * 0.20, espacio_util_total * 0.35, espacio_util_total * 0.45]
+                else:
+                    divisor_seguro = cant_cajones if cant_cajones > 0 else 1
+                    alturas_tapas = [espacio_util_total / divisor_seguro] * int(cant_cajones)
+
+                for i, alto_tapa in enumerate(alturas_tapas):
+                    despiece.append({"Pieza": f"Tapa de Cajon {i+1}", "Cant": 1, "L": round(alto_tapa,1), "A": ancho_tapa_bvm, "Tipo": "Frente"})
+
+                ancho_caja_total = ancho_interno_total - (esp_corredera * 2)
+                despiece.append({"Pieza": "Lateral Cajón", "Cant": int(cant_cajones * 2), "L": 150, "A": largo_lateral_caja, "Tipo": "Cuerpo"})
+                ancho_frente_interno = ancho_caja_total - (esp_real * 2)
+                despiece.append({"Pieza": "Frente/Fondo Interno", "Cant": int(cant_cajones * 2), "L": 150, "A": ancho_frente_interno, "Tipo": "Cuerpo"})
+                despiece.append({"Pieza": "Piso Cajón", "Cant": int(cant_cajones), "L": round(largo_lateral_caja - 20, 1), "A": round(ancho_caja_total - 20, 1), "Tipo": "Piso"})
+
+        return despiece
 
 # --- 0. SEGURIDAD DE ACCESO MULTIUSUARIO (VALOR PRO) ---
 def verificar_password():
@@ -791,6 +791,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
