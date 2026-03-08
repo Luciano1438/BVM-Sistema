@@ -649,14 +649,14 @@ if menu == "Cotizador CNC":
             if st.button("🖨️ Generar Etiquetas de Taller"):
                 st.info(f"Generando etiquetas para las {len(df_corte)} piezas...")
                     # Creamos una cuadrícula para que las etiquetas no ocupen toda la pantalla hacia abajo
-                    cols_etiquetas = st.columns(2) 
-            for index, row in df_corte.iterrows():
-                with cols_etiquetas[index % 2]: # Esto las ordena en 2 columnas visuales
-                    with st.expander(f"📍 {row['Pieza']} ({int(row['L'])}x{int(row['A'])})"):
-                        st.write(f"**Cliente:** {cliente}")
-                        st.write(f"**Mueble:** {mueble_nom}")
-                        st.code(f"PIEZA N°: {index+1}\nDIM: {int(row['L'])} x {int(row['A'])} mm")
-                        st.caption("📋 Lados a tapacantear: Largos.")
+                cols_etiquetas = st.columns(2) 
+                for index, row in df_corte.iterrows():
+                    with cols_etiquetas[index % 2]: # Esto las ordena en 2 columnas visuales
+                        with st.expander(f"📍 {row['Pieza']} ({int(row['L'])}x{int(row['A'])})"):
+                            st.write(f"**Cliente:** {cliente}")
+                            st.write(f"**Mueble:** {mueble_nom}")
+                            st.code(f"PIEZA N°: {index+1}\nDIM: {int(row['L'])} x {int(row['A'])} mm")
+                            st.caption("📋 Lados a tapacantear: Largos.")
             # --- CIERRE DEL COTIZADOR CNC ---
             else:
                 st.warning("Ingrese dimensiones.")
@@ -788,6 +788,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
