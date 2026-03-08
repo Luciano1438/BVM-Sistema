@@ -501,17 +501,27 @@ if menu == "Cotizador CNC":
                     "Notas": ""
                 }
         if alto_m > 0 and ancho_m > 0:
-            # LLAMADA AL MOTOR DUAL BVM (CEREBRO)
-            # Pasamos todos los parámetros de la columna izquierda a la función global
+            # LLAMADA EXPLÍCITA AL MOTOR BVM
             piezas_calculadas = generar_despiece_bvm(
-                tipo_modulo, ancho_m, alto_m, prof_m, esp_real, 
-                tiene_parante, 
-                tipo_parante if tiene_parante else "Corto", 
-                cant_cajones, tipo_tapa, tipo_base, altura_base, 
-                luz_entre_tapas, luz_perimetral_tapa, alto_frentin_emb, 
-                aire_trasero, esp_corredera, distribucion_tapas
+                tipo=tipo_modulo, 
+                ancho_m=ancho_m, 
+                alto_m=alto_m, 
+                prof_m=prof_m, 
+                esp_real=esp_real,
+                tiene_parante=tiene_parante,
+                tipo_parante=tipo_parante if tiene_parante else "Corto",
+                distancia_parante=distancia_parante,
+                cant_cajones=cant_cajones,
+                tipo_tapa=tipo_tapa,
+                tipo_base=tipo_base,
+                altura_base=altura_base,
+                luz_entre_tapas=luz_entre_tapas,
+                luz_perimetral_tapa=luz_perimetral_tapa,
+                alto_frentin_emb=alto_frentin_emb,
+                aire_trasero=aire_trasero,
+                esp_corredera=esp_corredera,
+                distribucion_tapas=distribucion_tapas
             )
-            
             # Convertimos los resultados en la tabla
             df_corte = pd.DataFrame(piezas_calculadas)
             
@@ -797,6 +807,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
