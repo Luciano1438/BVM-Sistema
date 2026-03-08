@@ -501,7 +501,8 @@ if menu == "Cotizador CNC":
             # Pasamos todos los parámetros de la columna izquierda a la función global
             piezas_calculadas = generar_despiece_bvm(
                 tipo_modulo, ancho_m, alto_m, prof_m, esp_real, 
-                tiene_parante, tipo_parante, distancia_parante, 
+                tiene_parante, 
+                tipo_parante if tiene_parante else "Corto", 
                 cant_cajones, tipo_tapa, tipo_base, altura_base, 
                 luz_entre_tapas, luz_perimetral_tapa, alto_frentin_emb, 
                 aire_trasero, esp_corredera, distribucion_tapas
@@ -792,6 +793,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
