@@ -276,6 +276,7 @@ if menu == "Cotizador CNC":
         costo_herrajes = 0.0
         costo_flete = 0.0
         precio_final = 0.0
+        mueble_nom = "Mueble BVM"
         # --- DASHBOARD DE CONTROL ---
         st.write("---")
         # Calculamos la rentabilidad proyectada (usamos valores base si no hay datos)
@@ -791,6 +792,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
