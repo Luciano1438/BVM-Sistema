@@ -480,7 +480,9 @@ if menu == "Cotizador CNC":
                         espacio_util_total * 0.45 
                     ]
                 else:
-                    alto_igual = espacio_util_total / cant_cajones
+                    # BLINDAJE BVM: Si cant_cajones es 0, usamos 1 para que no explote
+                    divisor_seguro = cant_cajones if cant_cajones > 0 else 1
+                    alto_igual = espacio_util_total / divisor_seguro
                     alturas_tapas = [alto_igual] * int(cant_cajones)   
 
                 # 3. Generamos las Tapas en el despiece
@@ -571,8 +573,11 @@ if menu == "Cotizador CNC":
                 st.bar_chart(data=df_grafico, x="Categoría", y="Monto", color="#2e7d32")
 
                 # Alerta de Rentabilidad Estilo Burry con protección
+        # Alerta de Rentabilidad con protección contra división por cero
         if precio_final > 0:
             pct_utilidad_real = (utilidad / precio_final) * 100
+        else:
+            pct_utilidad_real = 0.0
         else:
             pct_utilidad_real = 0.0
                 if pct_utilidad_real < 12:
@@ -782,6 +787,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
