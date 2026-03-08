@@ -645,18 +645,18 @@ if menu == "Cotizador CNC":
             st.link_button("🟢 Enviar Presupuesto por WhatsApp", link_wa, use_container_width=True)
             
                 # 6. --- GENERACIÓN DE ETIQUETAS (VALOR PRO) ---
-                st.write("---") # Una línea divisoria para separar administración de taller
-                if st.button("🖨️ Generar Etiquetas de Taller"):
-                    st.info(f"Generando etiquetas para las {len(df_corte)} piezas...")
+            st.write("---") # Una línea divisoria para separar administración de taller
+            if st.button("🖨️ Generar Etiquetas de Taller"):
+                st.info(f"Generando etiquetas para las {len(df_corte)} piezas...")
                     # Creamos una cuadrícula para que las etiquetas no ocupen toda la pantalla hacia abajo
                     cols_etiquetas = st.columns(2) 
-                    for index, row in df_corte.iterrows():
-                        with cols_etiquetas[index % 2]: # Esto las ordena en 2 columnas visuales
-                            with st.expander(f"📍 {row['Pieza']} ({int(row['L'])}x{int(row['A'])})"):
-                                st.write(f"**Cliente:** {cliente}")
-                                st.write(f"**Mueble:** {mueble_nom}")
-                                st.code(f"PIEZA N°: {index+1}\nDIM: {int(row['L'])} x {int(row['A'])} mm")
-                                st.caption("📋 Lados a tapacantear: Largos.")
+                for index, row in df_corte.iterrows():
+                     with cols_etiquetas[index % 2]: # Esto las ordena en 2 columnas visuales
+                        with st.expander(f"📍 {row['Pieza']} ({int(row['L'])}x{int(row['A'])})"):
+                            st.write(f"**Cliente:** {cliente}")
+                            st.write(f"**Mueble:** {mueble_nom}")
+                            st.code(f"PIEZA N°: {index+1}\nDIM: {int(row['L'])} x {int(row['A'])} mm")
+                            st.caption("📋 Lados a tapacantear: Largos.")
             # --- CIERRE DEL COTIZADOR CNC ---
             else:
                 st.warning("Ingrese dimensiones.")
