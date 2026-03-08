@@ -140,7 +140,7 @@ def registrar_retazo(material, largo, ancho):
         st.error(f"Error técnico al registrar: {e}")
 def generar_despiece_bvm(tipo, ancho_m, alto_m, prof_m, esp_real, tiene_parante, tipo_parante, 
                          distancia_parante, cant_cajones, tipo_tapa, tipo_base, altura_base, 
-                         luz_entre_tapas, luz_perimetral_tapa=4.0, alto_frentin_emb, 
+                         luz_entre_tapas, luz_perimetral_tapa, alto_frentin_emb, 
                          aire_trasero, esp_corredera, distribucion_tapas):
         despiece = []
         ancho_interno = ancho_m - (esp_real * 2)
@@ -376,6 +376,7 @@ if menu == "Cotizador CNC":
         tiene_parante = False        # <--- Culpable 1
         distancia_parante = 0.0      # <--- Culpable 2
         cant_estantes = 0
+        luz_perimetral_tapa = 4.0
         # --- DASHBOARD DE CONTROL ---
         st.write("---")
         # Calculamos la rentabilidad proyectada (usamos valores base si no hay datos)
@@ -793,6 +794,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
