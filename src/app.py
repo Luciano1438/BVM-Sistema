@@ -143,7 +143,7 @@ def generar_despiece_bvm(tipo, ancho_m, alto_m, prof_m, esp_real, tiene_parante,
                          luz_entre_tapas, luz_perimetral_tapa, alto_frentin_emb, 
                          aire_trasero, esp_corredera, distribucion_tapas):
         despiece = []
-        ancho_interno = ancho_m - (esp_real * 2)
+        ancho_interno_total = ancho_m - (esp_real * 2)
 
         if tipo == "Bajo Mesada":
         # 1. BASE
@@ -807,6 +807,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
