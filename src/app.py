@@ -580,13 +580,11 @@ if menu == "Cotizador CNC":
             pct_utilidad_real = (utilidad / precio_final) * 100
         else:
             pct_utilidad_real = 0.0
+        if pct_utilidad_real < 12:
+            st.error(f"⚠️ ALERTA DE MARGEN: La rentabilidad es del {pct_utilidad_real:.1f}%. Revisar costos fijos.")
         else:
-            pct_utilidad_real = 0.0
-                if pct_utilidad_real < 12:
-                    st.error(f"⚠️ ALERTA DE MARGEN: La rentabilidad es del {pct_utilidad_real:.1f}%. Revisar costos fijos.")
-                else:
-                    st.success(f"✅ OPERACIÓN RENTABLE: Margen del {pct_utilidad_real:.1f}%")
-                st.subheader(f"PRECIO FINAL: ${precio_final:,.2f}")
+            st.success(f"✅ OPERACIÓN RENTABLE: Margen del {pct_utilidad_real:.1f}%")
+        st.subheader(f"PRECIO FINAL: ${precio_final:,.2f}")
 
             # --- 1. GESTIÓN DE GUARDADO (ADMINISTRACIÓN) ---
                 st.write("---")
@@ -789,6 +787,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
