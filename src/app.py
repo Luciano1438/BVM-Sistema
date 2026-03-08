@@ -598,20 +598,22 @@ if menu == "Cotizador CNC":
                  guardar_presupuesto_nube(cliente, mueble_nom, precio_final)
 
                # --- 2. GESTIÓN DE INVENTARIO (RETAZOS CORREGIDO A 150x400) ---
+        # --- 2. GESTIÓN DE INVENTARIO (RETAZOS CORREGIDO A 150x400) ---
         with st.expander("➕ Registrar Nuevo Retazo en Depósito"):
-            st.write("Cargá sobrantes útiles (>150x400mm) para que el sistema los detecte.")
-                c_ret1, c_ret2 = st.columns(2)
-                ancho_r = c_ret1.number_input("Ancho (mm)", value=0, key="anc_r")
-                largo_r = c_ret2.number_input("Largo (mm)", value=0, key="lar_r")
+            st.write("Cargá sobrantes útiles (>150x400mm) para que el sistema los detecte.") [cite: 90]
+            c_ret1, c_ret2 = st.columns(2) [cite: 91]
+            ancho_r = c_ret1.number_input("Ancho (mm)", value=0, key="anc_r") [cite: 91]
+            largo_r = c_ret2.number_input("Largo (mm)", value=0, key="lar_r") [cite: 91]
     
-            if st.button("💾 Guardar en Inventario de Retazos"):
-                        # Aplicamos la Regla de Oro de tu viejo: 150x400
-            if (ancho_r >= 150 and largo_r >= 400) or (ancho_r >= 400 and largo_r >= 150):
-                registrar_retazo(mat_principal, largo_r, ancho_r)
-            else:
-                st.warning("El retazo es muy chico para ser útil (mínimo 150x400mm según estándar BVM).")
-               # --- 3. GESTIÓN COMERCIAL (PDF PRO) ---
-        st.write("---")
+            if st.button("💾 Guardar en Inventario de Retazos"): [cite: 91]
+                # Aplicamos la Regla de Oro de tu viejo: 150x400
+                if (ancho_r >= 150 and largo_r >= 400) or (ancho_r >= 400 and largo_r >= 150): [cite: 92]
+                    registrar_retazo(mat_principal, largo_r, ancho_r) [cite: 92]
+                else:
+                    st.warning("El retazo es muy chico para ser útil (mínimo 150x400mm según estándar BVM).") [cite: 93]
+
+        # --- 3. GESTIÓN COMERCIAL (PDF PRO) ---
+        st.write("---") 
             st.subheader("📄 Generar Propuesta para Cliente")
                 
                 c_com1, c_com2 = st.columns(2)
@@ -787,6 +789,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
