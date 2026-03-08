@@ -634,15 +634,15 @@ if menu == "Cotizador CNC":
             link_wa = generar_link_whatsapp(datos_pdf)
 
                 # 2. Después dibujamos los botones (Interfaz)
-                st.download_button(
-                    label="📥 Descargar Presupuesto Profesional",
-                    data=pdf_bytes,
-                    file_name=f"Presupuesto_{cliente}.pdf",
-                    mime="application/pdf",
-                    use_container_width=True
-                )
+            st.download_button(
+                label="📥 Descargar Presupuesto Profesional",
+                data=pdf_bytes,
+                file_name=f"Presupuesto_{cliente}.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
                 
-                st.link_button("🟢 Enviar Presupuesto por WhatsApp", link_wa, use_container_width=True)
+            st.link_button("🟢 Enviar Presupuesto por WhatsApp", link_wa, use_container_width=True)
             
                 # 6. --- GENERACIÓN DE ETIQUETAS (VALOR PRO) ---
                 st.write("---") # Una línea divisoria para separar administración de taller
@@ -788,6 +788,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
