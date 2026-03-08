@@ -414,6 +414,37 @@ if menu == "Cotizador CNC":
 
             # Agrupamos los módulos en otro contenedor
             with st.expander("🏗️ Configuración de Módulos", expanded=False):
+                if tipo_modulo == "Bajo Mesada":
+                # --- 1. LÓGICA EXCLUSIVA BAJO MESADA ---
+                st.markdown("#### 🚪 Configuración de Frente")
+                
+                # Selector de estilo (Gola es el que ya programamos)
+                opciones_bm = ["Estándar", "Gola BVM", "Perfil J"]
+                tipo_tapa = st.radio("Estilo de Bajo Mesada", opciones_bm)
+                
+                # Selector de puertas y sincronización con parante
+                cant_puertas = st.selectbox("Cantidad de Puertas", [2, 3])
+                
+                if cant_puertas == 3:
+                    tiene_parante = True
+                    st.info("💡 3 puertas: Parante divisor incluido automáticamente.")
+                else:
+                    tiene_parante = st.checkbox("¿Lleva parante divisor?", value=False)
+
+                if tiene_parante:
+                    tipo_parante = st.selectbox("Tipo de Parante", ["Corto (100mm)", "Largo (Fondo Lateral)"])
+                
+                # Configuración de herrajes (Bisagras)
+                tipo_bisagra = st.selectbox("Tipo de Bisagra", ["Cazoleta C0 Cierre Suave", "Especial"])
+                precio_bisagra = config['bisagra_cazoleta']
+                
+                # Reseteamos valores de cajones para que el motor no explote
+                cant_cajones = 0
+                luz_entre_tapas = 3.0
+                luz_perimetral_tapa = 4.0
+                alto_frentin_emb = 0.0
+               
+            else:
                 # Configuración de Herrajes
                 tipo_bisagra = st.selectbox("Tipo de Bisagra", ["Cazoleta C0 Cierre Suave", "Especial"])
                 precio_bisagra = config['bisagra_cazoleta']
@@ -807,6 +838,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
