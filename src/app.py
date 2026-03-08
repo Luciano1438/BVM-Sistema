@@ -378,6 +378,7 @@ if menu == "Cotizador CNC":
         cant_estantes = 0
         luz_perimetral_tapa = 4.0
         aire_trasero = 30.0  
+        esp_corredera = 13.0
         # --- DASHBOARD DE CONTROL ---
         st.write("---")
         # Calculamos la rentabilidad proyectada (usamos valores base si no hay datos)
@@ -795,6 +796,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
