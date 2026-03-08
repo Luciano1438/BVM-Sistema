@@ -471,19 +471,21 @@ if menu == "Cotizador CNC":
                     despiece.append(crear_pieza("Frentín Gola L (B)", 2, 50, ancho_interno_total))
 
                     # 2. Lógica de Alturas (Simétrica o Proporcional)
+                # 2. Lógica de Alturas (Simétrica o Proporcional)
                 alturas_tapas = []
-                if cant_cajones > 0:  # <--- AGREGÁ ESTA LÍNEA DE PROTECCIÓN
-                    if distribucion_tapas == "Proporcional (20/35/45)" and cant_cajones == 3:
-                    alturas_tapas = [
-                        espacio_util_total * 0.20,
-                        espacio_util_total * 0.35,
-                        espacio_util_total * 0.45 
-                    ]
-                else:
-                    # BLINDAJE BVM: Si cant_cajones es 0, usamos 1 para que no explote
-                    divisor_seguro = cant_cajones if cant_cajones > 0 else 1
-                    alto_igual = espacio_util_total / divisor_seguro
-                    alturas_tapas = [alto_igual] * int(cant_cajones)   
+                if cant_cajones > 0: # Línea 475
+                    if distribucion_tapas == "Proporcional (20/35/45)" and cant_cajones == 3: # Línea 476
+                        # Todo lo de abajo debe tener 4 espacios extra respecto al 'if' de arriba
+                        alturas_tapas = [
+                            espacio_util_total * 0.20,
+                            espacio_util_total * 0.35,
+                            espacio_util_total * 0.45 
+                        ]
+                    else: # Este else debe estar alineado con el 'if' de la línea 476
+                        # BLINDAJE BVM: Si cant_cajones es 0, usamos 1 para que no explote
+                        divisor_seguro = cant_cajones if cant_cajones > 0 else 1
+                        alto_igual = espacio_util_total / divisor_seguro
+                        alturas_tapas = [alto_igual] * int(cant_cajones)
 
                 # 3. Generamos las Tapas en el despiece
                 for i, alto_tapa in enumerate(alturas_tapas):
@@ -787,6 +789,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
