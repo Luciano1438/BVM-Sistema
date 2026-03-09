@@ -176,33 +176,33 @@ def generar_despiece_bvm(tipo, ancho_m, alto_m, prof_m, esp_real, tiene_parante,
             despiece.append({"Pieza": "Fondo Mueble", "Cant": 1, "L": alto_fondo, "A": ancho_m - 20, "Tipo": "Fondo"})
 
        # 6. INTERIORES Y PUERTAS
-        if tiene_parante:
+            if tiene_parante:
             # --- Lógica de 3 Puertas ---
-            ancho_par = prof_m if tipo_parante == "Largo (Fondo Lateral)" else 100
-            despiece.append({"Pieza": "Parante Divisor", "Cant": 1, "L": altura_lateral, "A": ancho_par, "Tipo": "Cuerpo"})
-            despiece.append({"Pieza": "Medio Estante", "Cant": 2, "L": ancho_interno_total / 2, "A": prof_m - 20, "Tipo": "Cuerpo"})
+                ancho_par = prof_m if tipo_parante == "Largo (Fondo Lateral)" else 100
+                despiece.append({"Pieza": "Parante Divisor", "Cant": 1, "L": altura_lateral, "A": ancho_par, "Tipo": "Cuerpo"})
+                despiece.append({"Pieza": "Medio Estante", "Cant": 2, "L": ancho_interno_total / 2, "A": prof_m - 20, "Tipo": "Cuerpo"})
             
             # Cálculo de Ancho para 3 Puertas
-            if tipo_tapa == "Embutida":
+             if tipo_tapa == "Embutida":
                 ancho_p = (ancho_m - (esp_real * 3) - 16) / 3
             else:
                 ancho_p = (ancho_m - 12) / 3
                 
             despiece.append({"Pieza": "Puerta", "Cant": 3, "L": alto_puerta, "A": round(ancho_p, 1), "Tipo": "Frente"})
             
-        else:
+            else:
             # --- Lógica de 2 Puertas ---
-            despiece.append({"Pieza": "Estante Completo", "Cant": 1, "L": ancho_interno_total, "A": prof_m - 20, "Tipo": "Cuerpo"})
+                despiece.append({"Pieza": "Estante Completo", "Cant": 1, "L": ancho_interno_total, "A": prof_m - 20, "Tipo": "Cuerpo"})
             
             # Cálculo de Ancho para 2 Puertas
-            if tipo_tapa == "Embutida":
-                ancho_p = (ancho_m - (esp_real * 2) - 10) / 2
-            else:
-                ancho_p = (ancho_m - 8) / 2
+                if tipo_tapa == "Embutida":
+                    ancho_p = (ancho_m - (esp_real * 2) - 10) / 2
+                else:
+                    ancho_p = (ancho_m - 8) / 2
                 
-            despiece.append({"Pieza": "Puerta", "Cant": 2, "L": alto_puerta, "A": round(ancho_p, 1), "Tipo": "Frente"})
+                despiece.append({"Pieza": "Puerta", "Cant": 2, "L": alto_puerta, "A": round(ancho_p, 1), "Tipo": "Frente"})
             
-        elif tipo == "Cajonera":
+    elif tipo == "Cajonera":
         # --- TU LÓGICA DE CAJONERA ORIGINAL (INTACTA) ---
             altura_caja_real = alto_m
             if tipo_base in ["Banquina de Obra", "Patas Plásticas"]:
@@ -861,6 +861,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
