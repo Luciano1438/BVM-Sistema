@@ -416,77 +416,77 @@ if menu == "Cotizador CNC":
             with st.expander("🏗️ Configuración de Módulos", expanded=False):
                 if tipo_modulo == "Bajo Mesada":
                 # --- 1. LÓGICA EXCLUSIVA BAJO MESADA ---
-                st.markdown("#### 🚪 Configuración de Frente")
-                
-                # Selector de estilo (Gola es el que ya programamos)
-                opciones_bm = ["Estándar", "Gola BVM", "Perfil J"]
-                tipo_tapa = st.radio("Estilo de Bajo Mesada", opciones_bm)
-                
-                # Selector de puertas y sincronización con parante
-                cant_puertas = st.selectbox("Cantidad de Puertas", [2, 3])
-                
-                if cant_puertas == 3:
-                    tiene_parante = True
-                    st.info("💡 3 puertas: Parante divisor incluido automáticamente.")
-                else:
-                    tiene_parante = st.checkbox("¿Lleva parante divisor?", value=False)
-
-                if tiene_parante:
-                    tipo_parante = st.selectbox("Tipo de Parante", ["Corto (100mm)", "Largo (Fondo Lateral)"])
-                
-                # Configuración de herrajes (Bisagras)
-                tipo_bisagra = st.selectbox("Tipo de Bisagra", ["Cazoleta C0 Cierre Suave", "Especial"])
-                precio_bisagra = config['bisagra_cazoleta']
-                
-                # Reseteamos valores de cajones para que el motor no explote
-                cant_cajones = 0
-                luz_entre_tapas = 3.0
-                luz_perimetral_tapa = 4.0
-                alto_frentin_emb = 0.0
-               
-            else:
-                # Configuración de Herrajes
-                tipo_bisagra = st.selectbox("Tipo de Bisagra", ["Cazoleta C0 Cierre Suave", "Especial"])
-                precio_bisagra = config['bisagra_cazoleta']
-                tipo_corredera = st.radio("Tipo de Corredera", ["Telescópica 45cm", "Cierre Suave Pesada"])
-                precio_guia = config['telescopica_45'] if "45cm" in tipo_corredera else config['telescopica_soft']
-                
-                c_caj, c_hue = st.columns(2)
-                cant_cajones = c_caj.number_input("Cant. Cajones", value=0, min_value=0)
-                tipo_tapa = "Superpuesta" 
-                alto_frentin_emb = 0.0
-                if tipo_tapa == "Tapa Embutida":
-                    alto_frentin_emb = st.number_input("Altura del Frentín Superior (mm)", value=30.0)
-                
-                opciones_estilo = ["Superpuesta", "Embutida"]
-
-                if cant_cajones > 0:
-                # 2. Si hay 3 cajones, le sumamos el Gola
-                   if cant_cajones == 3:
-                       opciones_estilo.append("Gola")
-                
-                # 3. Usamos la lista en el radio
-                tipo_tapa = st.radio("Estilo de Tapa", opciones_estilo)
-                st.markdown(f"#### 📏 Parámetros del Cajón ({tipo_tapa})")
-                col_l1, col_l2 = st.columns(2)
-                luz_entre_tapas = col_l1.number_input("Luz entre tapas (mm)", value=3.0)
+                    st.markdown("#### 🚪 Configuración de Frente")
+                    
+                    # Selector de estilo (Gola es el que ya programamos)
+                    opciones_bm = ["Estándar", "Gola BVM", "Perfil J"]
+                    tipo_tapa = st.radio("Estilo de Bajo Mesada", opciones_bm)
+                    
+                    # Selector de puertas y sincronización con parante
+                    cant_puertas = st.selectbox("Cantidad de Puertas", [2, 3])
+                    
+                    if cant_puertas == 3:
+                        tiene_parante = True
+                        st.info("💡 3 puertas: Parante divisor incluido automáticamente.")
+                    else:
+                        tiene_parante = st.checkbox("¿Lleva parante divisor?", value=False)
     
-                # Si es Tipo 1 pide luz de ancho, si es Tipo 2 pide el frentín de tu viejo
-            if cant_cajones > 0: 
-                if tipo_tapa == "Superpuesta":
-                    luz_perimetral_tapa = col_l2.number_input("Luz total ancho (mm)", value=4.0)
-                elif tipo_tapa == "Embutida": 
-                    alto_frentin_emb = col_l2.number_input("Altura Frentín Superior (mm)", value=30.0)
-                    luz_perimetral_tapa = 6.0 # Valor fijo por fórmula para Tipo 2
-                else: # GOLA
-                    luz_perimetral_tapa = col_l2.number_input("Luz total ancho (mm)", value=4.0)
+                    if tiene_parante:
+                        tipo_parante = st.selectbox("Tipo de Parante", ["Corto (100mm)", "Largo (Fondo Lateral)"])
+                    
+                    # Configuración de herrajes (Bisagras)
+                    tipo_bisagra = st.selectbox("Tipo de Bisagra", ["Cazoleta C0 Cierre Suave", "Especial"])
+                    precio_bisagra = config['bisagra_cazoleta']
+                    
+                    # Reseteamos valores de cajones para que el motor no explote
+                    cant_cajones = 0
+                    luz_entre_tapas = 3.0
+                    luz_perimetral_tapa = 4.0
                     alto_frentin_emb = 0.0
-                
-                distribucion_tapas = col_l1.radio("Distribución", ["Iguales", "Proporcional (20/35/45)"])
-
-                col_c1, col_c2 = st.columns(2)
-                esp_corredera = col_c1.number_input("Espesor de Corredera (mm)", value=13.0)
-                aire_trasero = col_c2.number_input("Espacio libre trasero (mm)", value=30.0)
+                   
+                else:
+                    # Configuración de Herrajes
+                    tipo_bisagra = st.selectbox("Tipo de Bisagra", ["Cazoleta C0 Cierre Suave", "Especial"])
+                    precio_bisagra = config['bisagra_cazoleta']
+                    tipo_corredera = st.radio("Tipo de Corredera", ["Telescópica 45cm", "Cierre Suave Pesada"])
+                    precio_guia = config['telescopica_45'] if "45cm" in tipo_corredera else config['telescopica_soft']
+                    
+                    c_caj, c_hue = st.columns(2)
+                    cant_cajones = c_caj.number_input("Cant. Cajones", value=0, min_value=0)
+                    tipo_tapa = "Superpuesta" 
+                    alto_frentin_emb = 0.0
+                    if tipo_tapa == "Tapa Embutida":
+                        alto_frentin_emb = st.number_input("Altura del Frentín Superior (mm)", value=30.0)
+                    
+                    opciones_estilo = ["Superpuesta", "Embutida"]
+    
+                    if cant_cajones > 0:
+                    # 2. Si hay 3 cajones, le sumamos el Gola
+                       if cant_cajones == 3:
+                           opciones_estilo.append("Gola")
+                    
+                    # 3. Usamos la lista en el radio
+                    tipo_tapa = st.radio("Estilo de Tapa", opciones_estilo)
+                    st.markdown(f"#### 📏 Parámetros del Cajón ({tipo_tapa})")
+                    col_l1, col_l2 = st.columns(2)
+                    luz_entre_tapas = col_l1.number_input("Luz entre tapas (mm)", value=3.0)
+        
+                    # Si es Tipo 1 pide luz de ancho, si es Tipo 2 pide el frentín de tu viejo
+                if cant_cajones > 0: 
+                    if tipo_tapa == "Superpuesta":
+                        luz_perimetral_tapa = col_l2.number_input("Luz total ancho (mm)", value=4.0)
+                    elif tipo_tapa == "Embutida": 
+                        alto_frentin_emb = col_l2.number_input("Altura Frentín Superior (mm)", value=30.0)
+                        luz_perimetral_tapa = 6.0 # Valor fijo por fórmula para Tipo 2
+                    else: # GOLA
+                        luz_perimetral_tapa = col_l2.number_input("Luz total ancho (mm)", value=4.0)
+                        alto_frentin_emb = 0.0
+                    
+                    distribucion_tapas = col_l1.radio("Distribución", ["Iguales", "Proporcional (20/35/45)"])
+    
+                    col_c1, col_c2 = st.columns(2)
+                    esp_corredera = col_c1.number_input("Espesor de Corredera (mm)", value=13.0)
+                    aire_trasero = col_c2.number_input("Espacio libre trasero (mm)", value=30.0)
             # --- SECCIÓN 3: INTERIORES Y SIMETRÍA ---
             with st.expander("⚖️ Parante, Estantes y Simetría", expanded=False):
                 if tipo_modulo == "Bajo Mesada":
@@ -838,6 +838,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
