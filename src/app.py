@@ -671,7 +671,8 @@ if menu == "Cotizador CNC":
                 pct_seña = st.slider("% de Seña", 0, 100, 50, 5) # Default 50%, saltos de 5%
                 # Preparamos el paquete de datos para el PDF (incluimos el % de seña)
             datos_pdf = {
-                'cliente': cliente, 'mueble': mueble_nom, 
+                'cliente': cliente,
+                'mueble': tipo_modulo,
                 'precio': precio_final, 'material': mat_principal,
                 'ancho': ancho_m, 'alto': alto_m, 'prof': prof_m,
                  'entrega': dias_entrega,
@@ -869,6 +870,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
