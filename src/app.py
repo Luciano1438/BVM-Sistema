@@ -513,7 +513,7 @@ if menu == "Cotizador CNC":
                     aire_trasero = col_c2.number_input("Espacio libre trasero (mm)", value=30.0)
     
                         
-                PARÁMETROS FINANCIEROS Y ENVÍO ---
+                #PARÁMETROS FINANCIEROS Y ENVÍO ---
             with st.expander("💰 Soporte y Logística", expanded=False):
                 tipo_base = st.selectbox("Tipo de Soporte", ["Zócalo de Madera", "Banquina", "Patas Plásticas", "Nada"])
                 costo_base = 5000 if tipo_base == "Patas Plásticas" else 0
@@ -848,6 +848,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
