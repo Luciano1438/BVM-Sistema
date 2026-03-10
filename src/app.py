@@ -648,16 +648,30 @@ if menu == "Cotizador CNC":
             st.success(f"✅ OPERACIÓN RENTABLE: Margen del {pct_utilidad_real:.1f}%")
         st.subheader(f"PRECIO FINAL: ${precio_final:,.2f}")
 
-            # --- 1. GESTIÓN DE GUARDADO (ADMINISTRACIÓN) ---
+         # --- 1. GESTIÓN DE GUARDADO UNIFICADA (REDUNDANCIA PRO) ---
         st.write("---")
-        c_save1, c_save2 = st.columns(2)
-        with c_save1:
-            if st.button("💾 Guardar Local"):
-                 ejecutar_query("INSERT INTO ventas (mueble, precio_final, estado) VALUES (?, ?, ?)", (mueble_nom, precio_final, "Pendiente"))
-                 st.success("Guardado Local.")
-        with c_save2:
-            if st.button("💾 Guardar en Nube"):
-                 guardar_presupuesto_nube(cliente, mueble_nom, precio_final)
+        if st.button("Guardar", use_container_width=True):
+            if cliente:
+                try:
+                    # A. Guardado en Nube (Supabase) - Tu respaldo de seguridad
+                    guardar_presupuesto_nube(cliente, tipo_modulo, precio_final)
+                    
+                    # B. Guardado Local (SQLite) - Con fix para que no falle la carpeta
+                    if not os.path.exists(BASE_DIR / 'data'):
+                        os.makedirs(BASE_DIR / 'data')
+                        
+                    # Agregamos 'cliente' a la query local para que no quede huérfana la info
+                    ejecutar_query(
+                        "INSERT INTO ventas (mueble, precio_final, estado, cliente) VALUES (?, ?, ?, ?)", 
+                        (tipo_modulo, precio_final, "Pendiente", cliente)
+                    )
+                    
+                    st.success(f"✅ ÉXITO: Presupuesto de {tipo_modulo} para {cliente} blindado en ambos sistemas.")
+                    st.balloons()
+                except Exception as e:
+                    st.error(f"⚠️ Error parcial en el guardado: {e}")
+            else:
+                st.warning("📢 Ingrese el nombre del Cliente antes de guardar para evitar datos basura."))
        
 
         # --- 3. GESTIÓN COMERCIAL (PDF PRO) ---
@@ -870,6 +884,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
