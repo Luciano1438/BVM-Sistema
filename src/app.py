@@ -451,11 +451,12 @@ if menu == "Cotizador CNC":
                     if cant_puertas == 3:
                         tiene_parante = True
                         st.info("💡 3 puertas: Parante divisor incluido automáticamente.")
-                    else:
-                        tiene_parante = st.checkbox("¿Lleva parante divisor?", value=False)
     
-                    if tiene_parante:
+                        c_p1, c_p2 = st.columns(2)
                         tipo_parante = st.selectbox("Tipo de Parante", ["Corto (100mm)", "Largo (Fondo Lateral)"])
+                        distancia_parante = c_p2.number_input("Distancia desde lateral izq. (mm)", 
+                                                            value=ancho_m/cant_puertas if ancho_m > 0 else 0.0, 
+                                                            step=1.0)
                     
                     # Configuración de herrajes (Bisagras)
                     tipo_bisagra = st.selectbox("Tipo de Bisagra", ["Cazoleta C0 Cierre Suave", "Especial"])
@@ -510,23 +511,9 @@ if menu == "Cotizador CNC":
                     col_c1, col_c2 = st.columns(2)
                     esp_corredera = col_c1.number_input("Espesor de Corredera (mm)", value=13.0)
                     aire_trasero = col_c2.number_input("Espacio libre trasero (mm)", value=30.0)
-            # --- SECCIÓN 3: INTERIORES Y SIMETRÍA ---
-            with st.expander("⚖️ Parante, Estantes y Simetría", expanded=False):
-                if tipo_modulo == "Bajo Mesada":
-                    st.subheader("📏 Configuración de Frente y División")
-                    c_pue, c_par = st.columns(2)
-                    tiene_parante = c_par.checkbox("¿Lleva parante divisor?", key="check_parante")
-        
-                    if tiene_parante:
-                        tipo_parante = st.selectbox("Tipo de Parante", ["Corto (100mm)", "Largo (Fondo Lateral)"], key="tipo_parante_bm")
-            
-                    st.write("---")
-                    st.info("💡 La simetría de frentes y los travesaños (100mm/70mm) se calculan automáticamente según el estándar BVM.")
     
-                else:
-                    st.success("✅ Estructura de Cajonera optimizada. No se requieren parantes ni frentes de puerta.")
                         
-            # --- SECCIÓN 4: PARÁMETROS FINANCIEROS Y ENVÍO ---
+                PARÁMETROS FINANCIEROS Y ENVÍO ---
             with st.expander("💰 Soporte y Logística", expanded=False):
                 tipo_base = st.selectbox("Tipo de Soporte", ["Zócalo de Madera", "Banquina", "Patas Plásticas", "Nada"])
                 costo_base = 5000 if tipo_base == "Patas Plásticas" else 0
@@ -861,6 +848,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
