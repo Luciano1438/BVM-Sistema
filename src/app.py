@@ -541,49 +541,46 @@ if menu == "Cotizador CNC":
                     "A": round(ancho, 1), 
                     "Notas": ""
                 }
-        if alto_m > 0 and ancho_m > 0:
-            # LLAMADA EXPLÍCITA AL MOTOR BVM
-            piezas_calculadas = generar_despiece_bvm(
-                tipo=tipo_modulo, 
-                ancho_m=ancho_m, 
-                alto_m=alto_m, 
-                prof_m=prof_m, 
-                esp_real=esp_real,
-                tiene_parante=tiene_parante,
-                tipo_parante=tipo_parante if tiene_parante else "Corto",
-                distancia_parante=distancia_parante,
-                cant_cajones=cant_cajones,
-                tipo_tapa=tipo_tapa,
-                tipo_base=tipo_base,
-                altura_base=altura_base,
-                luz_entre_tapas=luz_entre_tapas,
-                luz_perimetral_tapa=luz_perimetral_tapa,
-                alto_frentin_emb=alto_frentin_emb,
-                aire_trasero=aire_trasero,
-                esp_corredera=esp_corredera,
-                distribucion_tapas=distribucion_tapas
-            )
-            # Convertimos los resultados en la tabla
-            df_corte = pd.DataFrame(piezas_calculadas)
-            
-            # Dibujamos la planilla de corte en pantalla
-            st.data_editor(df_corte, use_container_width=True, hide_index=True)
-
-            # --- RE-CÁLCULO DE MÉTRICAS (INDISPENSABLE PARA COSTOS) ---
-            # Superficie de Placa 18mm (Solo lo que NO es Fondo ni Piso de cajón)
-            df_placa = df_corte[~df_corte['Tipo'].isin(['Fondo', 'Piso'])]
-            m2_18mm = (df_placa['L'] * df_placa['A'] * df_placa['Cant']).sum() / 1_000_000
-            
-            # Superficie de Fondos/Pisos (Material de 3mm)
-            df_fondo_only = df_corte[df_corte['Tipo'].isin(['Fondo', 'Piso'])]
-            m2_fondo = (df_fondo_only['L'] * df_fondo_only['A'] * df_fondo_only['Cant']).sum() / 1_000_000
- 
-            if flete_sel == "Capital": costo_flete = config['flete_capital']
-            elif flete_sel == "Zona Norte": costo_flete = config['flete_norte']
+            if alto_m > 0 and ancho_m > 0:
+                # LLAMADA EXPLÍCITA AL MOTOR BVM
+                piezas_calculadas = generar_despiece_bvm(
+                    tipo=tipo_modulo, 
+                    ancho_m=ancho_m, 
+                    alto_m=alto_m, 
+                    prof_m=prof_m, 
+                    esp_real=esp_real,
+                    tiene_parante=tiene_parante,
+                    tipo_parante=tipo_parante if tiene_parante else "Corto",
+                    distancia_parante=distancia_parante,
+                    cant_cajones=cant_cajones,
+                    tipo_tapa=tipo_tapa,
+                    tipo_base=tipo_base,
+                    altura_base=altura_base,
+                    luz_entre_tapas=luz_entre_tapas,
+                    luz_perimetral_tapa=luz_perimetral_tapa,
+                    alto_frentin_emb=alto_frentin_emb,
+                    aire_trasero=aire_trasero,
+                    esp_corredera=esp_corredera,
+                    distribucion_tapas=distribucion_tapas
+                )
+                # Convertimos los resultados en la tabla
+                df_corte = pd.DataFrame(piezas_calculadas)
+                st.data_editor(df_corte, use_container_width=True, hide_index=True)
+    
+                # --- RE-CÁLCULO DE MÉTRICAS (INDISPENSABLE PARA COSTOS) ---
+                df_placa = df_corte[~df_corte['Tipo'].isin(['Fondo', 'Piso'])]
+                m2_18mm = (df_placa['L'] * df_placa['A'] * df_placa['Cant']).sum() / 1_000_000
                 
-            costo_operativo = (dias_prod * config['gastos_fijos_diarios'])
-            total_costo = costo_madera + costo_fondo + costo_herrajes + costo_operativo + costo_base + costo_flete
-            if necesita_colocacion: total_costo += (dias_col * config['colocacion_dia'])
+                # Superficie de Fondos/Pisos (Material de 3mm)
+                df_fondo_only = df_corte[df_corte['Tipo'].isin(['Fondo', 'Piso'])]
+                m2_fondo = (df_fondo_only['L'] * df_fondo_only['A'] * df_fondo_only['Cant']).sum() / 1_000_000
+     
+                if flete_sel == "Capital": costo_flete = config['flete_capital']
+                elif flete_sel == "Zona Norte": costo_flete = config['flete_norte']
+                    
+                costo_operativo = (dias_prod * config['gastos_fijos_diarios'])
+                total_costo = costo_madera + costo_fondo + costo_herrajes + costo_operativo + costo_base + costo_flete
+                if necesita_colocacion: total_costo += (dias_col * config['colocacion_dia'])
 
                 # --- C. RETAZOS Y PRECIO FINAL (Igual que antes) ---
             st.write("---")
@@ -848,6 +845,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
