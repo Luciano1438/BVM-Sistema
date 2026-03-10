@@ -671,7 +671,7 @@ if menu == "Cotizador CNC":
                 except Exception as e:
                     st.error(f"⚠️ Error parcial en el guardado: {e}")
             else:
-                st.warning("📢 Ingrese el nombre del Cliente antes de guardar para evitar datos basura."))
+                st.warning("📢 Ingrese el nombre del Cliente antes de guardar para evitar datos basura.")
        
 
         # --- 3. GESTIÓN COMERCIAL (PDF PRO) ---
@@ -884,6 +884,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
