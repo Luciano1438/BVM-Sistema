@@ -711,7 +711,7 @@ if menu == "Cotizador CNC":
         st.link_button("🟢 Enviar Presupuesto por WhatsApp", link_wa, use_container_width=True)
             
                 # 6. --- GENERACIÓN DE ETIQUETAS (VALOR PRO) ---
-         st.write("---") # Una línea divisoria para separar administración de taller
+        st.write("---") # Una línea divisoria para separar administración de taller
         if st.button("🖨️ Generar Etiquetas de Taller"):
             st.info(f"Generando etiquetas para las {len(df_corte)} piezas...")
             cols_etiquetas = st.columns(2) 
@@ -887,6 +887,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
