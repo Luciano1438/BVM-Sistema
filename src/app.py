@@ -721,8 +721,7 @@ if menu == "Cotizador CNC":
                         st.write(f"**Cliente:** {cliente}")
                         st.write(f"**Mueble:** {mueble_nom}")
                         st.code(f"PIEZA N°: {index+1}\nDIM: {int(row['L'])} x {int(row['A'])} mm")
-        else:
-            st.warning("Ingrese dimensiones.")
+       
     except Exception as e:
         st.error(f"Error en el Cotizador: {e}")
 
@@ -886,6 +885,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
