@@ -375,7 +375,7 @@ if not verificar_password():
 
 maderas, fondos, config = traer_datos()
 # --- ACTUALIZACIÓN DE MENÚ (VALOR PRO) ---
-menu = st.sidebar.radio("Navegación", ["Cotizador CNC", "Historial de Ventas", "⚙️ Configuración de Precios"])
+menu = st.sidebar.radio("Navegación", ["Cotizador CNC","Depósito de Retazos", "Historial de Ventas", "⚙️ Configuración de Precios"])
 # --- AGREGAR ESTO EN LA SIDEBAR (O EN LA PESTAÑA DE AJUSTES) ---
 
 
@@ -653,21 +653,7 @@ if menu == "Cotizador CNC":
         with c_save2:
             if st.button("💾 Guardar en Nube"):
                  guardar_presupuesto_nube(cliente, mueble_nom, precio_final)
-
-               # --- 2. GESTIÓN DE INVENTARIO (RETAZOS CORREGIDO A 150x400) ---
-        # --- 2. GESTIÓN DE INVENTARIO (RETAZOS CORREGIDO A 150x400) ---
-        with st.expander("➕ Registrar Nuevo Retazo en Depósito"):
-            st.write("Cargá sobrantes útiles (>150x400mm) para que el sistema los detecte.") 
-            c_ret1, c_ret2 = st.columns(2)
-            ancho_r = c_ret1.number_input("Ancho (mm)", value=0, key="anc_r") 
-            largo_r = c_ret2.number_input("Largo (mm)", value=0, key="lar_r") 
-    
-            if st.button("💾 Guardar en Inventario de Retazos"): 
-                # Aplicamos la Regla de Oro de tu viejo: 150x400
-                if (ancho_r >= 150 and largo_r >= 400) or (ancho_r >= 400 and largo_r >= 150): 
-                    registrar_retazo(mat_principal, largo_r, ancho_r) 
-                else:
-                    st.warning("El retazo es muy chico para ser útil (mínimo 150x400mm según estándar BVM).") 
+       
 
         # --- 3. GESTIÓN COMERCIAL (PDF PRO) ---
             st.write("---")
@@ -750,6 +736,39 @@ elif menu == "Historial de Ventas":
             
     except Exception as e:
         st.error(f"Error en el monitor: {e}")
+elif menu == "📦 Depósito de Retazos":
+    st.title("♻️ Gestión de Sobrantes (Estándar BVM)")
+    st.info("Cargá aquí los recortes del taller para que el sistema los use automáticamente en los presupuestos.")
+
+    # 1. Registro de piezas nuevas
+    with st.expander("➕ Registrar Nuevo Retazo en Depósito", expanded=True):
+        st.write("Cargá sobrantes útiles (>150x400mm) para que el sistema los detecte.") 
+        c_ret_mat, c_ret1, c_ret2 = st.columns([2, 1, 1])
+        
+        # Necesitamos saber el material para guardarlo bien
+        mat_r = c_ret_mat.selectbox("Material del sobrante", list(maderas.keys()))
+        ancho_r = c_ret1.number_input("Ancho (mm)", value=0, key="anc_r_indep") 
+        largo_r = c_ret2.number_input("Largo (mm)", value=0, key="lar_r_indep") 
+    
+        if st.button("💾 Guardar en Inventario"): 
+            if (ancho_r >= 150 and largo_r >= 400) or (ancho_r >= 400 and largo_r >= 150): 
+                registrar_retazo(mat_r, largo_r, ancho_r)
+                st.success(f"Retazo de {mat_r} guardado correctamente.")
+            else:
+                st.warning("El retazo es muy chico para ser útil (mínimo 150x400mm según estándar BVM).") 
+
+    st.write("---")
+    
+    # 2. Visualización de lo que hay hoy
+    st.subheader("📋 Stock Actual")
+    usuario_actual = st.session_state["user_data"]["usuario"]
+    retazos_db = consultar_retazos_disponibles("Todos") # Podés ajustar tu función para que traiga todos
+    
+    if retazos_db:
+        df_inv = pd.DataFrame(retazos_db)
+        st.dataframe(df_inv[["material", "largo", "ancho"]], use_container_width=True)
+    else:
+        st.info("El depósito está vacío.")
 
 # --- PESTAÑA: CONFIGURACIÓN DE PRECIOS (VALOR PRO) ---
 elif menu == "⚙️ Configuración de Precios":
@@ -845,6 +864,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
