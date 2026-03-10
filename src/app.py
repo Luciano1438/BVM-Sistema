@@ -398,6 +398,7 @@ if menu == "Cotizador CNC":
         total_costo = 0.0
         m2_18mm = 0.0
         m2_fondo = 0.0
+        costo_operativo = 0.0
         tiene_parante = False
         mueble_nom = "Mueble BVM"
         tiene_parante = False
@@ -868,6 +869,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
