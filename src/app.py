@@ -389,6 +389,7 @@ if st.sidebar.button("🚪 Cerrar Sesión"):
 if menu == "Cotizador CNC":
     try:
         st.title("🏭 BVM | Control de Producción Industrial")
+        df_corte = pd.DataFrame()
         costo_madera = 0.0
         costo_fondo = 0.0
         costo_herrajes = 0.0
@@ -396,8 +397,8 @@ if menu == "Cotizador CNC":
         precio_final = 0.
         tiene_parante = False
         mueble_nom = "Mueble BVM"
-        tiene_parante = False        # <--- Culpable 1
-        distancia_parante = 0.0      # <--- Culpable 2
+        tiene_parante = False
+        distancia_parante = 0.0     
         cant_estantes = 0
         luz_perimetral_tapa = 4.0
         aire_trasero = 30.0  
@@ -864,6 +865,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
