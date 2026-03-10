@@ -336,13 +336,16 @@ def traer_datos_historial():
 # --- 2. CONECTIVIDAD LOCAL (Mantenida para guardar localmente) ---
 def ejecutar_query(query, params=(), fetch=False):
     db_path = BASE_DIR / 'data' / 'carpinteria.db'
+    
+    # ÚNICO AGREGADO PERMITIDO: Que cree la carpeta si falta
+    if not os.path.exists(BASE_DIR / 'data'):
+        os.makedirs(BASE_DIR / 'data')
+        
     with sqlite3.connect(db_path) as conn:
         cursor = conn.cursor()
         cursor.execute(query, params)
         if fetch: return cursor.fetchall()
         conn.commit()
-import urllib.parse
-
 def generar_link_whatsapp(datos):
     # Formato limpio y profesional sin caracteres especiales
     lineas = [
@@ -884,6 +887,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
