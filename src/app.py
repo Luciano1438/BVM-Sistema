@@ -672,7 +672,10 @@ if menu == "Cotizador CNC":
                     st.success(f"✅ ÉXITO: Presupuesto de {tipo_modulo} para {cliente} blindado en ambos sistemas.")
                     st.balloons()
                 except Exception as e:
-                    st.error(f"⚠️ Error parcial en el guardado: {e}")
+                   if "no such table" in str(e).lower():
+                        st.warning("⚠️ Nota: Respaldo local no disponible (Tabla 'ventas' no existe en disco). En la Nube ya se guardó.")
+                    else:
+                        st.error(f"⚠️ Error en Respaldo Local: {e}")
             else:
                 st.warning("📢 Ingrese el nombre del Cliente antes de guardar para evitar datos basura.")
        
@@ -887,6 +890,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
