@@ -736,7 +736,7 @@ elif menu == "Historial de Ventas":
             
     except Exception as e:
         st.error(f"Error en el monitor: {e}")
-elif menu == "📦 Depósito de Retazos":
+elif menu == "Depósito de Retazos":
     st.title("♻️ Gestión de Sobrantes (Estándar BVM)")
     st.info("Cargá aquí los recortes del taller para que el sistema los use automáticamente en los presupuestos.")
 
@@ -864,6 +864,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
