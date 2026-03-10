@@ -678,61 +678,58 @@ if menu == "Cotizador CNC":
                        st.error(f"⚠️ Error en Respaldo Local: {e}")
             else:
                 st.warning("📢 Ingrese el nombre del Cliente antes de guardar para evitar datos basura.")
-       
-
-        # --- 3. GESTIÓN COMERCIAL (PDF PRO) ---
-            st.write("---")
-            st.subheader("📄 Generar Propuesta para Cliente")
+        st.write("---")
+        st.subheader("📄 Generar Propuesta para Cliente")
                 
-            c_com1, c_com2 = st.columns(2)
-            with c_com1:
-                dias_entrega = st.number_input("Días de entrega", value=15, step=1)
-            with c_com2:
-                pct_seña = st.slider("% de Seña", 0, 100, 50, 5) # Default 50%, saltos de 5%
+        c_com1, c_com2 = st.columns(2)
+        with c_com1:
+            dias_entrega = st.number_input("Días de entrega", value=15, step=1)
+        with c_com2:
+            pct_seña = st.slider("% de Seña", 0, 100, 50, 5) # Default 50%, saltos de 5%
                 # Preparamos el paquete de datos para el PDF (incluimos el % de seña)
-            datos_pdf = {
-                'cliente': cliente,
-                'mueble': tipo_modulo,
-                'precio': precio_final, 'material': mat_principal,
-                'ancho': ancho_m, 'alto': alto_m, 'prof': prof_m,
-                 'entrega': dias_entrega,
-                'pct_seña': pct_seña
-             }
+        datos_pdf = {
+            'cliente': cliente,
+            'mueble': tipo_modulo,
+            'precio': precio_final, 'material': mat_principal,
+            'ancho': ancho_m, 'alto': alto_m, 'prof': prof_m,
+            'entrega': dias_entrega,
+            'pct_seña': pct_seña
+            }
                 
-            pdf_bytes = generar_pdf_presupuesto(datos_pdf)
-            link_wa = generar_link_whatsapp(datos_pdf)
+        pdf_bytes = generar_pdf_presupuesto(datos_pdf)
+        link_wa = generar_link_whatsapp(datos_pdf)
 
                 # 2. Después dibujamos los botones (Interfaz)
-            st.download_button(
-                label="📥 Descargar Presupuesto Profesional",
-                data=pdf_bytes,
-                file_name=f"Presupuesto_{cliente}.pdf",
-                mime="application/pdf",
-                use_container_width=True
-            )
+        st.download_button(
+            label="📥 Descargar Presupuesto Profesional",
+            data=pdf_bytes,
+            file_name=f"Presupuesto_{cliente}.pdf",
+            mime="application/pdf",
+            use_container_width=True
+        )
                 
-            st.link_button("🟢 Enviar Presupuesto por WhatsApp", link_wa, use_container_width=True)
+        st.link_button("🟢 Enviar Presupuesto por WhatsApp", link_wa, use_container_width=True)
             
                 # 6. --- GENERACIÓN DE ETIQUETAS (VALOR PRO) ---
-            st.write("---") # Una línea divisoria para separar administración de taller
-            if st.button("🖨️ Generar Etiquetas de Taller"):
-                st.info(f"Generando etiquetas para las {len(df_corte)} piezas...")
-                    # Creamos una cuadrícula para que las etiquetas no ocupen toda la pantalla hacia abajo
-                cols_etiquetas = st.columns(2) 
-                for index, row in df_corte.iterrows():
-                    with cols_etiquetas[index % 2]: # Esto las ordena en 2 columnas visuales
-                        with st.expander(f"📍 {row['Pieza']} ({int(row['L'])}x{int(row['A'])})"):
-                            st.write(f"**Cliente:** {cliente}")
-                            st.write(f"**Mueble:** {mueble_nom}")
-                            st.code(f"PIEZA N°: {index+1}\nDIM: {int(row['L'])} x {int(row['A'])} mm")
-                            st.caption("📋 Lados a tapacantear: Largos.")
-            # --- CIERRE DEL COTIZADOR CNC ---
-            else:
-                st.warning("Ingrese dimensiones.")
+         st.write("---") # Una línea divisoria para separar administración de taller
+        if st.button("🖨️ Generar Etiquetas de Taller"):
+            st.info(f"Generando etiquetas para las {len(df_corte)} piezas...")
+            cols_etiquetas = st.columns(2) 
+            for index, row in df_corte.iterrows():
+                 with cols_etiquetas[index % 2]: # Esto las ordena en 2 columnas visuales
+                     with st.expander(f"📍 {row['Pieza']} ({int(row['L'])}x{int(row['A'])})"):
+                        st.write(f"**Cliente:** {cliente}")
+                        st.write(f"**Mueble:** {mueble_nom}")
+                        st.code(f"PIEZA N°: {index+1}\nDIM: {int(row['L'])} x {int(row['A'])} mm")
+        else:
+            st.warning("Ingrese dimensiones.")
 
-    except Exception as e:
-        st.error(f"Error en el Cotizador: {e}")
+except Exception as e:
+    st.error(f"Error en el Cotizador: {e}")
 
+
+        # --- 3. GESTIÓN COMERCIAL (PDF PRO) ---
+            
 elif menu == "Historial de Ventas":
     st.title("📊 Gestión y Seguimiento de Ventas")
     try:
