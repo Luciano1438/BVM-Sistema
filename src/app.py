@@ -631,20 +631,30 @@ if menu == "Cotizador CNC":
                 df_corte = pd.DataFrame(piezas_calculadas)
                 st.data_editor(df_corte, use_container_width=True, hide_index=True)
     
-                # --- RE-CÁLCULO DE MÉTRICAS (INDISPENSABLE PARA COSTOS) ---
+               # --- RE-CÁLCULO DE MÉTRICAS (INDISPENSABLE PARA COSTOS) ---
                 df_placa = df_corte[~df_corte['Tipo'].isin(['Fondo', 'Piso'])]
                 m2_18mm = (df_placa['L'] * df_placa['A'] * df_placa['Cant']).sum() / 1_000_000
+                
+                # 1. ACTUALIZACIÓN DE COSTO MADERA (Precio Placa / 5.03 m2 que rinde una placa)
+                precio_placa = maderas.get(mat_principal, 0)
+                costo_madera = m2_18mm * (precio_placa / 5.03)
                 
                 # Superficie de Fondos/Pisos (Material de 3mm)
                 df_fondo_only = df_corte[df_corte['Tipo'].isin(['Fondo', 'Piso'])]
                 m2_fondo = (df_fondo_only['L'] * df_fondo_only['A'] * df_fondo_only['Cant']).sum() / 1_000_000
+                
+                # 2. ACTUALIZACIÓN DE COSTO FONDO
+                precio_fondo = fondos.get(mat_fondo_sel, 0)
+                costo_fondo = m2_fondo * (precio_fondo / 5.03)
      
-                if flete_sel == "Capital": costo_flete = config['flete_capital']
-                elif flete_sel == "Zona Norte": costo_flete = config['flete_norte']
+                if flete_sel == "Capital": costo_flete = config.get('flete_capital', 0)
+                elif flete_sel == "Zona Norte": costo_flete = config.get('flete_norte', 0)
                     
-                costo_operativo = (dias_prod * config['gastos_fijos_diarios'])
+                costo_operativo = (dias_prod * config.get('gastos_fijos_diarios', 0))
+                
+                # LA SUMA AHORA SÍ TIENE VALORES REALES
                 total_costo = costo_madera + costo_fondo + costo_herrajes + costo_operativo + costo_base + costo_flete
-                if necesita_colocacion: total_costo += (dias_col * config['colocacion_dia'])
+                if necesita_colocacion: total_costo += (dias_col * config.get('colocacion_dia', 0))
 
                 # --- C. RETAZOS Y PRECIO FINAL (Igual que antes) ---
             st.write("---")
@@ -884,6 +894,7 @@ elif menu == "⚙️ Configuración de Precios":
             actualizar_precio_nube(k, v, 'costos')
             
         st.success("✅ Configuración blindada.")
+
 
 
 
