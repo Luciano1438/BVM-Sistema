@@ -127,21 +127,28 @@ def consultar_retazos_disponibles(material):
 def registrar_retazo(material, largo, ancho):
     id_usuario = st.session_state["user"].id
     try:
-        # REGLA BVM: Validamos contra 150x400 (en cualquier sentido)
-
+        # Validamos contra el mínimo de 150x400
         if (largo >= 400 and ancho >= 150) or (largo >= 150 and ancho >= 400): 
-           data = {
+            data = {
                 "material": material, 
                 "largo": largo, 
                 "ancho": ancho, 
-                "user_id": st.session_state["user"].id
-             }
-             supabase.table("retazos").insert(data).execute()
-             st.toast(f"♻️ Retazo guardado: {int(largo)}x{int(ancho)}")
+                "user_id": id_usuario
+            }
+            supabase.table("retazos").insert(data).execute()
+            st.toast(f"♻️ Retazo guardado: {int(largo)}x{int(ancho)}")
         else:
+            # Este else debe estar exactamente bajo el 'if'
             st.error(f"❌ Error: {int(largo)}x{int(ancho)} es inferior al mínimo de 150x400.")
     except Exception as e:
         st.error(f"Error técnico al registrar: {e}")
+
+# LA SIGUIENTE FUNCIÓN DEBE EMPEZAR ACÁ, PEGADA AL MARGEN
+def generar_despiece_bvm(tipo, ancho_m, alto_m, prof_m, esp_real, tiene_parante, tipo_parante, 
+                         distancia_parante, cant_cajones, tipo_tapa, tipo_base, altura_base, 
+                         luz_entre_tapas, luz_perimetral_tapa, alto_frentin_emb, 
+                         aire_trasero, esp_corredera, distribucion_tapas):
+    despiece = []
 def generar_despiece_bvm(tipo, ancho_m, alto_m, prof_m, esp_real, tiene_parante, tipo_parante, 
                          distancia_parante, cant_cajones, tipo_tapa, tipo_base, altura_base, 
                          luz_entre_tapas, luz_perimetral_tapa, alto_frentin_emb, 
@@ -850,6 +857,7 @@ elif menu == "⚙️ Configuración de Precios":
             actualizar_precio_nube(k, v, 'costos')
             
         st.success("✅ Configuración blindada.")
+
 
 
 
