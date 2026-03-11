@@ -136,8 +136,8 @@ def registrar_retazo(material, largo, ancho):
                 "ancho": ancho, 
                 "user_id": st.session_state["user"].id
             }
-            supabase.table("retazos").insert(data).execute()
-            st.toast(f"♻️ Retazo guardado: {int(largo)}x{int(ancho)}")
+        supabase.table("retazos").insert(data).execute()
+        st.toast(f"♻️ Retazo guardado: {int(largo)}x{int(ancho)}")
         else:
             # AHORA SÍ TE AVISA POR QUÉ NO GUARDA
             st.error(f"❌ Error: {int(largo)}x{int(ancho)} es inferior al mínimo de 150x400.")
@@ -850,7 +850,8 @@ elif menu == "⚙️ Configuración de Precios":
         for k, v in config.items():
             actualizar_precio_nube(k, v, 'costos')
             
-        st.success("✅ Configuración blindada para tu .")
+        st.success("✅ Configuración blindada.")
+
 
 
 
