@@ -24,8 +24,7 @@ def obtener_veta_automatica(nombre_pieza, material_seleccionado):
     material_lower = material_seleccionado.lower()
     # REGLA DE EFICIENCIA: Si es blanco, no desperdiciamos placa con orientaciones fijas
     if "blanco" in material_lower:
-        return "Libre (Cualquier sentido)"
- 
+        return "Libre (Cualquier sentido)"    
 
     # Regla de tu viejo para materiales con veta (enchapados/colores)
     nombre_lower = nombre_pieza.lower()
@@ -866,6 +865,7 @@ elif menu == "⚙️ Configuración de Precios":
             actualizar_precio_nube(k, v, 'costos')
             
         st.success("✅ Configuración blindada.")
+
 
 
 
