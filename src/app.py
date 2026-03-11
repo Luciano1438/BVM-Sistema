@@ -115,22 +115,27 @@ if url and key:
 else:
     st.error("Error: No se cargaron las credenciales.")
 def consultar_retazos_disponibles(material):
-    usuario_actual = st.session_state["user_data"]["usuario"]
+    id_usuario = st.session_state["user"].id
     try:
         # Traemos todos los retazos de ese material
-        res = supabase.table("retazos").select("*").eq("material", material).eq("usuario", usuario_actual).execute()
+        res = supabase.table("configuracion").select("*").eq("user_id", id_usuario).execute()
         return res.data
     except Exception as e:
         st.error(f"Error al consultar retazos: {e}")
         return []
 
 def registrar_retazo(material, largo, ancho):
-    usuario_actual = st.session_state["user_data"]["usuario"]
+    id_usuario = st.session_state["user"].id
     try:
         # REGLA BVM: Validamos contra 150x400 (en cualquier sentido)
 
         if (largo >= 400 and ancho >= 150) or (largo >= 150 and ancho >= 400): 
-            data = {"material": material, "largo": largo, "ancho": ancho, "usuario" : usuario_actual}
+           data = {
+                "material": material, 
+                "largo": largo, 
+                "ancho": ancho, 
+                "user_id": st.session_state["user"].id
+            }
             supabase.table("retazos").insert(data).execute()
             st.toast(f"♻️ Retazo guardado: {int(largo)}x{int(ancho)}")
         else:
@@ -258,37 +263,43 @@ def generar_despiece_bvm(tipo, ancho_m, alto_m, prof_m, esp_real, tiene_parante,
         return despiece
 
 # --- 0. SEGURIDAD DE ACCESO MULTIUSUARIO (VALOR PRO) ---
-def verificar_password():
+def gestionar_auth():
     if "autenticado" not in st.session_state:
         st.session_state["autenticado"] = False
+        st.session_state["user"] = None
 
     if not st.session_state["autenticado"]:
-        with st.sidebar:
-            st.title("🔐 Acceso BVM Pro")
-            user_input = st.text_input("Usuario")
-            pass_input = st.text_input("Contraseña", type="password")
-            
-            if st.button("Ingresar"):
+        st.title("🚀 BVM - Terminal de Operaciones")
+        tab_login, tab_reg = st.tabs(["🔑 Ingresar", "📝 Registro"])
+        
+        with tab_login:
+            email = st.text_input("Email")
+            pw = st.text_input("Contraseña", type="password")
+            if st.button("Entrar", use_container_width=True):
                 try:
-                    # Consultamos si el usuario existe y la password coincide
-                    res = supabase.table("usuarios").select("*").eq("usuario", user_input).eq("password", pass_input).execute()
-                    
-                    if len(res.data) > 0:
-                        st.session_state["autenticado"] = True
-                        st.session_state["user_data"] = res.data[0] # Guardamos info del usuario
-                        st.success(f"Bienvenido, {res.data[0]['usuario']}")
-                        st.rerun()
-                    else:
-                        st.error("Credenciales incorrectas o usuario inexistente.")
+                    res = supabase.auth.sign_in_with_password({"email": email, "password": pw})
+                    st.session_state["user"] = res.user
+                    st.session_state["autenticado"] = True
+                    st.rerun()
+                except:
+                    st.error("Credenciales incorrectas.")
+        
+        with tab_reg:
+            new_email = st.text_input("Email Nuevo")
+            new_pw = st.text_input("Password (min. 6 car.)", type="password")
+            if st.button("Crear Cuenta", use_container_width=True):
+                try:
+                    supabase.auth.sign_up({"email": new_email, "password": new_pw})
+                    st.success("✅ ¡Revisá tu email para confirmar la cuenta!")
                 except Exception as e:
-                    st.error(f"Error de conexión: {e}")
+                    st.error(f"Error: {e}")
         return False
     return True
 # --- 1. MOTOR DE INTELIGENCIA DE NEGOCIO (BVM PRO) ---
 def traer_datos():
-    usuario_actual = st.session_state["user_data"]["usuario"]
+    id_usuario = st.session_state["user"].id
     try:
-        res = supabase.table("configuracion").select("*").eq("usuario", usuario_actual).execute()
+        res = supabase.table("configuracion").select("*").eq("user_id", id_usuario).execute()
         datos_db = res.data        
         
         # 2. Mapeamos los datos de la DB a los diccionarios del sistema
@@ -312,24 +323,24 @@ def traer_datos():
         # Retorno de emergencia si falla la red
         return {}, {}, {}
 def guardar_presupuesto_nube(cliente, mueble, total):
-    usuario_actual = st.session_state["user_data"]["usuario"]
+    id_usuario = st.session_state["user"].id
     try:
         data = {
             "cliente": cliente,
             "mueble": mueble,
             "precio_final": float(total),
             "estado": "Pendiente",
-            "usuario": usuario_actual, # <-- ESTA ES LA FIRMA DE PROPIEDAD
+            "usuario": st.session_state["user"].id,
             "fecha": datetime.now(timezone(timedelta(hours=-3))).strftime("%Y-%m-%d %H:%M")
         }
         supabase.table("ventas").insert(data).execute()
-        st.success(f"🚀 Venta blindada para {usuario_actual}")
+        st.success(f"🚀 Venta guardada en la nube")
     except Exception as e:
         st.error(f"Error al impactar nube: {e}")
 def traer_datos_historial():
-    usuario_actual = st.session_state["user_data"]["usuario"]
+     id_usuario = st.session_state["user"].id
     try:
-        response = supabase.table("ventas").select("*").eq("usuario", usuario_actual).execute()
+       response = supabase.table("ventas").select("*").eq("user_id", st.session_state["user"].id).execute()
         return pd.DataFrame(response.data)
     except:
         return pd.DataFrame()
@@ -782,7 +793,7 @@ elif menu == "Depósito de Retazos":
     
     # 2. Visualización de lo que hay hoy
     st.subheader("📋 Stock Actual")
-    usuario_actual = st.session_state["user_data"]["usuario"]
+    id_usuario = st.session_state["user"].id
     retazos_db = consultar_retazos_disponibles("Todos") # Podés ajustar tu función para que traiga todos
     
     if retazos_db:
@@ -885,6 +896,7 @@ if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"][
                     st.error(f"Error al crear cuenta: {e}")
             else:
                 st.warning("Completá usuario y contraseña para continuar.")
+
 
 
 
