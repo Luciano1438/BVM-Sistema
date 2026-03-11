@@ -295,8 +295,7 @@ def gestionar_auth():
                     st.error(f"Error: {e}")
         return False
     return True
-    def actualizar_precio_nube(clave, valor, categoria):
-    # Usamos el UUID único del usuario logueado
+def actualizar_precio_nube(clave, valor, categoria):
     id_usuario = st.session_state["user"].id
     try:
         data = {
@@ -852,6 +851,7 @@ elif menu == "⚙️ Configuración de Precios":
             actualizar_precio_nube(k, v, 'costos')
             
         st.success("✅ Configuración blindada para tu .")
+
 
 
 
