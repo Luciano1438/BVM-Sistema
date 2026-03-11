@@ -138,11 +138,11 @@ def registrar_retazo(material, largo, ancho):
             }
         supabase.table("retazos").insert(data).execute()
         st.toast(f"♻️ Retazo guardado: {int(largo)}x{int(ancho)}")
-        else:
+     else:
             # AHORA SÍ TE AVISA POR QUÉ NO GUARDA
-            st.error(f"❌ Error: {int(largo)}x{int(ancho)} es inferior al mínimo de 150x400.")
-    except Exception as e:
-        st.error(f"Error técnico al registrar: {e}")
+         st.error(f"❌ Error: {int(largo)}x{int(ancho)} es inferior al mínimo de 150x400.")
+except Exception as e:
+    st.error(f"Error técnico al registrar: {e}")
 def generar_despiece_bvm(tipo, ancho_m, alto_m, prof_m, esp_real, tiene_parante, tipo_parante, 
                          distancia_parante, cant_cajones, tipo_tapa, tipo_base, altura_base, 
                          luz_entre_tapas, luz_perimetral_tapa, alto_frentin_emb, 
@@ -851,6 +851,7 @@ elif menu == "⚙️ Configuración de Precios":
             actualizar_precio_nube(k, v, 'costos')
             
         st.success("✅ Configuración blindada.")
+
 
 
 
