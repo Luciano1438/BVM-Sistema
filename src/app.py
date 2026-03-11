@@ -304,7 +304,7 @@ def actualizar_precio_nube(clave, valor, categoria):
             "categoria": categoria
         }
         # upsert: si existe lo pisa (update), si no, lo crea (insert)
-        supabase.table("configuracion").upsert(data).execute()
+        supabase.table("configuracion").upsert(data, on_conflict="user_id, clave").execute()
     except Exception as e:
         st.error(f"Error guardando {clave}: {e}")
 # --- 1. MOTOR DE INTELIGENCIA DE NEGOCIO (BVM PRO) ---
@@ -865,6 +865,7 @@ elif menu == "⚙️ Configuración de Precios":
             actualizar_precio_nube(k, v, 'costos')
             
         st.success("✅ Configuración blindada.")
+
 
 
 
