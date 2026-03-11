@@ -357,7 +357,7 @@ def guardar_presupuesto_nube(cliente, mueble, total):
     except Exception as e:
         st.error(f"Error al impactar nube: {e}")
 def traer_datos_historial():
-     id_ = st.session_state["user"].id
+    id_ = st.session_state["user"].id
     try:
        response = supabase.table("ventas").select("*").eq("user_id", st.session_state["user"].id).execute()
         return pd.DataFrame(response.data)
@@ -857,6 +857,7 @@ elif menu == "⚙️ Configuración de Precios":
             actualizar_precio_nube(k, v, 'costos')
             
         st.success("✅ Configuración blindada.")
+
 
 
 
