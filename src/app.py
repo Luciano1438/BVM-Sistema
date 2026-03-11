@@ -115,10 +115,10 @@ if url and key:
 else:
     st.error("Error: No se cargaron las credenciales.")
 def consultar_retazos_disponibles(material):
-    id_usuario = st.session_state["user"].id
+    id_ = st.session_state["user"].id
     try:
         # Traemos todos los retazos de ese material
-        res = supabase.table("configuracion").select("*").eq("user_id", id_usuario).execute()
+        res = supabase.table("retazos").select("*").eq("user_id", id_).execute()
         return res.data
     except Exception as e:
         st.error(f"Error al consultar retazos: {e}")
@@ -295,6 +295,20 @@ def gestionar_auth():
                     st.error(f"Error: {e}")
         return False
     return True
+    def actualizar_precio_nube(clave, valor, categoria):
+    # Usamos el UUID único del usuario logueado
+    id_usuario = st.session_state["user"].id
+    try:
+        data = {
+            "user_id": id_usuario,
+            "clave": clave,
+            "valor": float(valor),
+            "categoria": categoria
+        }
+        # upsert: si existe lo pisa (update), si no, lo crea (insert)
+        supabase.table("configuracion").upsert(data).execute()
+    except Exception as e:
+        st.error(f"Error guardando {clave}: {e}")
 # --- 1. MOTOR DE INTELIGENCIA DE NEGOCIO (BVM PRO) ---
 def traer_datos():
     id_usuario = st.session_state["user"].id
@@ -323,14 +337,14 @@ def traer_datos():
         # Retorno de emergencia si falla la red
         return {}, {}, {}
 def guardar_presupuesto_nube(cliente, mueble, total):
-    id_usuario = st.session_state["user"].id
+    id_ = st.session_state["user"].id
     try:
         data = {
             "cliente": cliente,
             "mueble": mueble,
             "precio_final": float(total),
             "estado": "Pendiente",
-            "usuario": st.session_state["user"].id,
+            "user_id": st.session_state["user"].id,
             "fecha": datetime.now(timezone(timedelta(hours=-3))).strftime("%Y-%m-%d %H:%M")
         }
         supabase.table("ventas").insert(data).execute()
@@ -338,7 +352,7 @@ def guardar_presupuesto_nube(cliente, mueble, total):
     except Exception as e:
         st.error(f"Error al impactar nube: {e}")
 def traer_datos_historial():
-     id_usuario = st.session_state["user"].id
+     id_ = st.session_state["user"].id
     try:
        response = supabase.table("ventas").select("*").eq("user_id", st.session_state["user"].id).execute()
         return pd.DataFrame(response.data)
@@ -383,8 +397,7 @@ def generar_link_whatsapp(datos):
 
 # --- 3. INTERFAZ Y LÓGICA (INTACTA) ---
 st.set_page_config(page_title="BVM - Gestión materiales", layout="wide")
-if not verificar_password():
-    st.info("Por favor, ingrese sus credenciales para operar el sistema.")
+if not gestionar_auth():
     st.stop()
 
 maderas, fondos, config = traer_datos()
@@ -793,7 +806,7 @@ elif menu == "Depósito de Retazos":
     
     # 2. Visualización de lo que hay hoy
     st.subheader("📋 Stock Actual")
-    id_usuario = st.session_state["user"].id
+    id_ = st.session_state["user"].id
     retazos_db = consultar_retazos_disponibles("Todos") # Podés ajustar tu función para que traiga todos
     
     if retazos_db:
@@ -829,76 +842,16 @@ elif menu == "⚙️ Configuración de Precios":
         st.write(f"Margen actual: {config['ganancia_taller_pct']*100}%")
    
     if st.button("💾 Guardar Precios Permanentemente"):
-        # 1. Guardamos las maderas (lo que ya tenés)
+        # 1. Guardamos los precios de las maderas
         for madera, precio in maderas.items():
-            actualizar_precio_nube(madera, precio)
+            actualizar_precio_nube(madera, precio, 'maderas')
         
-        # 2. AGREGADO: Guardamos los costos operativos y márgenes
-        # Asegurate de que estas 'claves' existan tal cual en tu tabla de Supabase
-        actualizar_precio_nube('gastos_fijos_diarios', config['gastos_fijos_diarios'])
-        actualizar_precio_nube('ganancia_taller_pct', config['ganancia_taller_pct'])
-        actualizar_precio_nube('flete_capital', config['flete_capital'])
-        actualizar_precio_nube('flete_norte', config['flete_norte'])
-        actualizar_precio_nube('colocacion_dia', config['colocacion_dia'])
-        
-        st.success("Configuración blindada en Supabase para todos los parámetros.")
-        # --- PESTAÑA: ADMINISTRACIÓN DE LICENCIAS (SOLO ADMIN) ---
-# --- PESTAÑA: ADMINISTRACIÓN DE LICENCIAS (SOLO ADMIN) ---
-if menu == "⚙️ Configuración de Precios" and st.session_state["user_data"]["usuario"] == "bvm_admin":
-    st.write("---")
-    st.header("👤 Panel de Control de Licencias")
-    st.info("Desde aquí podés crear nuevas cuentas para otros carpinteros.")
-    
-    with st.expander("🆕 Registrar Nuevo Cliente SaaS"):
-        c1, c2 = st.columns(2)
-        nuevo_user = c1.text_input("Usuario (ej: pepe_muebles)")
-        nueva_pass = c2.text_input("Contraseña Inicial", type="password")
-        nom_carpinteria = st.text_input("Nombre del Negocio")
-        
-        if st.button("🚀 Activar Licencia"):
-            if nuevo_user and nueva_pass:
-                try:
-                    # 1. Creamos el usuario alineado a tu tabla de Supabase
-                    data_user = {
-                        "usuario": nuevo_user, 
-                        "password": nueva_pass, 
-                        "nombre_carpinteria": nom_carpinteria, # <-- Corregido según image_add0a8
-                        "role": "cliente"                      # <-- Corregido según image_add0a8
-                    }
-                    supabase.table("usuarios").insert(data_user).execute()
-                    
-                    # 2. SEED: Cargamos los precios base para el nuevo cliente
-                    precios_base = []
-                    # Costos, herrajes y márgenes
-                    for k, v in config.items():
-                        precios_base.append({
-                            "usuario": nuevo_user, 
-                            "clave": k, 
-                            "valor": v, 
-                            "categoria": "costos"
-                        })
-                    
-                    # Precios de maderas (18mm)
-                    for m, p in maderas.items():
-                        precios_base.append({
-                            "usuario": nuevo_user, 
-                            "clave": m, 
-                            "valor": p, 
-                            "categoria": "maderas"
-                        })
-                    
-                    # Impactamos la tabla configuracion en la nube
-                    supabase.table("configuracion").insert(precios_base).execute()
-                    
-                    st.success(f"✅ Licencia activada para {nuevo_user}. Ya puede loguearse.")
-                    st.balloons() # Festejá tu primera venta del SaaS
-                except Exception as e:
-                    st.error(f"Error al crear cuenta: {e}")
-            else:
-                st.warning("Completá usuario y contraseña para continuar.")
-
-
-
+        # 2. Guardamos herrajes, costos fijos y márgenes
+        # Pasamos la categoría 'costos' para que sepa dónde buscarlos después
+        for k, v in config.items():
+            actualizar_precio_nube(k, v, 'costos')
+            
+        st.success("✅ Configuración blindada para tu .")
 
 
 
