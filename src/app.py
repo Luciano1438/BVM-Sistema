@@ -277,6 +277,7 @@ def gestionar_auth():
             if st.button("Entrar", use_container_width=True):
                 try:
                     res = supabase.auth.sign_in_with_password({"email": email, "password": pw})
+                    st.session_state["session"] = res.session
                     st.session_state["user"] = res.user
                     st.session_state["autenticado"] = True
                     st.rerun()
@@ -295,31 +296,27 @@ def gestionar_auth():
         return False
     return True
 def actualizar_precio_nube(clave, valor, categoria):
-    # 1. Obtenemos el ID de la sesión
-    user = st.session_state.get("user")
-    if not user:
-        st.error("❌ No hay usuario en la sesión")
+    # Verificamos que tengamos la sesión activa
+    if "session" not in st.session_state or st.session_state["session"] is None:
+        st.error("❌ Sesión no iniciada. Por favor, reingresá.")
         return
 
-    id_usuario = user.id
-    
+    # CREAMOS UN CLIENTE CON EL TOKEN DEL USUARIO (Esto es lo que te falta)
+    # Esto le dice a Supabase: "Soy Lucho, acá está mi carnet"
+    token = st.session_state["session"].access_token
+    auth_client = create_client(url, key, options={"headers": {"Authorization": f"Bearer {token}"}})
+
     try:
         data = {
-            "user_id": id_usuario,
+            "user_id": st.session_state["user"].id,
             "clave": clave,
             "valor": float(valor),
             "categoria": categoria
         }
-        
-        # LOG DE DIAGNÓSTICO: Esto te va a mostrar en pantalla qué intenta mandar
-        # st.write(f"DEBUG: Intentando guardar {clave} para el usuario {id_usuario}")
-        
-        # Usamos el upsert simple para probar
-        res = supabase.table("configuracion").upsert(data, on_conflict="user_id, clave").execute()
-        
+        # Usamos el cliente con 'identidad' para guardar
+        auth_client.table("configuracion").upsert(data, on_conflict="user_id, clave").execute()
     except Exception as e:
-        # Aquí capturamos el error real que escupe la librería de Supabase
-        st.error(f"Error en {clave}: {e}")
+        st.error(f"Error guardando {clave}: {e}")
 # --- 1. MOTOR DE INTELIGENCIA DE NEGOCIO (BVM PRO) ---
 def traer_datos():
     id_usuario = st.session_state["user"].id
@@ -878,6 +875,7 @@ elif menu == "⚙️ Configuración de Precios":
             actualizar_precio_nube(k, v, 'costos')
             
         st.success("✅ Configuración blindada.")
+
 
 
 
