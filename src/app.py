@@ -298,7 +298,7 @@ def actualizar_precio_nube(clave, valor, categoria):
     id_usuario = st.session_state["user"].id
     try:
         data = {
-            "user_id": id_usuario,
+            "user_id": st.session_state["user"].id,
             "clave": clave,
             "valor": float(valor),
             "categoria": categoria
@@ -865,6 +865,7 @@ elif menu == "⚙️ Configuración de Precios":
             actualizar_precio_nube(k, v, 'costos')
             
         st.success("✅ Configuración blindada.")
+
 
 
 
