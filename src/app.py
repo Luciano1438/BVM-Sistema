@@ -360,7 +360,7 @@ def traer_datos_historial():
     id_ = st.session_state["user"].id
     try:
        response = supabase.table("ventas").select("*").eq("user_id", st.session_state["user"].id).execute()
-        return pd.DataFrame(response.data)
+       return pd.DataFrame(response.data)
     except:
         return pd.DataFrame()
 # --- 2. CONECTIVIDAD LOCAL (Mantenida para guardar localmente) ---
@@ -857,6 +857,7 @@ elif menu == "⚙️ Configuración de Precios":
             actualizar_precio_nube(k, v, 'costos')
             
         st.success("✅ Configuración blindada.")
+
 
 
 
