@@ -319,11 +319,26 @@ def traer_datos():
     id_usuario = st.session_state["user"].id
     try:
         res = supabase.table("configuracion").select("*").eq("user_id", id_usuario).execute()
-        datos_db = res.data        
+        datos_db = res.data    
+        if not datos_db:
+            maderas_default = {"Melamina Blanca 18mm": 60000.0}
+            config_default = {
+                'bisagra_cazoleta': 1200.0,
+                'telescopica_45': 5000.0,
+                'telescopica_soft': 12000.0,
+                'gastos_fijos_diarios': 25000.0,
+                'flete_capital': 15000.0,
+                'flete_norte': 20000.0,
+                'colocacion_dia': 45000.0,
+                'ganancia_taller_pct': 0.30  # <--- ACÁ ESTÁ EL FIX
+            }
+            return maderas_default, {'Fibroplus Blanco 3mm': 34500.0}, config_default
         
         # 2. Mapeamos los datos de la DB a los diccionarios del sistema
         maderas = {d['clave']: d['valor'] for d in datos_db if d['categoria'] == 'maderas'}
         config = {d['clave']: d['valor'] for d in datos_db if d['categoria'] in ['costos', 'margen', 'herrajes']}
+        if 'ganancia_taller_pct' not in config:
+            config['ganancia_taller_pct'] = 0.30
         
         # 3. Mantenemos los fondos como respaldo o podés agregarlos a la DB también
         fondos = {
@@ -857,6 +872,7 @@ elif menu == "⚙️ Configuración de Precios":
             actualizar_precio_nube(k, v, 'costos')
             
         st.success("✅ Configuración blindada.")
+
 
 
 
