@@ -296,25 +296,27 @@ def gestionar_auth():
         return False
     return True
 def actualizar_precio_nube(clave, valor, categoria):
-    # Verificamos que tengamos la sesión activa
     if "session" not in st.session_state or st.session_state["session"] is None:
-        st.error("❌ Sesión no iniciada. Por favor, reingresá.")
+        st.error("❌ Sesión no iniciada.")
         return
 
-    # CREAMOS UN CLIENTE CON EL TOKEN DEL USUARIO (Esto es lo que te falta)
-    # Esto le dice a Supabase: "Soy Lucho, acá está mi carnet"
+    # SINTAXIS CORREGIDA: Usamos post_grest_client options o simplemente pasamos el token
     token = st.session_state["session"].access_token
-    auth_client = create_client(url, key, options={"headers": {"Authorization": f"Bearer {token}"}})
-
+    
     try:
+        # Usamos el cliente global pero le inyectamos el header de autenticación
+        supabase.postgrest.auth(token) 
+        
         data = {
             "user_id": st.session_state["user"].id,
             "clave": clave,
             "valor": float(valor),
             "categoria": categoria
         }
-        # Usamos el cliente con 'identidad' para guardar
-        auth_client.table("configuracion").upsert(data, on_conflict="user_id, clave").execute()
+        
+        # Ejecutamos con la identidad ya inyectada
+        supabase.table("configuracion").upsert(data, on_conflict="user_id, clave").execute()
+        
     except Exception as e:
         st.error(f"Error guardando {clave}: {e}")
 # --- 1. MOTOR DE INTELIGENCIA DE NEGOCIO (BVM PRO) ---
@@ -875,6 +877,7 @@ elif menu == "⚙️ Configuración de Precios":
             actualizar_precio_nube(k, v, 'costos')
             
         st.success("✅ Configuración blindada.")
+
 
 
 
