@@ -295,18 +295,31 @@ def gestionar_auth():
         return False
     return True
 def actualizar_precio_nube(clave, valor, categoria):
-    id_usuario = st.session_state["user"].id
+    # 1. Obtenemos el ID de la sesión
+    user = st.session_state.get("user")
+    if not user:
+        st.error("❌ No hay usuario en la sesión")
+        return
+
+    id_usuario = user.id
+    
     try:
         data = {
-            "user_id": st.session_state["user"].id,
+            "user_id": id_usuario,
             "clave": clave,
             "valor": float(valor),
             "categoria": categoria
         }
-        # upsert: si existe lo pisa (update), si no, lo crea (insert)
-        supabase.table("configuracion").upsert(data, on_conflict="user_id, clave").execute()
+        
+        # LOG DE DIAGNÓSTICO: Esto te va a mostrar en pantalla qué intenta mandar
+        # st.write(f"DEBUG: Intentando guardar {clave} para el usuario {id_usuario}")
+        
+        # Usamos el upsert simple para probar
+        res = supabase.table("configuracion").upsert(data, on_conflict="user_id, clave").execute()
+        
     except Exception as e:
-        st.error(f"Error guardando {clave}: {e}")
+        # Aquí capturamos el error real que escupe la librería de Supabase
+        st.error(f"Error en {clave}: {e}")
 # --- 1. MOTOR DE INTELIGENCIA DE NEGOCIO (BVM PRO) ---
 def traer_datos():
     id_usuario = st.session_state["user"].id
@@ -865,6 +878,7 @@ elif menu == "⚙️ Configuración de Precios":
             actualizar_precio_nube(k, v, 'costos')
             
         st.success("✅ Configuración blindada.")
+
 
 
 
