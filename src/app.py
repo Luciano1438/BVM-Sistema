@@ -291,6 +291,7 @@ def gestionar_auth():
                                     st.success("✅ Acceso correcto.")
                                     st.rerun()
                             except Exception as e:
+                                error_str = str(e).lower()
                                 st.toast(f"Error técnico: {e}") 
                                 err = str(e).lower()
                                 if "invalid login credentials" in error_str:
