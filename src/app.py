@@ -334,6 +334,7 @@ def traer_datos():
         
         # 3. La consulta se mantiene igual pero ahora lleva el "carnet" de identidad
         res = supabase.table("configuracion").select("*").eq("user_id", id_usuario).execute()
+        st.write(f"ID Sesión: {id_usuario}")
         datos_db = res.data    
         
         if not datos_db:
