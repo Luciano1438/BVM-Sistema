@@ -488,6 +488,7 @@ if menu == "Cotizador CNC":
         esp_corredera = 13.0
         distribucion_tapas = "Iguales"
         
+        col_in, col_out = st.columns([1, 1.2])
         with col_in:
             # Agrupamos los datos básicos en un contenedor expandible
             with st.expander("🛠️ Definición de Estructura", expanded=True):
