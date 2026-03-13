@@ -272,27 +272,48 @@ def gestionar_auth():
         tab_login, tab_reg = st.tabs(["🔑 Ingresar", "📝 Registro"])
         
         with tab_login:
-            email = st.text_input("Email")
-            pw = st.text_input("Contraseña", type="password")
-            if st.button("Entrar", use_container_width=True):
-                try:
-                    res = supabase.auth.sign_in_with_password({"email": email, "password": pw})
-                    st.session_state["session"] = res.session
-                    st.session_state["user"] = res.user
-                    st.session_state["autenticado"] = True
-                    st.rerun()
-                except:
-                    st.error("Credenciales incorrectas.")
+            # Encapsulamos en un form para que no refresque al escribir
+            with st.form("login_form"):
+                email = st.text_input("Email")
+                pw = st.text_input("Contraseña", type="password")
+                boton_login = st.form_submit_button("Entrar", use_container_width=True)
+                
+                if boton_login:
+                    if email and pw:
+                        # Ponemos un spinner para ver que el sistema está trabajando
+                        with st.spinner("Conectando con la base de datos de BVM..."):
+                            try:
+                                res = supabase.auth.sign_in_with_password({"email": email, "password": pw})
+                                if res.session:
+                                    st.session_state["session"] = res.session
+                                    st.session_state["user"] = res.user
+                                    st.session_state["autenticado"] = True
+                                    st.success("✅ Acceso correcto.")
+                                    st.rerun()
+                            except Exception as e:
+                                # Analizamos el error real
+                                error_str = str(e).lower()
+                                if "invalid login credentials" in error_str:
+                                    st.error("❌ Email o contraseña incorrectos.")
+                                elif "network" in error_str:
+                                    st.error("🌐 Error de red. Revisá tu internet.")
+                                else:
+                                    st.error(f"⚠️ Error de conexión: {e}")
+                    else:
+                        st.warning("⚠️ Completá todos los campos.")
         
         with tab_reg:
-            new_email = st.text_input("Email Nuevo")
-            new_pw = st.text_input("Password (min. 6 car.)", type="password")
-            if st.button("Crear Cuenta", use_container_width=True):
-                try:
-                    supabase.auth.sign_up({"email": new_email, "password": new_pw})
-                    st.success("✅ ¡Revisá tu email para confirmar la cuenta!")
-                except Exception as e:
-                    st.error(f"Error: {e}")
+            with st.form("registro_form"):
+                new_email = st.text_input("Email Nuevo")
+                new_pw = st.text_input("Password (min. 6 car.)", type="password")
+                boton_reg = st.form_submit_button("Crear Cuenta", use_container_width=True)
+                
+                if boton_reg:
+                    try:
+                        supabase.auth.sign_up({"email": new_email, "password": new_pw})
+                        st.success("✅ ¡Revisá tu email para confirmar la cuenta!")
+                    except Exception as e:
+                        st.error(f"❌ Error al crear cuenta: {e}")
         return False
     return True
 def actualizar_precio_nube(clave, valor, categoria):
