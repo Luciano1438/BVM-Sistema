@@ -334,7 +334,6 @@ def traer_datos():
         
         # 3. La consulta se mantiene igual pero ahora lleva el "carnet" de identidad
         res = supabase.table("configuracion").select("*").eq("user_id", id_usuario).execute()
-        st.write(f"ID Sesión: {id_usuario}")
         datos_db = res.data    
         
         if not datos_db:
@@ -353,8 +352,17 @@ def traer_datos():
             return maderas_default, {'Fibroplus Blanco 3mm': 34500.0}, config_default
         
         # El resto del mapeo (Maderas, Config, Fondos) queda igual...
-        maderas = {d['clave']: d['valor'] for d in datos_db if d['categoria'] == 'maderas'}
-        config = {d['clave']: d['valor'] for d in datos_db if d['categoria'] in ['costos', 'margen', 'herrajes']}
+       maderas = {
+            d['clave']: d['valor'] 
+            for d in datos_db 
+            if str(d.get('categoria', '')).lower().strip() == 'maderas'
+        }
+        
+        config = {
+            d['clave']: d['valor'] 
+            for d in datos_db 
+            if str(d.get('categoria', '')).lower().strip() in ['costos', 'margen', 'herrajes']
+        }
         
         if 'ganancia_taller_pct' not in config:
             config['ganancia_taller_pct'] = 0.30
