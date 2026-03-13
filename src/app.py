@@ -327,8 +327,14 @@ def traer_datos():
     token = st.session_state["session"].access_token
     id_usuario = st.session_state["user"].id
     
-    # 1. DEFAULTS SIEMPRE DEFINIDOS AL PRINCIPIO (Afuera de cualquier if/try)
-    maderas_default = {"Melamina Blanca 18mm": 60000.0}
+    # --- 1. DEFAULTS SIEMPRE DISPONIBLES ---
+    # Poné acá todas las placas que querés que aparezcan SIEMPRE
+    maderas_default = {
+        "Melamina Blanca 18mm": 60000.0,
+        "Melamina Color 18mm": 85000.0,
+        "Enchapado Roble 18mm": 120000.0
+    }
+    
     config_default = {
         'bisagra_cazoleta': 1200.0,
         'telescopica_45': 5000.0,
@@ -345,11 +351,7 @@ def traer_datos():
         res = supabase.table("configuracion").select("*").eq("user_id", id_usuario).execute()
         datos_db = res.data    
         
-        # 2. SI NO HAY NADA EN NUBE, DEVOLVEMOS DEFAULTS DIRECTO
-        if not datos_db:
-            return maderas_default, {'Fibroplus Blanco 3mm': 34500.0}, config_default
-        
-        # 3. SI HAY DATOS, MAPEAMOS LOS DICCIONARIOS DE LA DB
+        # --- 2. MAPEAMOS LO QUE VIENE DE LA NUBE ---
         maderas_db = {
             d['clave']: d['valor']
             for d in datos_db
@@ -362,12 +364,10 @@ def traer_datos():
             if str(d.get('categoria', '')).lower().strip() in ['costos', 'margen', 'herrajes']
         }
         
-        # 4. FUSIÓN MAESTRA (Las variables existen sí o sí porque están arriba de todo)
+        # --- 3. FUSIÓN MAESTRA ---
+        # Las maderas de la DB pisan a las de default, pero las que no están en la DB se mantienen.
         maderas = {**maderas_default, **maderas_db}
         config = {**config_default, **config_db}
-        
-        if 'ganancia_taller_pct' not in config:
-            config['ganancia_taller_pct'] = 0.30
         
         fondos = {
             'Fibroplus Blanco 3mm': 34500.0,
@@ -375,6 +375,10 @@ def traer_datos():
         }
         
         return maderas, fondos, config
+
+    except Exception as e:
+        st.error(f"Error cargando configuración: {e}")
+        return maderas_default, {'Fibroplus Blanco 3mm': 34500.0}, config_default
 
     except Exception as e:
         st.error(f"Error cargando configuración: {e}")
