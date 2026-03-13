@@ -646,7 +646,13 @@ if menu == "Cotizador CNC":
                 # 2. ACTUALIZACIÓN DE COSTO FONDO
                 precio_fondo = fondos.get(mat_fondo_sel, 0)
                 costo_fondo = m2_fondo * (precio_fondo / 5.03)
-     
+                
+                # 3. ACTUALIZACIÓN DE HERRAJES (Lógica BVM)
+                if tipo_modulo == "Bajo Mesada":
+                    costo_herrajes = (cant_puertas * 2 * config.get('bisagra_cazoleta', 0))
+                else:
+                    costo_herrajes = (cant_cajones * config.get('telescopica_45', 0))
+
                 if flete_sel == "Capital": costo_flete = config.get('flete_capital', 0)
                 elif flete_sel == "Zona Norte": costo_flete = config.get('flete_norte', 0)
                     
