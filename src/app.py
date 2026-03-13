@@ -351,19 +351,18 @@ def traer_datos():
             }
             return maderas_default, {'Fibroplus Blanco 3mm': 34500.0}, config_default
         
-        # El resto del mapeo (Maderas, Config, Fondos) queda igual...
-           maderas = {
-                d['clave']: d['valor'] 
-                for d in datos_db 
-                if str(d.get('categoria', '')).lower().strip() == 'maderas'
-            }
-        
-            config = {
-                d['clave']: d['valor'] 
-                for d in datos_db 
-                if str(d.get('categoria', '')).lower().strip() in ['costos', 'margen', 'herrajes']
-            }
-        
+        # Asegurate de que 'maderas' esté a la misma altura que el 'if' de arriba
+        maderas = {
+            d['clave']: d['valor']
+            for d in datos_db
+            if str(d.get('categoria', '')).lower().strip() == 'maderas'
+        }
+
+        config = {
+            d['clave']: d['valor']
+            for d in datos_db
+            if str(d.get('categoria', '')).lower().strip() in ['costos', 'margen', 'herrajes']
+        }
         if 'ganancia_taller_pct' not in config:
             config['ganancia_taller_pct'] = 0.30
         
