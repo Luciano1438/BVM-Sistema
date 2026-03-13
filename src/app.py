@@ -321,49 +321,51 @@ def actualizar_precio_nube(clave, valor, categoria):
         st.error(f"Error guardando {clave}: {e}")
 # --- 1. MOTOR DE INTELIGENCIA DE NEGOCIO (BVM PRO) ---
 def traer_datos():
-    # 1. Verificación de sesión y obtención de token
     if "session" not in st.session_state or st.session_state["session"] is None:
         return {}, {}, {}
 
     token = st.session_state["session"].access_token
     id_usuario = st.session_state["user"].id
     
+    # 1. DEFAULTS SIEMPRE DEFINIDOS AL PRINCIPIO (Afuera de cualquier if/try)
+    maderas_default = {"Melamina Blanca 18mm": 60000.0}
+    config_default = {
+        'bisagra_cazoleta': 1200.0,
+        'telescopica_45': 5000.0,
+        'telescopica_soft': 12000.0,
+        'gastos_fijos_diarios': 25000.0,
+        'flete_capital': 15000.0,
+        'flete_norte': 20000.0,
+        'colocacion_dia': 45000.0,
+        'ganancia_taller_pct': 0.30
+    }
+    
     try:
-        # 2. INYECTAR EL TOKEN (Esto es lo que evita que devuelva vacío)
         supabase.postgrest.auth(token)
-        
-        # 3. La consulta se mantiene igual pero ahora lleva el "carnet" de identidad
         res = supabase.table("configuracion").select("*").eq("user_id", id_usuario).execute()
         datos_db = res.data    
         
+        # 2. SI NO HAY NADA EN NUBE, DEVOLVEMOS DEFAULTS DIRECTO
         if not datos_db:
-            # Si la DB está vacía para este usuario, cargamos defaults
-            maderas_default = {"Melamina Blanca 18mm": 60000.0}
-            config_default = {
-                'bisagra_cazoleta': 1200.0,
-                'telescopica_45': 5000.0,
-                'telescopica_soft': 12000.0,
-                'gastos_fijos_diarios': 25000.0,
-                'flete_capital': 15000.0,
-                'flete_norte': 20000.0,
-                'colocacion_dia': 45000.0,
-                'ganancia_taller_pct': 0.30
-            }
             return maderas_default, {'Fibroplus Blanco 3mm': 34500.0}, config_default
         
-        # Asegurate de que 'maderas' esté a la misma altura que el 'if' de arriba
-        maderas = {
+        # 3. SI HAY DATOS, MAPEAMOS LOS DICCIONARIOS DE LA DB
+        maderas_db = {
             d['clave']: d['valor']
             for d in datos_db
             if str(d.get('categoria', '')).lower().strip() == 'maderas'
         }
-        maderas = {**maderas_default, **maderas_db}
-        config = {
+
+        config_db = {
             d['clave']: d['valor']
             for d in datos_db
             if str(d.get('categoria', '')).lower().strip() in ['costos', 'margen', 'herrajes']
         }
+        
+        # 4. FUSIÓN MAESTRA (Las variables existen sí o sí porque están arriba de todo)
+        maderas = {**maderas_default, **maderas_db}
         config = {**config_default, **config_db}
+        
         if 'ganancia_taller_pct' not in config:
             config['ganancia_taller_pct'] = 0.30
         
@@ -373,6 +375,11 @@ def traer_datos():
         }
         
         return maderas, fondos, config
+
+    except Exception as e:
+        st.error(f"Error cargando configuración: {e}")
+        # Retorno de emergencia seguro
+        return maderas_default, {'Fibroplus Blanco 3mm': 34500.0}, config_default
 
     except Exception as e:
         st.error(f"Error cargando configuración: {e}")
