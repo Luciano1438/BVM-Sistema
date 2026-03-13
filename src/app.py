@@ -487,23 +487,7 @@ if menu == "Cotizador CNC":
         aire_trasero = 30.0  
         esp_corredera = 13.0
         distribucion_tapas = "Iguales"
-        # --- DASHBOARD DE CONTROL ---
-        st.write("---")
-        # Calculamos la rentabilidad proyectada (usamos valores base si no hay datos)
-        # Esto le da el look de "Terminal de Inversión"
-        m1, m2, m3, m4 = st.columns(4)
-        with m1:
-            st.metric("📦 Piezas Totales", f"{len(df_corte) if 'df_corte' in locals() else 0}")
-        with m2:
-            st.metric("🪵 Consumo Placa", f"{m2_18mm:.2f} m²" if 'm2_18mm' in locals() else "0.0 m²")
-        with m3:
-            st.metric("📈 Margen Bruto", f"{config['ganancia_taller_pct']*100:.0f}%")
-        with m4:
-            color_precio = "normal" if 'precio_final' in locals() else "off"
-            st.metric("💵 Cotización", f"${precio_final:,.0f}" if 'precio_final' in locals() else "$0", delta_color=color_precio)
-        st.write("---")
-        col_in, col_out = st.columns([1, 1.2])
-
+        
         with col_in:
             # Agrupamos los datos básicos en un contenedor expandible
             with st.expander("🛠️ Definición de Estructura", expanded=True):
