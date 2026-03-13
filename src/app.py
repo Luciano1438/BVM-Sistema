@@ -290,9 +290,10 @@ def gestionar_auth():
                                     st.session_state["autenticado"] = True
                                     st.success("✅ Acceso correcto.")
                                     st.rerun()
-                            except Exception as e:
-                                # Analizamos el error real
-                                error_str = str(e).lower()
+                           except Exception as e:
+            # Imprimí esto temporalmente para ver qué dice Supabase de verdad
+                                st.toast(f"Error técnico: {e}") 
+                                err = str(e).lower()
                                 if "invalid login credentials" in error_str:
                                     st.error("❌ Email o contraseña incorrectos.")
                                 elif "network" in error_str:
