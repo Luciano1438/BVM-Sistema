@@ -357,12 +357,13 @@ def traer_datos():
             for d in datos_db
             if str(d.get('categoria', '')).lower().strip() == 'maderas'
         }
-
+        maderas = {**maderas_default, **maderas_db}
         config = {
             d['clave']: d['valor']
             for d in datos_db
             if str(d.get('categoria', '')).lower().strip() in ['costos', 'margen', 'herrajes']
         }
+        config = {**config_default, **config_db}
         if 'ganancia_taller_pct' not in config:
             config['ganancia_taller_pct'] = 0.30
         
