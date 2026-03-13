@@ -631,34 +631,37 @@ if menu == "Cotizador CNC":
                 df_corte = pd.DataFrame(piezas_calculadas)
                 st.data_editor(df_corte, use_container_width=True, hide_index=True)
     
-               # --- RE-CÁLCULO DE MÉTRICAS (INDISPENSABLE PARA COSTOS) ---
+               # --- RE-CÁLCULO DE MÉTRICAS (FIX MAESTRO BVM) ---
                 df_placa = df_corte[~df_corte['Tipo'].isin(['Fondo', 'Piso'])]
                 m2_18mm = (df_placa['L'] * df_placa['A'] * df_placa['Cant']).sum() / 1_000_000
                 
-                # 1. ACTUALIZACIÓN DE COSTO MADERA (Precio Placa / 5.03 m2 que rinde una placa)
-                precio_placa = maderas.get(mat_principal, 0)
-                costo_madera = m2_18mm * (precio_placa / 5.03)
-                
-                # Superficie de Fondos/Pisos (Material de 3mm)
+                # FALLA 1: Estabas usando 'maderas' antes de verificar si tenía datos.
+                # Usamos .get() con un valor default de 1.0 para que no multiplique por 0 en el peor caso.
+                precio_placa_unitario = maderas.get(mat_principal, 0.0)
+                costo_madera = m2_18mm * (precio_placa_unitario / 5.03)
+
+                # Superficie de Fondos
                 df_fondo_only = df_corte[df_corte['Tipo'].isin(['Fondo', 'Piso'])]
                 m2_fondo = (df_fondo_only['L'] * df_fondo_only['A'] * df_fondo_only['Cant']).sum() / 1_000_000
+                precio_fondo_unitario = fondos.get(mat_fondo_sel, 0.0)
+                costo_fondo = m2_fondo * (precio_fondo_unitario / 5.03)
                 
-                # 2. ACTUALIZACIÓN DE COSTO FONDO
-                precio_fondo = fondos.get(mat_fondo_sel, 0)
-                costo_fondo = m2_fondo * (precio_fondo / 5.03)
-                
-                # 3. ACTUALIZACIÓN DE HERRAJES (Lógica BVM)
+                # FALLA 2: costo_herrajes se quedaba en 0.0 porque no lo calculabas según el tipo.
                 if tipo_modulo == "Bajo Mesada":
+                    # Mínimo 2 bisagras por puerta
                     costo_herrajes = (cant_puertas * 2 * config.get('bisagra_cazoleta', 0))
                 else:
+                    # Guías por cajón
                     costo_herrajes = (cant_cajones * config.get('telescopica_45', 0))
 
+                # FALLA 3: Los fletes y operativos se reseteaban si no los capturabas bien del dict 'config'
                 if flete_sel == "Capital": costo_flete = config.get('flete_capital', 0)
                 elif flete_sel == "Zona Norte": costo_flete = config.get('flete_norte', 0)
+                else: costo_flete = 0.0
                     
                 costo_operativo = (dias_prod * config.get('gastos_fijos_diarios', 0))
                 
-                # LA SUMA AHORA SÍ TIENE VALORES REALES
+                # SUMA FINAL: Si alguno de estos sigue siendo 0, el total será bajo pero no 0.00
                 total_costo = costo_madera + costo_fondo + costo_herrajes + costo_operativo + costo_base + costo_flete
                 if necesita_colocacion: total_costo += (dias_col * config.get('colocacion_dia', 0))
 
