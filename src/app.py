@@ -855,13 +855,7 @@ if menu == "Cotizador CNC":
                     df_placa = df_corte[~df_corte['Tipo'].isin(['Fondo', 'Piso'])]
                     m2_18mm = (df_placa['L'] * df_placa['A'] * df_placa['Cant']).sum() / 1_000_000
                     
-                    precio_placa_unitario = maderas.get(mat_principal, 0.0)
-                    costo_madera = m2_18mm * (precio_placa_unitario / 5.03)
-
-                    df_fondo_only = df_corte[df_corte['Tipo'].isin(['Fondo', 'Piso'])]
-                    m2_fondo = (df_fondo_only['L'] * df_fondo_only['A'] * df_fondo_only['Cant']).sum() / 1_000_000 if not df_fondo_only.empty else 0.0
-                    costo_fondo = m2_fondo * (fondos.get(mat_fondo_sel, 0.0) / 5.03)
-
+                    
                     # E. HERRAJES
                     if tipo_modulo in ["Bajo Mesada", "Alacena"]:
                         costo_herrajes = (cant_puertas * 2 * config.get('bisagra_cazoleta', 0))
