@@ -8,6 +8,8 @@ from dotenv import load_dotenv
 from fpdf import FPDF
 from datetime import datetime, timedelta, timezone
 import urllib.parse
+import ezdxf
+import io
 
 # --- PARÁMETROS TÉCNICOS DE TALLER ---
 CONFIG_TECNICA = {
@@ -141,7 +143,38 @@ def registrar_retazo(material, largo, ancho):
             st.error(f"❌ Error: {int(largo)}x{int(ancho)} es inferior al mínimo de 150x400.")
     except Exception as e:
         st.error(f"Error técnico al registrar: {e}")
-
+def generar_dxf_bvm(df):
+    doc = ezdxf.new('R2010')
+    msp = doc.modelspace()
+    
+    x_offset = 0
+    margen = 50 # Espacio entre piezas dibujadas
+    
+    for _, row in df.iterrows():
+        largo = float(row['L'])
+        ancho = float(row['A'])
+        cant = int(row['Cant'])
+        nombre = str(row['Pieza'])
+        
+        for i in range(cant):
+            # Dibujamos el rectángulo de la pieza
+            puntos = [
+                (x_offset, 0),
+                (x_offset + largo, 0),
+                (x_offset + largo, ancho),
+                (x_offset, ancho),
+                (x_offset, 0)
+            ]
+            msp.add_lwpolyline(puntos, close=True)
+            
+            # Le ponemos el nombre adentro para que el operario no se pierda
+            msp.add_text(f"{nombre}", height=15).set_placement((x_offset + 5, 5))
+            
+            x_offset += largo + margen
+            
+    out = io.StringIO()
+    doc.write(out)
+    return out.getvalue().encode('utf-8')
 def generar_despiece_bvm(tipo, ancho_m, alto_m, prof_m, esp_real, tiene_parante, tipo_parante, 
                          distancia_parante, cant_cajones, tipo_tapa, tipo_base, altura_base, 
                          luz_entre_tapas, luz_perimetral_tapa, alto_frentin_emb, 
@@ -914,13 +947,6 @@ if menu == "Cotizador CNC":
             mime="application/pdf",
             use_container_width=True
         )
-                
-        st.link_button("🟢 Enviar Presupuesto por WhatsApp", link_wa, use_container_width=True)
-        st.write("---")
-        st.subheader("⚙️ Exportación Industrial")
-
-        archivo_aspire = exportar_para_aspire(df_corte, mat_principal, esp_real)
-
         st.download_button(
             label="🤖 Descargar Lista para ASPIRE (CNC)",
             data=archivo_aspire,
@@ -928,6 +954,21 @@ if menu == "Cotizador CNC":
             mime="text/csv",
             use_container_width=True
         )
+        dxf_bytes = generar_dxf_bvm(df_corte)
+        st.download_button(
+            label="📐 Descargar Dibujo DXF (Vectores para Aspire)",
+            data=dxf_bytes,
+            file_name=f"Vectores_{cliente}.dxf",
+            mime="application/dxf",
+            use_container_width=True
+        )       
+        st.link_button("🟢 Enviar Presupuesto por WhatsApp", link_wa, use_container_width=True)
+        st.write("---")
+        st.subheader("⚙️ Exportación Industrial")
+
+        archivo_aspire = exportar_para_aspire(df_corte, mat_principal, esp_real)
+
+        
             
                 # 6. --- GENERACIÓN DE ETIQUETAS (VALOR PRO) ---
         st.write("---") # Una línea divisoria para separar administración de taller
