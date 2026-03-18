@@ -837,7 +837,7 @@ if menu == "Cotizador CNC":
                 # --- 🛡️ ESCUDO TOTAL BVM (Anti 'L' y Anti 'Tipo') ---
                 if not df_corte.empty and 'L' in df_corte.columns:
                     # A. Aseguramos columnas básicas para que no explote
-                    for col en ['Tipo', 'L', 'A', 'Cant']:
+                    for col in ['Tipo', 'L', 'A', 'Cant']:
                         if col not in df_corte.columns:
                             df_corte[col] = 0 if col != 'Tipo' else 'Cuerpo'
                     
