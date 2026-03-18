@@ -839,13 +839,16 @@ if menu == "Cotizador CNC":
                 )
                 # Convertimos los resultados en la tabla
                 df_corte = pd.DataFrame(piezas_calculadas)
+                
+                # --- PARACAÍDAS PARA EL ERROR 'TIPO' ---
                 if not df_corte.empty:
                     if 'Tipo' not in df_corte.columns:
                         df_corte['Tipo'] = 'Cuerpo'
                     df_corte['Tipo'] = df_corte['Tipo'].fillna('Cuerpo')
-                df_placa = df_corte[~df_corte['Tipo'].isin(['Fondo', 'Piso'])]
-                st.data_editor(df_corte, use_container_width=True, hide_index=True)
-    
+                # ---------------------------------------
+
+                if not df_corte.empty:
+                    st.data_editor(df_corte, use_container_width=True, hide_index=True)    
                # --- RE-CÁLCULO DE MÉTRICAS (FIX MAESTRO BVM) ---
                 df_placa = df_corte[~df_corte['Tipo'].isin(['Fondo', 'Piso'])]
                 m2_18mm = (df_placa['L'] * df_placa['A'] * df_placa['Cant']).sum() / 1_000_000
