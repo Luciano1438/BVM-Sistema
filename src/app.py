@@ -336,7 +336,7 @@ def exportar_para_aspire(df, material, espesor):
     # Filtramos solo las que necesitamos (esto evita el error de 'not in index')
     existentes = [c for c in columnas_finales if c in df_aspire.columns]
     
-    return df_aspire[existentes].to_csv(index=False).encode('utf-8')
+    return df_aspire[existentes].to_csv(index=False, sep=',', decimal='.').encode('utf-8')
 # --- 0. SEGURIDAD DE ACCESO MULTIUSUARIO (VALOR PRO) ---
 def gestionar_auth():
     if "autenticado" not in st.session_state:
