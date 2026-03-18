@@ -293,8 +293,6 @@ def generar_despiece_bvm(tipo, ancho_m, alto_m, prof_m, esp_real, tiene_parante,
                 ancho_frente_interno = ancho_caja_total - (esp_real * 2)
                 despiece.append({"Pieza": "Frente/Fondo Interno", "Cant": int(cant_cajones * 2), "L": 150, "A": ancho_frente_interno, "Tipo": "Cuerpo"})
                 despiece.append({"Pieza": "Piso Cajón", "Cant": int(cant_cajones), "L": round(largo_lateral_caja - 20, 1), "A": round(ancho_caja_total - 20, 1), "Tipo": "Piso"})
-        # --- NUEVO MÓDULO: ALACENA BVM (Lógica de Estantes Variables) ---
-        # --- NUEVO MÓDULO: ALACENA BVM ---
         elif tipo == "Alacena":
             ancho_base = ancho_m - (esp_real * 2)
             
@@ -358,7 +356,7 @@ def generar_despiece_bvm(tipo, ancho_m, alto_m, prof_m, esp_real, tiene_parante,
                 else: ancho_p = (ancho_m - 16) / 4
             
             despiece.append({"Pieza": "Puerta", "Cant": cant_puertas, "L": alto_p, "A": round(ancho_p, 1), "Tipo": "Frente"})
-            return despiece 
+        return despiece 
     
  
 def exportar_para_aspire(df, material, espesor):
