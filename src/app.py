@@ -145,7 +145,8 @@ def registrar_retazo(material, largo, ancho):
 def generar_despiece_bvm(tipo, ancho_m, alto_m, prof_m, esp_real, tiene_parante, tipo_parante, 
                          distancia_parante, cant_cajones, tipo_tapa, tipo_base, altura_base, 
                          luz_entre_tapas, luz_perimetral_tapa, alto_frentin_emb, 
-                         aire_trasero, esp_corredera, distribucion_tapas):
+                         aire_trasero, esp_corredera, distribucion_tapas,
+                         cant_puertas=0, tiene_cenefa=False, alto_cenefa=0.0): 
         despiece = []
         ancho_interno_total = ancho_m - (esp_real * 2)
 
@@ -258,6 +259,54 @@ def generar_despiece_bvm(tipo, ancho_m, alto_m, prof_m, esp_real, tiene_parante,
                 ancho_frente_interno = ancho_caja_total - (esp_real * 2)
                 despiece.append({"Pieza": "Frente/Fondo Interno", "Cant": int(cant_cajones * 2), "L": 150, "A": ancho_frente_interno, "Tipo": "Cuerpo"})
                 despiece.append({"Pieza": "Piso Cajón", "Cant": int(cant_cajones), "L": round(largo_lateral_caja - 20, 1), "A": round(ancho_caja_total - 20, 1), "Tipo": "Piso"})
+        # --- NUEVO MÓDULO: ALACENA BVM ---
+        elif tipo == "Alacena":
+            ancho_base = ancho_m - (esp_real * 2)
+            
+            # 1. ESTRUCTURA (Reglas de tu viejo)
+            despiece.append({"Pieza": "Piso (Base)", "Cant": 1, "L": ancho_base, "A": prof_m, "Tipo": "Cuerpo"})
+            despiece.append({"Pieza": "Techo", "Cant": 1, "L": ancho_m, "A": prof_m, "Tipo": "Cuerpo"})
+            despiece.append({"Pieza": "Lateral", "Cant": 2, "L": alto_m - esp_real, "A": prof_m, "Tipo": "Cuerpo"})
+            despiece.append({"Pieza": "Fondo", "Cant": 1, "L": alto_m - 10, "A": ancho_m - 10, "Tipo": "Fondo"})
+            despiece.append({"Pieza": "Travesaño Superior", "Cant": 1, "L": ancho_base, "A": 100, "Tipo": "Cuerpo"})
+
+            # 2. PARANTE INTERMEDIO (Solo 3 y 4 puertas)
+            if cant_puertas in [3, 4]:
+                # Profundidad manual para que el fondo pase por detrás
+                despiece.append({"Pieza": "Parante Intermedio", "Cant": 1, "L": alto_m - (esp_real * 2), "A": prof_m - 20, "Tipo": "Cuerpo"})
+
+            # 3. ESTANTES (Según configuración de ayer)
+            prof_estante = prof_m - 30
+            if cant_puertas == 2:
+                despiece.append({"Pieza": "Estante", "Cant": 1, "L": ancho_base, "A": prof_estante, "Tipo": "Cuerpo"})
+            elif cant_puertas == 3:
+                # 2/3 y 1/3
+                despiece.append({"Pieza": "Estante (Vano 2/3)", "Cant": 1, "L": round(((ancho_m/3)*2) - (esp_real*2), 1), "A": prof_estante, "Tipo": "Cuerpo"})
+                despiece.append({"Pieza": "Estante (Vano 1/3)", "Cant": 1, "L": round((ancho_m/3) - (esp_real*1.5), 1), "A": prof_estante, "Tipo": "Cuerpo"})
+            elif cant_puertas == 4:
+                # Simétricos
+                despiece.append({"Pieza": "Estante", "Cant": 2, "L": round((ancho_m/2) - (esp_real*1.5), 1), "A": prof_estante, "Tipo": "Cuerpo"})
+
+            # 4. PUERTAS Y FRENTES (Sistemas BVM)
+            if "Uñero" in tipo_tapa:
+                alto_p = alto_m + 20
+                despiece.append({"Pieza": "Cenefa", "Cant": 1, "L": ancho_m, "A": 50, "Tipo": "Frente"}) # 50mm por defecto
+            elif "Embutida" in tipo_tapa:
+                alto_p = alto_m - (esp_real * 2) - 6
+            else: # Superpuesta Standard
+                alto_p = alto_m - 4
+
+            # Ancho de puertas según sistema
+            if "Embutida" in tipo_tapa:
+                if cant_puertas == 2: ancho_p = (ancho_base - 10) / 2
+                elif cant_puertas == 3: ancho_p = (ancho_m - (esp_real*3) - 16) / 3
+                else: ancho_p = (ancho_m - (esp_real*3) - 20) / 4
+            else: # Superpuestas (Normal o Uñero)
+                if cant_puertas == 2: ancho_p = (ancho_m - 8) / 2
+                elif cant_puertas == 3: ancho_p = (ancho_m - 12) / 3
+                else: ancho_p = (ancho_m - 16) / 4
+            
+            despiece.append({"Pieza": "Puerta", "Cant": cant_puertas, "L": alto_p, "A": round(ancho_p, 1), "Tipo": "Frente"})    
     
         return despiece
 
@@ -515,7 +564,7 @@ if menu == "Cotizador CNC":
             # Agrupamos los datos básicos en un contenedor expandible
             with st.expander("🛠️ Definición de Estructura", expanded=True):
                 cliente = st.text_input("Cliente", "")
-                tipo_modulo = st.selectbox("Tipo de Mueble", ["Cajonera", "Bajo Mesada"], key="tipo_mueble_sel")
+                tipo_modulo = st.selectbox("Tipo de Mueble", ["Cajonera", "Bajo Mesada", "Alacena"], key="tipo_mueble_sel")
                 
                 c1, c2, c3 = st.columns(3)
                 ancho_m = c1.number_input("Ancho Total (mm)", min_value=0.0, max_value=5000.0, value=0.0, step=0.5)
@@ -557,6 +606,29 @@ if menu == "Cotizador CNC":
                     cant_cajones = 0
                     luz_entre_tapas = 3.0
                     luz_perimetral_tapa = 4.0
+                    alto_frentin_emb = 0.0
+                elif tipo_modulo == "Alacena":
+                    st.markdown("#### 🪵 Configuración de Alacena BVM")
+                    
+                    c_ala1, c_ala2 = st.columns(2)
+                    opciones_ala = ["Superpuesta Standard", "Uñero BVM", "Embutida Pro"]
+                    tipo_tapa = c_ala1.radio("Sistema de Apertura", opciones_ala)
+                    cant_puertas = c_ala2.selectbox("Cantidad de Puertas", [2, 3, 4])
+                    
+                    # Lógica de Cenefa para Uñero
+                    tiene_cenefa = False
+                    alto_cenefa = 0.0
+                    if "Uñero" in tipo_tapa:
+                        tiene_cenefa = st.checkbox("¿Lleva Cenefa inferior?", value=True)
+                        if tiene_cenefa:
+                            alto_cenefa = st.number_input("Altura de Cenefa (mm)", value=50.0, step=5.0)
+                    
+                    # Reseteo de variables de herrajes para Alacena
+                    tipo_bisagra = st.selectbox("Tipo de Bisagra", ["Cazoleta C0 Cierre Suave", "C0 Estándar"])
+                    precio_bisagra = config['bisagra_cazoleta']
+                    cant_cajones = 0
+                    luz_entre_tapas = 0.0
+                    luz_perimetral_tapa = 0.0 # Se calcula por fórmula interna
                     alto_frentin_emb = 0.0
                    
                 else:
@@ -653,6 +725,9 @@ if menu == "Cotizador CNC":
                     aire_trasero=aire_trasero,
                     esp_corredera=esp_corredera,
                     distribucion_tapas=distribucion_tapas
+                    cant_puertas=cant_puertas, 
+                    tiene_cenefa=tiene_cenefa, 
+                    alto_cenefa=alto_cenefa
                 )
                 # Convertimos los resultados en la tabla
                 df_corte = pd.DataFrame(piezas_calculadas)
