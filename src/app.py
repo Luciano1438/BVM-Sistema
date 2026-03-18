@@ -839,9 +839,10 @@ if menu == "Cotizador CNC":
                 )
                 # Convertimos los resultados en la tabla
                 # 1. Convertimos los resultados en la tabla
+                # 1. Convertimos los resultados en la tabla
                 df_corte = pd.DataFrame(piezas_calculadas)
                 
-                # --- 🛡️ ESCUDO TOTAL ANTI-ERROR 'TIPO' ---
+                # --- 🛡️ ESCUDO TOTAL ANTI-ERROR 'TIPO' (BVM PRO) ---
                 if not df_corte.empty:
                     # Si la columna no existe en el DataFrame, la creamos
                     if 'Tipo' not in df_corte.columns:
@@ -853,7 +854,7 @@ if menu == "Cotizador CNC":
                     # Mostramos la tabla al usuario ya normalizada
                     st.data_editor(df_corte, use_container_width=True, hide_index=True)
     
-                    # --- 📊 RE-CÁLCULO DE MÉTRICAS (FIX SEGURO BVM) ---
+                    # --- 📊 RE-CÁLCULO DE MÉTRICAS SEGURO ---
                     # Filtramos: Todo lo que NO sea Fondo o Piso es placa de 18mm
                     df_placa = df_corte[~df_corte['Tipo'].isin(['Fondo', 'Piso'])]
                     
@@ -861,6 +862,40 @@ if menu == "Cotizador CNC":
                         m2_18mm = (df_placa['L'] * df_placa['A'] * df_placa['Cant']).sum() / 1_000_000
                     else:
                         m2_18mm = 0.0
+
+                    # 2. Cálculo de Costo Madera Cuerpo
+                    precio_placa_unitario = maderas.get(mat_principal, 0.0)
+                    costo_madera = m2_18mm * (precio_placa_unitario / 5.03)
+
+                    # 3. Superficie e importe de Fondos
+                    df_fondo_only = df_corte[df_corte['Tipo'].isin(['Fondo', 'Piso'])]
+                    if not df_fondo_only.empty:
+                        m2_fondo = (df_fondo_only['L'] * df_fondo_only['A'] * df_fondo_only['Cant']).sum() / 1_000_000
+                    else:
+                        m2_fondo = 0.0
+                    
+                    precio_fondo_unitario = fondos.get(mat_fondo_sel, 0.0)
+                    costo_fondo = m2_fondo * (precio_fondo_unitario / 5.03)
+                # --- FIN DEL ESCUDO (Eliminamos duplicados de abajo) ---
+
+                # --- FALLA 2: Lógica de Herrajes ---
+                if tipo_modulo == "Bajo Mesada":
+                    costo_herrajes = (cant_puertas * 2 * config.get('bisagra_cazoleta', 0))
+                elif tipo_modulo == "Alacena":
+                    costo_herrajes = (cant_puertas * 2 * config.get('bisagra_cazoleta', 0))
+                else: # Cajonera
+                    costo_herrajes = (cant_cajones * config.get('telescopica_45', 0))
+
+                # --- FALLA 3: Fletes y Operativos ---
+                if flete_sel == "Capital": costo_flete = config.get('flete_capital', 0)
+                elif flete_sel == "Zona Norte": costo_flete = config.get('flete_norte', 0)
+                else: costo_flete = 0.0
+                    
+                costo_operativo = (dias_prod * config.get('gastos_fijos_diarios', 0))
+                
+                # SUMA FINAL
+                total_costo = costo_madera + costo_fondo + costo_herrajes + costo_operativo + costo_base + costo_flete
+                if necesita_colocacion: total_costo += (dias_col * config.get('colocacion_dia', 0))
                 # --- FIN DEL ESCUDO ---
                 
                 # FALLA 1: Estabas usando 'maderas' antes de verificar si tenía datos.
