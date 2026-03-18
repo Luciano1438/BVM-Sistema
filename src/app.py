@@ -832,16 +832,17 @@ if menu == "Cotizador CNC":
                 )
                 
                 # 1. Convertimos los resultados en la tabla
+                # 1. Convertimos los resultados en la tabla
                 df_corte = pd.DataFrame(piezas_calculadas)
                 
-                # --- 🛡️ ESCUDO TOTAL BVM (Anti 'L' y Anti 'Tipo') ---
+                # --- 🛡️ ESCUDO TOTAL BVM ---
                 if not df_corte.empty and 'L' in df_corte.columns:
-                    # A. Aseguramos columnas básicas para que no explote
+                    # A. Aseguramos columnas básicas
                     for col in ['Tipo', 'L', 'A', 'Cant']:
                         if col not in df_corte.columns:
                             df_corte[col] = 0 if col != 'Tipo' else 'Cuerpo'
                     
-                    # B. Limpieza de datos (por si hay algún None o String donde va un número)
+                    # B. Limpieza de datos
                     df_corte['L'] = pd.to_numeric(df_corte['L'], errors='coerce').fillna(0)
                     df_corte['A'] = pd.to_numeric(df_corte['A'], errors='coerce').fillna(0)
                     df_corte['Cant'] = pd.to_numeric(df_corte['Cant'], errors='coerce').fillna(0)
@@ -850,67 +851,35 @@ if menu == "Cotizador CNC":
                     # C. Mostramos la tabla
                     st.data_editor(df_corte, use_container_width=True, hide_index=True)
     
-                    # D. Filtrado SEGURO de placa 18mm
+                    # D. CÁLCULO DE MÉTRICAS (Todo adentro del IF)
                     df_placa = df_corte[~df_corte['Tipo'].isin(['Fondo', 'Piso'])]
+                    m2_18mm = (df_placa['L'] * df_placa['A'] * df_placa['Cant']).sum() / 1_000_000
                     
-                    if not df_placa.empty:
-                        # Usamos sum() con validación
-                        m2_18mm = (df_placa['L'] * df_placa['A'] * df_placa['Cant']).sum() / 1_000_000
-                    else:
-                        m2_18mm = 0.0
-
-                    # --- SIGUEN TUS CÁLCULOS DE COSTOS IGUAL QUE ANTES ---
                     precio_placa_unitario = maderas.get(mat_principal, 0.0)
                     costo_madera = m2_18mm * (precio_placa_unitario / 5.03)
-                    # ... (resto del código de costos)
+
+                    df_fondo_only = df_corte[df_corte['Tipo'].isin(['Fondo', 'Piso'])]
+                    m2_fondo = (df_fondo_only['L'] * df_fondo_only['A'] * df_fondo_only['Cant']).sum() / 1_000_000 if not df_fondo_only.empty else 0.0
+                    costo_fondo = m2_fondo * (fondos.get(mat_fondo_sel, 0.0) / 5.03)
+
+                    # E. HERRAJES
+                    if tipo_modulo in ["Bajo Mesada", "Alacena"]:
+                        costo_herrajes = (cant_puertas * 2 * config.get('bisagra_cazoleta', 0))
+                    else: # Cajonera
+                        costo_herrajes = (cant_cajones * config.get('telescopica_45', 0))
+
+                    # F. LOGÍSTICA Y OPERATIVOS
+                    costo_flete = config.get('flete_capital', 0) if flete_sel == "Capital" else config.get('flete_norte', 0) if flete_sel == "Zona Norte" else 0.0
+                    costo_operativo = (dias_prod * config.get('gastos_fijos_diarios', 0))
+                    
+                    # G. TOTALES
+                    total_costo = costo_madera + costo_fondo + costo_herrajes + costo_operativo + costo_base + costo_flete
+                    if necesita_colocacion: total_costo += (dias_col * config.get('colocacion_dia', 0))
                 
                 else:
-                    st.warning("⚠️ Esperando datos válidos del despiece...")
+                    st.warning("⚠️ Esperando medidas para calcular...")
                     m2_18mm = 0.0
-                    costo_madera = 0.0
-
-                # --- FALLA 2: Lógica de Herrajes ---
-                if tipo_modulo == "Bajo Mesada":
-                    costo_herrajes = (cant_puertas * 2 * config.get('bisagra_cazoleta', 0))
-                elif tipo_modulo == "Alacena":
-                    costo_herrajes = (cant_puertas * 2 * config.get('bisagra_cazoleta', 0))
-                else: # Cajonera
-                    costo_herrajes = (cant_cajones * config.get('telescopica_45', 0))
-
-                # --- FALLA 3: Fletes y Operativos ---
-                if flete_sel == "Capital": costo_flete = config.get('flete_capital', 0)
-                elif flete_sel == "Zona Norte": costo_flete = config.get('flete_norte', 0)
-                else: costo_flete = 0.0
-                    
-                costo_operativo = (dias_prod * config.get('gastos_fijos_diarios', 0))
-                total_costo = costo_madera + costo_fondo + costo_herrajes + costo_operativo + costo_base + costo_flete
-                if necesita_colocacion: total_costo += (dias_col * config.get('colocacion_dia', 0))
-                
-                precio_placa_unitario = maderas.get(mat_principal, 0.0)
-                costo_madera = m2_18mm * (precio_placa_unitario / 5.03)
-
-                # Superficie de Fondos
-                df_fondo_only = df_corte[df_corte.get('Tipo', pd.Series(['Cuerpo']*len(df_corte))).isin(['Fondo', 'Piso'])]
-                m2_fondo = (df_fondo_only['L'] * df_fondo_only['A'] * df_fondo_only['Cant']).sum() / 1_000_000
-                precio_fondo_unitario = fondos.get(mat_fondo_sel, 0.0)
-                costo_fondo = m2_fondo * (precio_fondo_unitario / 5.03)
-                
-                # FALLA 2: costo_herrajes se quedaba en 0.0 porque no lo calculabas según el tipo.
-                if tipo_modulo == "Bajo Mesada":
-                    # Mínimo 2 bisagras por puerta
-                    costo_herrajes = (cant_puertas * 2 * config.get('bisagra_cazoleta', 0))
-                else:
-                    # Guías por cajón
-                    costo_herrajes = (cant_cajones * config.get('telescopica_45', 0))
-
-                if flete_sel == "Capital": costo_flete = config.get('flete_capital', 0)
-                elif flete_sel == "Zona Norte": costo_flete = config.get('flete_norte', 0)
-                else: costo_flete = 0.0
-                    
-                costo_operativo = (dias_prod * config.get('gastos_fijos_diarios', 0))
-                
-                total_costo = costo_madera + costo_fondo + costo_herrajes + costo_operativo + costo_base + costo_flete
-                if necesita_colocacion: total_costo += (dias_col * config.get('colocacion_dia', 0))
+                    total_costo = 0.0
 
           
             st.write("---")
