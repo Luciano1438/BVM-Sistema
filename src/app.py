@@ -307,7 +307,7 @@ def generar_despiece_bvm(tipo, ancho_m, alto_m, prof_m, esp_real, tiene_parante,
                 else: ancho_p = (ancho_m - 16) / 4
             
             despiece.append({"Pieza": "Puerta", "Cant": cant_puertas, "L": alto_p, "A": round(ancho_p, 1), "Tipo": "Frente"})    
-    return despiece
+        return despiece
 
     
  
