@@ -319,6 +319,7 @@ def generar_despiece_bvm(tipo, ancho_m, alto_m, prof_m, esp_real, tiene_parante,
             else: # 4 puertas
                 ancho_est_ref = round((ancho_m/2) - (esp_real*1.5), 1)
 
+            # --- FIJOS (Con etiqueta Tipo) ---
             if estantes_fijos > 0:
                 if cant_puertas == 3:
                     despiece.append({"Pieza": "Estante Fijo (V2/3)", "Cant": int(estantes_fijos), "L": ancho_est_ref_grande, "A": prof_est, "Tipo": "Cuerpo"})
@@ -328,6 +329,7 @@ def generar_despiece_bvm(tipo, ancho_m, alto_m, prof_m, esp_real, tiene_parante,
                 else:
                     despiece.append({"Pieza": "Estante Fijo", "Cant": int(estantes_fijos), "L": ancho_est_ref, "A": prof_est, "Tipo": "Cuerpo"})
 
+            # --- MÓVILES (Con etiqueta Tipo) ---
             if estantes_moviles > 0:
                 if cant_puertas == 3:
                     despiece.append({"Pieza": "Estante Móvil (V2/3)", "Cant": int(estantes_moviles), "L": ancho_est_ref_grande - 2, "A": prof_est, "Tipo": "Cuerpo"})
