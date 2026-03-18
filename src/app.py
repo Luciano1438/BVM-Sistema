@@ -724,10 +724,10 @@ if menu == "Cotizador CNC":
                     alto_frentin_emb=alto_frentin_emb,
                     aire_trasero=aire_trasero,
                     esp_corredera=esp_corredera,
-                    distribucion_tapas=distribucion_tapas
+                    distribucion_tapas=distribucion_tapas,
                     cant_puertas=cant_puertas, 
                     tiene_cenefa=tiene_cenefa, 
-                    alto_cenefa=alto_cenefa
+                    alto_cenefa=alto_cenefa,
                 )
                 # Convertimos los resultados en la tabla
                 df_corte = pd.DataFrame(piezas_calculadas)
