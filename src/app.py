@@ -308,7 +308,7 @@ def generar_despiece_bvm(tipo, ancho_m, alto_m, prof_m, esp_real, tiene_parante,
             if cant_puertas in [3, 4]:
                 despiece.append({"Pieza": "Parante Intermedio", "Cant": 1, "L": alto_m - (esp_real * 2), "A": prof_m - 20, "Tipo": "Cuerpo"})
 
-            # 3. ESTANTES DINÁMICOS (Fijos y Móviles)
+            # 3. ESTANTES DINÁMICOS (Lógica BVM - Fix 4 Puertas)
             prof_est = prof_m - 30
             
             # Calculamos anchos base según configuración de vanos
@@ -317,27 +317,29 @@ def generar_despiece_bvm(tipo, ancho_m, alto_m, prof_m, esp_real, tiene_parante,
             elif cant_puertas == 3:
                 ancho_est_ref_grande = round(((ancho_m/3)*2) - (esp_real*2), 1)
                 ancho_est_ref_chico = round((ancho_m/3) - (esp_real*1.5), 1)
-            else: # 4 puertas
+            else: # 4 puertas (Vanos simétricos divididos por parante)
                 ancho_est_ref = round((ancho_m/2) - (esp_real*1.5), 1)
 
-            # Lógica para inyectar FIJOS
+            # Inyección de FIJOS
             if estantes_fijos > 0:
                 if cant_puertas == 3:
-                    despiece.append({"Pieza": "Estante Fijo (Vano 2/3)", "Cant": estantes_fijos, "L": ancho_est_ref_grande, "A": prof_est, "Tipo": "Cuerpo"})
-                    despiece.append({"Pieza": "Estante Fijo (Vano 1/3)", "Cant": estantes_fijos, "L": ancho_est_ref_chico, "A": prof_est, "Tipo": "Cuerpo"})
-                else:
-                    multiplicador = 2 if cant_puertas == 4 else 1
-                    despiece.append({"Pieza": "Estante Fijo", "Cant": estantes_fijos * multiplicador, "L": ancho_est_ref, "A": prof_est, "Tipo": "Cuerpo"})
+                    despiece.append({"Pieza": "Estante Fijo (Vano 2/3)", "Cant": int(estantes_fijos), "L": ancho_est_ref_grande, "A": prof_est, "Tipo": "Cuerpo"})
+                    despiece.append({"Pieza": "Estante Fijo (Vano 1/3)", "Cant": int(estantes_fijos), "L": ancho_est_ref_chico, "A": prof_est, "Tipo": "Cuerpo"})
+                elif cant_puertas == 4:
+                    # Si marcaste 2 niveles, necesitás 4 maderas (2 para cada lado del parante)
+                    despiece.append({"Pieza": "Estante Fijo", "Cant": int(estantes_fijos * 2), "L": ancho_est_ref, "A": prof_est, "Tipo": "Cuerpo"})
+                else: # 2 puertas
+                    despiece.append({"Pieza": "Estante Fijo", "Cant": int(estantes_fijos), "L": ancho_est_ref, "A": prof_est, "Tipo": "Cuerpo"})
 
-            # Lógica para inyectar MÓVILES (-2mm de luz para que no rayen el lateral)
+            # Inyección de MÓVILES (-2mm luz para armado fácil)
             if estantes_moviles > 0:
                 if cant_puertas == 3:
-                    despiece.append({"Pieza": "Estante Móvil (Vano 2/3)", "Cant": estantes_moviles, "L": ancho_est_ref_grande - 2, "A": prof_est, "Tipo": "Cuerpo"})
-                    despiece.append({"Pieza": "Estante Móvil (Vano 1/3)", "Cant": estantes_moviles, "L": ancho_est_ref_chico - 2, "A": prof_est, "Tipo": "Cuerpo"})
-                else:
-                    multiplicador = 2 if cant_puertas == 4 else 1
-                    despiece.append({"Pieza": "Estante Móvil", "Cant": estantes_moviles * multiplicador, "L": ancho_est_ref - 2, "A": prof_est, "Tipo": "Cuerpo"})
-
+                    despiece.append({"Pieza": "Estante Móvil (Vano 2/3)", "Cant": int(estantes_moviles), "L": ancho_est_ref_grande - 2, "A": prof_est, "Tipo": "Cuerpo"})
+                    despiece.append({"Pieza": "Estante Móvil (Vano 1/3)", "Cant": int(estantes_moviles), "L": ancho_est_ref_chico - 2, "A": prof_est, "Tipo": "Cuerpo"})
+                elif cant_puertas == 4:
+                    despiece.append({"Pieza": "Estante Móvil", "Cant": int(estantes_moviles * 2), "L": ancho_est_ref - 2, "A": prof_est, "Tipo": "Cuerpo"})
+                else: # 2 puertas
+                    despiece.append({"Pieza": "Estante Móvil", "Cant": int(estantes_moviles), "L": ancho_est_ref - 2, "A": prof_est, "Tipo": "Cuerpo"})
             # 4. PUERTAS Y FRENTES
             if "Uñero" in tipo_tapa:
                 alto_p = alto_m + 20
