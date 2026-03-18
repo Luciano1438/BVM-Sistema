@@ -585,6 +585,9 @@ if menu == "Cotizador CNC":
         aire_trasero = 30.0  
         esp_corredera = 13.0
         distribucion_tapas = "Iguales"
+        cant_puertas = 0
+        tiene_cenefa = False
+        alto_cenefa = 0.0
         
         col_in, col_out = st.columns([1, 1.2])
         with col_in:
