@@ -308,7 +308,24 @@ def generar_despiece_bvm(tipo, ancho_m, alto_m, prof_m, esp_real, tiene_parante,
             
             despiece.append({"Pieza": "Puerta", "Cant": cant_puertas, "L": alto_p, "A": round(ancho_p, 1), "Tipo": "Frente"})    
     
-        return despiece
+ 
+def exportar_para_aspire(df, material, espesor):
+    # Renombramos columnas al estándar de Aspire/VCarve
+    df_aspire = df.copy()
+    df_aspire = df_aspire.rename(columns={
+        "Pieza": "Name",
+        "L": "Length",
+        "A": "Width",
+        "Cant": "Quantity"
+    })
+    
+    # Agregamos los datos fijos que Aspire pide
+    df_aspire["Thickness"] = espesor
+    df_aspire["Material"] = material
+    
+    # Seleccionamos solo lo que Aspire necesita
+    columnas_finales = ["Name", "Length", "Width", "Thickness", "Quantity", "Material"]
+    return df_aspire[columnas_finales].to_csv(index=False).encode('utf-8')return despiece
 
 # --- 0. SEGURIDAD DE ACCESO MULTIUSUARIO (VALOR PRO) ---
 def gestionar_auth():
@@ -886,6 +903,18 @@ if menu == "Cotizador CNC":
         )
                 
         st.link_button("🟢 Enviar Presupuesto por WhatsApp", link_wa, use_container_width=True)
+        st.write("---")
+        st.subheader("⚙️ Exportación Industrial")
+
+        archivo_aspire = exportar_para_aspire(df_corte, mat_principal, esp_real)
+
+        st.download_button(
+            label="🤖 Descargar Lista para ASPIRE (CNC)",
+            data=archivo_aspire,
+            file_name=f"CNC_{cliente}_{tipo_modulo}.csv",
+            mime="text/csv",
+            use_container_width=True
+        )
             
                 # 6. --- GENERACIÓN DE ETIQUETAS (VALOR PRO) ---
         st.write("---") # Una línea divisoria para separar administración de taller
