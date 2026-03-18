@@ -878,7 +878,7 @@ if menu == "Cotizador CNC":
                 costo_madera = m2_18mm * (precio_placa_unitario / 5.03)
 
                 # Superficie de Fondos
-                df_fondo_only = df_corte[df_corte['Tipo'].isin(['Fondo', 'Piso'])]
+                df_fondo_only = df_corte[df_corte.get('Tipo', pd.Series(['Cuerpo']*len(df_corte))).isin(['Fondo', 'Piso'])]
                 m2_fondo = (df_fondo_only['L'] * df_fondo_only['A'] * df_fondo_only['Cant']).sum() / 1_000_000
                 precio_fondo_unitario = fondos.get(mat_fondo_sel, 0.0)
                 costo_fondo = m2_fondo * (precio_fondo_unitario / 5.03)
