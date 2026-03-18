@@ -831,31 +831,43 @@ if menu == "Cotizador CNC":
                     estantes_moviles=estantes_moviles
                 )
                 
+                # 1. Convertimos los resultados en la tabla
                 df_corte = pd.DataFrame(piezas_calculadas)
                 
-                # --- 🛡️ ESCUDO TOTAL ANTI-ERROR 'TIPO' ---
-                if not df_corte.empty:
-                    # A. Si la columna no existe en el DataFrame, la creamos
-                    if 'Tipo' not in df_corte.columns:
-                        df_corte['Tipo'] = 'Cuerpo'
+                # --- 🛡️ ESCUDO TOTAL BVM (Anti 'L' y Anti 'Tipo') ---
+                if not df_corte.empty and 'L' in df_corte.columns:
+                    # A. Aseguramos columnas básicas para que no explote
+                    for col en ['Tipo', 'L', 'A', 'Cant']:
+                        if col not in df_corte.columns:
+                            df_corte[col] = 0 if col != 'Tipo' else 'Cuerpo'
                     
-                    # B. Rellenamos vacíos y forzamos a texto para que el filtro no falle
+                    # B. Limpieza de datos (por si hay algún None o String donde va un número)
+                    df_corte['L'] = pd.to_numeric(df_corte['L'], errors='coerce').fillna(0)
+                    df_corte['A'] = pd.to_numeric(df_corte['A'], errors='coerce').fillna(0)
+                    df_corte['Cant'] = pd.to_numeric(df_corte['Cant'], errors='coerce').fillna(0)
                     df_corte['Tipo'] = df_corte['Tipo'].fillna('Cuerpo').astype(str)
 
-                    # C. Mostramos la tabla normalizada
+                    # C. Mostramos la tabla
                     st.data_editor(df_corte, use_container_width=True, hide_index=True)
     
-                    # D. Filtrado SEGURO de placa (SOLO si no está vacío)
+                    # D. Filtrado SEGURO de placa 18mm
                     df_placa = df_corte[~df_corte['Tipo'].isin(['Fondo', 'Piso'])]
                     
                     if not df_placa.empty:
+                        # Usamos sum() con validación
                         m2_18mm = (df_placa['L'] * df_placa['A'] * df_placa['Cant']).sum() / 1_000_000
                     else:
                         m2_18mm = 0.0
+
+                    # --- SIGUEN TUS CÁLCULOS DE COSTOS IGUAL QUE ANTES ---
+                    precio_placa_unitario = maderas.get(mat_principal, 0.0)
+                    costo_madera = m2_18mm * (precio_placa_unitario / 5.03)
+                    # ... (resto del código de costos)
+                
                 else:
-                    # Si no hay piezas, las variables valen cero para que no rompa el cálculo de abajo
-                    df_placa = pd.DataFrame()
+                    st.warning("⚠️ Esperando datos válidos del despiece...")
                     m2_18mm = 0.0
+                    costo_madera = 0.0
 
                 # --- FALLA 2: Lógica de Herrajes ---
                 if tipo_modulo == "Bajo Mesada":
