@@ -832,6 +832,8 @@ if menu == "Cotizador CNC":
                     cant_puertas=cant_puertas, 
                     tiene_cenefa=tiene_cenefa, 
                     alto_cenefa=alto_cenefa,
+                    estantes_fijos=estantes_fijos, 
+                    estantes_moviles=estantes_moviles
                 )
                 # Convertimos los resultados en la tabla
                 df_corte = pd.DataFrame(piezas_calculadas)
