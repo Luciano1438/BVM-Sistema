@@ -526,10 +526,6 @@ def traer_datos():
 
     except Exception as e:
         st.error(f"Error cargando configuración: {e}")
-        return maderas_default, {'Fibroplus Blanco 3mm': 34500.0}, config_default
-
-    except Exception as e:
-        st.error(f"Error cargando configuración: {e}")
         # Retorno de emergencia seguro
         return maderas_default, {'Fibroplus Blanco 3mm': 34500.0}, config_default
 
@@ -601,10 +597,7 @@ if not gestionar_auth():
     st.stop()
 
 maderas, fondos, config = traer_datos()
-# --- ACTUALIZACIÓN DE MENÚ (VALOR PRO) ---
 menu = st.sidebar.radio("Navegación", ["Cotizador CNC","Depósito de Retazos", "Historial de Ventas", "⚙️ Configuración de Precios"])
-# --- AGREGAR ESTO EN LA SIDEBAR (O EN LA PESTAÑA DE AJUSTES) ---
-
 
 # --- BOTÓN DE CIERRE DE SESIÓN ---
 st.sidebar.write("---")
@@ -878,14 +871,9 @@ if menu == "Cotizador CNC":
                 else: costo_flete = 0.0
                     
                 costo_operativo = (dias_prod * config.get('gastos_fijos_diarios', 0))
-                
-                # SUMA FINAL
                 total_costo = costo_madera + costo_fondo + costo_herrajes + costo_operativo + costo_base + costo_flete
                 if necesita_colocacion: total_costo += (dias_col * config.get('colocacion_dia', 0))
-                # --- FIN DEL ESCUDO ---
                 
-                # FALLA 1: Estabas usando 'maderas' antes de verificar si tenía datos.
-                # Usamos .get() con un valor default de 1.0 para que no multiplique por 0 en el peor caso.
                 precio_placa_unitario = maderas.get(mat_principal, 0.0)
                 costo_madera = m2_18mm * (precio_placa_unitario / 5.03)
 
@@ -903,20 +891,16 @@ if menu == "Cotizador CNC":
                     # Guías por cajón
                     costo_herrajes = (cant_cajones * config.get('telescopica_45', 0))
 
-                # FALLA 3: Los fletes y operativos se reseteaban si no los capturabas bien del dict 'config'
                 if flete_sel == "Capital": costo_flete = config.get('flete_capital', 0)
                 elif flete_sel == "Zona Norte": costo_flete = config.get('flete_norte', 0)
                 else: costo_flete = 0.0
                     
                 costo_operativo = (dias_prod * config.get('gastos_fijos_diarios', 0))
                 
-                # SUMA FINAL: Si alguno de estos sigue siendo 0, el total será bajo pero no 0.00
                 total_costo = costo_madera + costo_fondo + costo_herrajes + costo_operativo + costo_base + costo_flete
                 if necesita_colocacion: total_costo += (dias_col * config.get('colocacion_dia', 0))
 
-                # --- C. RETAZOS Y PRECIO FINAL (Igual que antes) ---
-            st.write("---")
-               # --- C. TU LÓGICA DE RETAZOS (REGLA EXPERTA: 150x400) ---
+          
             st.write("---")
             retazos_en_stock = consultar_retazos_disponibles(mat_principal)
             ahorro_madera = 0
@@ -977,7 +961,7 @@ if menu == "Cotizador CNC":
 
          # --- 1. GESTIÓN DE GUARDADO UNIFICADA (REDUNDANCIA PRO) ---
         st.write("---")
-        if st.button("Guardar", use_container_width=True):
+        if st.button("Guardar presupuesto", use_container_width=True):
             if cliente:
                 try:
                     # A. Guardado en Nube (Supabase) - Tu respaldo de seguridad
@@ -1001,7 +985,7 @@ if menu == "Cotizador CNC":
                    else:
                        st.error(f"⚠️ Error en Respaldo Local: {e}")
             else:
-                st.warning("📢 Ingrese el nombre del Cliente antes de guardar para evitar datos basura.")
+                st.warning("📢 Ingrese el nombre del Cliente antes de guardar.")
         st.write("---")
         st.subheader("📄 Generar Propuesta para Cliente")
                 
@@ -1067,20 +1051,21 @@ if menu == "Cotizador CNC":
                 # 6. --- GENERACIÓN DE ETIQUETAS (VALOR PRO) ---
         st.write("---") # Una línea divisoria para separar administración de taller
         if st.button("🖨️ Generar Etiquetas de Taller"):
-            st.info(f"Generando etiquetas para las {len(df_corte)} piezas...")
-            cols_etiquetas = st.columns(2) 
-            for index, row in df_corte.iterrows():
-                 with cols_etiquetas[index % 2]: # Esto las ordena en 2 columnas visuales
-                     with st.expander(f"📍 {row['Pieza']} ({int(row['L'])}x{int(row['A'])})"):
-                        st.write(f"**Cliente:** {cliente}")
-                        st.write(f"**Mueble:** {mueble_nom}")
-                        st.code(f"PIEZA N°: {index+1}\nDIM: {int(row['L'])} x {int(row['A'])} mm")
+            if not df_corte.empty:
+                st.info(f"Generando etiquetas para las {len(df_corte)} piezas...")
+                cols_etiquetas = st.columns(2) 
+                for index, row in df_corte.iterrows():
+                     with cols_etiquetas[index % 2]:
+                         # Usamos .get('Tipo', 'Cuerpo') para que si no existe no explote
+                         tipo_label = row.get('Tipo', 'Cuerpo')
+                         with st.expander(f"📍 {row['Pieza']} - {tipo_label}"):
+                            st.write(f"**Cliente:** {cliente}")
+                            st.code(f"DIM: {int(row['L'])} x {int(row['A'])} mm")
+            else:
+                st.error("No hay piezas para etiquetar.")
        
     except Exception as e:
         st.error(f"Error en el Cotizador: {e}")
-
-
-        # --- 3. GESTIÓN COMERCIAL (PDF PRO) ---
             
 elif menu == "Historial de Ventas":
     st.title("📊 Gestión y Seguimiento de Ventas")
@@ -1090,7 +1075,6 @@ elif menu == "Historial de Ventas":
             # --- LÓGICA DE AUDITORÍA DE PRECIOS (EL ESCUDO) ---
             st.subheader("⚠️ Monitor de Reposición e Inflación")
             
-            # Simulamos un aumento del 15% en materiales desde que se guardó (ajustable)
             inflacion_estimada = 0.15 
             
             for index, row in df_hist.iterrows():
@@ -1145,7 +1129,7 @@ elif menu == "Depósito de Retazos":
     else:
         st.info("El depósito está vacío.")
 
-# --- PESTAÑA: CONFIGURACIÓN DE PRECIOS (VALOR PRO) ---
+# --- PESTAÑA: CONFIGURACIÓN DE PRECIOS ---
 elif menu == "⚙️ Configuración de Precios":
     st.title("⚙️ Administración de Insumos y Costos")
     st.info("Desde aquí podés actualizar los valores base. Los cambios impactarán en todos los nuevos presupuestos.")
