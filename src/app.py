@@ -640,6 +640,8 @@ if menu == "Cotizador CNC":
         cant_puertas = 0
         tiene_cenefa = False
         alto_cenefa = 0.0
+        estantes_fijos = 0
+        estantes_moviles = 0
         
         col_in, col_out = st.columns([1, 1.2])
         with col_in:
