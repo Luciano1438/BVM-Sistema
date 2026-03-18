@@ -837,46 +837,32 @@ if menu == "Cotizador CNC":
                     estantes_fijos=estantes_fijos, 
                     estantes_moviles=estantes_moviles
                 )
-                # Convertimos los resultados en la tabla
-                # 1. Convertimos los resultados en la tabla
-                # 1. Convertimos los resultados en la tabla
+                
                 df_corte = pd.DataFrame(piezas_calculadas)
                 
-                # --- 🛡️ ESCUDO TOTAL ANTI-ERROR 'TIPO' (BVM PRO) ---
+                # --- 🛡️ ESCUDO TOTAL ANTI-ERROR 'TIPO' ---
                 if not df_corte.empty:
-                    # Si la columna no existe en el DataFrame, la creamos
+                    # A. Si la columna no existe en el DataFrame, la creamos
                     if 'Tipo' not in df_corte.columns:
                         df_corte['Tipo'] = 'Cuerpo'
                     
-                    # Rellenamos cualquier celda vacía con 'Cuerpo' y forzamos a texto
+                    # B. Rellenamos vacíos y forzamos a texto para que el filtro no falle
                     df_corte['Tipo'] = df_corte['Tipo'].fillna('Cuerpo').astype(str)
 
-                    # Mostramos la tabla al usuario ya normalizada
+                    # C. Mostramos la tabla normalizada
                     st.data_editor(df_corte, use_container_width=True, hide_index=True)
     
-                    # --- 📊 RE-CÁLCULO DE MÉTRICAS SEGURO ---
-                    # Filtramos: Todo lo que NO sea Fondo o Piso es placa de 18mm
+                    # D. Filtrado SEGURO de placa (SOLO si no está vacío)
                     df_placa = df_corte[~df_corte['Tipo'].isin(['Fondo', 'Piso'])]
                     
                     if not df_placa.empty:
                         m2_18mm = (df_placa['L'] * df_placa['A'] * df_placa['Cant']).sum() / 1_000_000
                     else:
                         m2_18mm = 0.0
-
-                    # 2. Cálculo de Costo Madera Cuerpo
-                    precio_placa_unitario = maderas.get(mat_principal, 0.0)
-                    costo_madera = m2_18mm * (precio_placa_unitario / 5.03)
-
-                    # 3. Superficie e importe de Fondos
-                    df_fondo_only = df_corte[df_corte['Tipo'].isin(['Fondo', 'Piso'])]
-                    if not df_fondo_only.empty:
-                        m2_fondo = (df_fondo_only['L'] * df_fondo_only['A'] * df_fondo_only['Cant']).sum() / 1_000_000
-                    else:
-                        m2_fondo = 0.0
-                    
-                    precio_fondo_unitario = fondos.get(mat_fondo_sel, 0.0)
-                    costo_fondo = m2_fondo * (precio_fondo_unitario / 5.03)
-                # --- FIN DEL ESCUDO (Eliminamos duplicados de abajo) ---
+                else:
+                    # Si no hay piezas, las variables valen cero para que no rompa el cálculo de abajo
+                    df_placa = pd.DataFrame()
+                    m2_18mm = 0.0
 
                 # --- FALLA 2: Lógica de Herrajes ---
                 if tipo_modulo == "Bajo Mesada":
