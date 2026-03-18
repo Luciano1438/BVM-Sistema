@@ -307,6 +307,8 @@ def generar_despiece_bvm(tipo, ancho_m, alto_m, prof_m, esp_real, tiene_parante,
                 else: ancho_p = (ancho_m - 16) / 4
             
             despiece.append({"Pieza": "Puerta", "Cant": cant_puertas, "L": alto_p, "A": round(ancho_p, 1), "Tipo": "Frente"})    
+    return despiece
+
     
  
 def exportar_para_aspire(df, material, espesor):
@@ -325,8 +327,7 @@ def exportar_para_aspire(df, material, espesor):
     
     # Seleccionamos solo lo que Aspire necesita
     columnas_finales = ["Name", "Length", "Width", "Thickness", "Quantity", "Material"]
-    return df_aspire[columnas_finales].to_csv(index=False).encode('utf-8')return despiece
-
+    return df_aspire[columnas_finales].to_csv(index=False).encode('utf-8')
 # --- 0. SEGURIDAD DE ACCESO MULTIUSUARIO (VALOR PRO) ---
 def gestionar_auth():
     if "autenticado" not in st.session_state:
