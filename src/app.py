@@ -838,10 +838,10 @@ if menu == "Cotizador CNC":
                 # Convertimos los resultados en la tabla
                 df_corte = pd.DataFrame(piezas_calculadas)
                 if not df_corte.empty:
-            # Si a alguna pieza le falta el 'Tipo', le ponemos 'Cuerpo' a la fuerza
                     if 'Tipo' not in df_corte.columns:
                         df_corte['Tipo'] = 'Cuerpo'
                     df_corte['Tipo'] = df_corte['Tipo'].fillna('Cuerpo')
+                df_placa = df_corte[~df_corte['Tipo'].isin(['Fondo', 'Piso'])]
                 st.data_editor(df_corte, use_container_width=True, hide_index=True)
     
                # --- RE-CÁLCULO DE MÉTRICAS (FIX MAESTRO BVM) ---
