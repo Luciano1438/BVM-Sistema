@@ -695,13 +695,30 @@ if menu == "Cotizador CNC":
                     tipo_tapa = c_ala1.radio("Sistema de Apertura", opciones_ala)
                     cant_puertas = c_ala2.selectbox("Cantidad de Puertas", [2, 3, 4])
 
-                    # CONFIGURACIÓN DE ESTANTES
+                    # CONFIGURACIÓN DE ESTANTES (Nivel Pro)
                     st.markdown("---")
-                    c_est1, c_est2 = st.columns(2)
-                    cant_total_est = c_est1.number_input("Cant. Total Estantes", min_value=0, value=1, step=1)
-                    estantes_fijos = c_est2.number_input("De los cuales, ¿cuántos fijos?", 
-                                                       min_value=0, max_value=int(cant_total_est), value=1)
+                    cant_total_est = st.number_input("Cantidad Total Estantes", min_value=0, value=1, step=1)
+                    
+                    # Creamos una lista para guardar qué estantes elige el usuario como fijos
+                    indices_fijos = []
+                    
+                    if cant_total_est > 0:
+                        st.write("Seleccioná los estantes que son **FIJOS**:")
+                        # Creamos columnas automáticas según la cantidad de estantes
+                        cols_estantes = st.columns(int(cant_total_est))
+                        
+                        for i in range(int(cant_total_est)):
+                            with cols_estantes[i]:
+                                # Si el checkbox está marcado, guardamos el índice
+                                es_fijo = st.checkbox(f"E{i+1}", value=False, key=f"check_est_{i}")
+                                if es_fijo:
+                                    indices_fijos.append(i)
+                    
+                    # Calculamos los totales para mandarle al motor de despiece
+                    estantes_fijos = len(indices_fijos)
                     estantes_moviles = cant_total_est - estantes_fijos
+            
+                    st.caption(f"Resumen: {estantes_fijos} Fijos y {estantes_moviles} Móviles")
                     
                     # CENEFA PARA UÑERO
                     tiene_cenefa = False
