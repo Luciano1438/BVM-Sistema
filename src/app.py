@@ -838,20 +838,30 @@ if menu == "Cotizador CNC":
                     estantes_moviles=estantes_moviles
                 )
                 # Convertimos los resultados en la tabla
+                # 1. Convertimos los resultados en la tabla
                 df_corte = pd.DataFrame(piezas_calculadas)
                 
-                # --- PARACAÍDAS PARA EL ERROR 'TIPO' ---
+                # --- 🛡️ ESCUDO TOTAL ANTI-ERROR 'TIPO' ---
                 if not df_corte.empty:
+                    # Si la columna no existe en el DataFrame, la creamos
                     if 'Tipo' not in df_corte.columns:
                         df_corte['Tipo'] = 'Cuerpo'
-                    df_corte['Tipo'] = df_corte['Tipo'].fillna('Cuerpo')
-                # ---------------------------------------
+                    
+                    # Rellenamos cualquier celda vacía con 'Cuerpo' y forzamos a texto
+                    df_corte['Tipo'] = df_corte['Tipo'].fillna('Cuerpo').astype(str)
 
-                if not df_corte.empty:
-                    st.data_editor(df_corte, use_container_width=True, hide_index=True)    
-               # --- RE-CÁLCULO DE MÉTRICAS (FIX MAESTRO BVM) ---
-                df_placa = df_corte[~df_corte['Tipo'].isin(['Fondo', 'Piso'])]
-                m2_18mm = (df_placa['L'] * df_placa['A'] * df_placa['Cant']).sum() / 1_000_000
+                    # Mostramos la tabla al usuario ya normalizada
+                    st.data_editor(df_corte, use_container_width=True, hide_index=True)
+    
+                    # --- 📊 RE-CÁLCULO DE MÉTRICAS (FIX SEGURO BVM) ---
+                    # Filtramos: Todo lo que NO sea Fondo o Piso es placa de 18mm
+                    df_placa = df_corte[~df_corte['Tipo'].isin(['Fondo', 'Piso'])]
+                    
+                    if not df_placa.empty:
+                        m2_18mm = (df_placa['L'] * df_placa['A'] * df_placa['Cant']).sum() / 1_000_000
+                    else:
+                        m2_18mm = 0.0
+                # --- FIN DEL ESCUDO ---
                 
                 # FALLA 1: Estabas usando 'maderas' antes de verificar si tenía datos.
                 # Usamos .get() con un valor default de 1.0 para que no multiplique por 0 en el peor caso.
