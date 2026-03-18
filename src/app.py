@@ -312,22 +312,31 @@ def generar_despiece_bvm(tipo, ancho_m, alto_m, prof_m, esp_real, tiene_parante,
     
  
 def exportar_para_aspire(df, material, espesor):
-    # Renombramos columnas al estándar de Aspire/VCarve
+    # Forzamos una copia limpia
     df_aspire = df.copy()
-    df_aspire = df_aspire.rename(columns={
+    
+    # Mapeo explícito: nos aseguramos de que los nombres existan antes de renombrar
+    mapeo = {
         "Pieza": "Name",
         "L": "Length",
         "A": "Width",
         "Cant": "Quantity"
-    })
+    }
     
-    # Agregamos los datos fijos que Aspire pide
+    # Renombramos solo las columnas que existan en el DataFrame actual
+    df_aspire = df_aspire.rename(columns=mapeo)
+    
+    # Agregamos los datos fijos
     df_aspire["Thickness"] = espesor
     df_aspire["Material"] = material
     
-    # Seleccionamos solo lo que Aspire necesita
+    # Definimos las columnas finales que Aspire espera
     columnas_finales = ["Name", "Length", "Width", "Thickness", "Quantity", "Material"]
-    return df_aspire[columnas_finales].to_csv(index=False).encode('utf-8')
+    
+    # Filtramos solo las que necesitamos (esto evita el error de 'not in index')
+    existentes = [c for c in columnas_finales if c in df_aspire.columns]
+    
+    return df_aspire[existentes].to_csv(index=False).encode('utf-8')
 # --- 0. SEGURIDAD DE ACCESO MULTIUSUARIO (VALOR PRO) ---
 def gestionar_auth():
     if "autenticado" not in st.session_state:
