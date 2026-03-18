@@ -849,9 +849,19 @@ if menu == "Cotizador CNC":
                     # C. Mostramos la tabla
                     st.data_editor(df_corte, use_container_width=True, hide_index=True)
     
-                    # D. CÁLCULO DE MÉTRICAS (Todo adentro del IF)
+                    # D. CÁLCULO DE MÉTRICAS Y DINERO (Aquí estaba la falla)
                     df_placa = df_corte[~df_corte['Tipo'].isin(['Fondo', 'Piso'])]
                     m2_18mm = (df_placa['L'] * df_placa['A'] * df_placa['Cant']).sum() / 1_000_000
+                    
+                    # Traemos el precio de la madera elegida (Melamina Blanca, etc)
+                    precio_placa_unitario = maderas.get(mat_principal, 0.0)
+                    costo_madera = m2_18mm * (precio_placa_unitario / 5.03)
+
+                    # Cálculo de Fondos
+                    df_fondo_only = df_corte[df_corte['Tipo'].isin(['Fondo', 'Piso'])]
+                    m2_fondo = (df_fondo_only['L'] * df_fondo_only['A'] * df_fondo_only['Cant']).sum() / 1_000_000 if not df_fondo_only.empty else 0.0
+                    precio_fondo_unitario = fondos.get(mat_fondo_sel, 0.0)
+                    costo_fondo = m2_fondo * (precio_fondo_unitario / 5.03)
                     
                     
                     # E. HERRAJES
