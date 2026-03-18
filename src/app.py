@@ -333,7 +333,7 @@ def generar_despiece_bvm(tipo, ancho_m, alto_m, prof_m, esp_real, tiene_parante,
                     despiece.append({"Pieza": "Estante Móvil (V2/3)", "Cant": int(estantes_moviles), "L": ancho_est_ref_grande - 2, "A": prof_est, "Tipo": "Cuerpo"})
                     despiece.append({"Pieza": "Estante Móvil (V1/3)", "Cant": int(estantes_moviles), "L": ancho_est_ref_chico - 2, "A": prof_est, "Tipo": "Cuerpo"})
                 elif cant_puertas == 4:
-                    despiece.append({"Pieza": "Estante Móvil", "Cant": int(estantes_moviles * 2), "L": ancho_est_ref - 2, "A": prof_est, "Tipo": "Cuerpo"})
+                    despiece.append({"Pieza": "Estante Móvil", "Cant": int(estantes_moviles), "L": ancho_est_ref - 2, "A": prof_est, "Tipo": "Cuerpo"})
                 else:
                     despiece.append({"Pieza": "Estante Móvil", "Cant": int(estantes_moviles), "L": ancho_est_ref - 2, "A": prof_est, "Tipo": "Cuerpo"})
             # 4. PUERTAS Y FRENTES
