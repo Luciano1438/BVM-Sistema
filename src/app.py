@@ -936,38 +936,48 @@ if menu == "Cotizador CNC":
             'pct_seña': pct_seña
             }
                 
+        # --- 1. PREPARACIÓN DE ARCHIVOS (Primero generamos la data) ---
         pdf_bytes = generar_pdf_presupuesto(datos_pdf)
         link_wa = generar_link_whatsapp(datos_pdf)
-
-                # 2. Después dibujamos los botones (Interfaz)
-        st.download_button(
-            label="📥 Descargar Presupuesto Profesional",
-            data=pdf_bytes,
-            file_name=f"Presupuesto_{cliente}.pdf",
-            mime="application/pdf",
-            use_container_width=True
-        )
-        st.download_button(
-            label="🤖 Descargar Lista para ASPIRE (CNC)",
-            data=archivo_aspire,
-            file_name=f"CNC_{cliente}_{tipo_modulo}.csv",
-            mime="text/csv",
-            use_container_width=True
-        )
-        dxf_bytes = generar_dxf_bvm(df_corte)
-        st.download_button(
-            label="📐 Descargar Dibujo DXF (Vectores para Aspire)",
-            data=dxf_bytes,
-            file_name=f"Vectores_{cliente}.dxf",
-            mime="application/dxf",
-            use_container_width=True
-        )       
-        st.link_button("🟢 Enviar Presupuesto por WhatsApp", link_wa, use_container_width=True)
-        st.write("---")
-        st.subheader("⚙️ Exportación Industrial")
-
         archivo_aspire = exportar_para_aspire(df_corte, mat_principal, esp_real)
+        dxf_bytes = generar_dxf_bvm(df_corte)
 
+        # --- 2. INTERFAZ DE USUARIO (Ahora dibujamos los botones) ---
+        st.write("---")
+        st.subheader("📄 Gestión Comercial")
+        
+        col_com1, col_com2 = st.columns(2)
+        with col_com1:
+            st.download_button(
+                label="📥 Descargar Presupuesto PDF",
+                data=pdf_bytes,
+                file_name=f"Presupuesto_{cliente}.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
+        with col_com2:
+            st.link_button("🟢 Enviar por WhatsApp", link_wa, use_container_width=True)
+
+        st.write("---")
+        st.subheader("⚙️ Terminal de Producción CNC")
+
+        col_cnc1, col_cnc2 = st.columns(2)
+        with col_cnc1:
+            st.download_button(
+                label="📐 Descargar Dibujo DXF (Vectores)",
+                data=dxf_bytes,
+                file_name=f"Vectores_{cliente}.dxf",
+                mime="application/dxf",
+                use_container_width=True
+            )
+        with col_cnc2:
+            st.download_button(
+                label="🤖 Descargar Lista CSV (Aspire)",
+                data=archivo_aspire,
+                file_name=f"CNC_{cliente}.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
         
             
                 # 6. --- GENERACIÓN DE ETIQUETAS (VALOR PRO) ---
