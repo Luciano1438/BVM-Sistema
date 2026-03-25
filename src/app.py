@@ -185,11 +185,12 @@ def generar_despiece_bvm(tipo, ancho_m, alto_m, prof_m, esp_real, tiene_parante,
         ancho_interno_total = ancho_m - (esp_real * 2)
 
         if tipo == "Bajo Mesada":
+            # 1. BASE Y LATERALES
             despiece.append({"Pieza": "Base Módulo", "Cant": 1, "L": ancho_m, "A": prof_m, "Tipo": "Cuerpo"})
             altura_lateral = alto_m - esp_real
             despiece.append({"Pieza": "Lateral Exterior", "Cant": 2, "L": altura_lateral, "A": prof_m, "Tipo": "Cuerpo"})
             
-            # 3. FRENTINES Y ESTILOS
+            # 2. FRENTINES Y ESTILOS
             if tipo_tapa == "Superpuesta":
                 despiece.append({"Pieza": "Frentín Frontal", "Cant": 1, "L": ancho_interno_total, "A": 50, "Tipo": "Cuerpo"})
                 alto_puerta = alto_m - 30
@@ -197,54 +198,48 @@ def generar_despiece_bvm(tipo, ancho_m, alto_m, prof_m, esp_real, tiene_parante,
                 despiece.append({"Pieza": "Frentín Gola L (A)", "Cant": 1, "L": ancho_interno_total, "A": 40, "Tipo": "Cuerpo"})
                 despiece.append({"Pieza": "Frentín Gola L (B)", "Cant": 1, "L": ancho_interno_total, "A": 50, "Tipo": "Cuerpo"})
                 alto_puerta = alto_m - 30
-            else: 
+            else: # Embutida
                 despiece.append({"Pieza": "Frentín Embutido", "Cant": 1, "L": ancho_interno_total, "A": 40, "Tipo": "Cuerpo"})
                 alto_puerta = alto_m - esp_real - 46
-                
-            tipo_estante_manual = st.radio("Formato de Estante", ["Completo", "Medio"], key="fmt_est_bm")
-            # 4. TRAVESAÑOS TRASEROS (Doble refuerzo)
+            
+            # 3. REFUERZOS TRASEROS
             despiece.append({"Pieza": "Travesaño Trasero (100)", "Cant": 1, "L": ancho_interno_total, "A": 100, "Tipo": "Cuerpo"})
             despiece.append({"Pieza": "Travesaño Trasero (60)", "Cant": 1, "L": ancho_interno_total, "A": 60, "Tipo": "Cuerpo"})
             
-            # 5. FONDO (Regla 80mm alto y 20mm ancho)
+            # 4. FONDO
             alto_fondo = alto_m - 80 - esp_real
             despiece.append({"Pieza": "Fondo Mueble", "Cant": 1, "L": alto_fondo, "A": ancho_m - 20, "Tipo": "Fondo"})
-    
-            # 6. INTERIORES Y PUERTAS
+
+            # 5. LÓGICA DE ESTANTES (Independiente de Puertas)
+            prof_est = prof_m - 20
+            # Definimos ancho y nombre según tu elección manual
+            if tipo_estante_manual == "Medio":
+                etiqueta_est = "Medio Estante"
+                ancho_est_final = (ancho_interno_total - esp_real) / 2
+                mult_cant = 2
+            else:
+                etiqueta_est = "Estante Completo"
+                ancho_est_final = ancho_interno_total
+                mult_cant = 1
+
+            # Agregamos según lo que marcaste en los cuadraditos de la UI
+            if estantes_fijos > 0:
+                despiece.append({"Pieza": f"{etiqueta_est} FIJO", "Cant": int(estantes_fijos * mult_cant), "L": round(ancho_est_final, 1), "A": prof_est, "Tipo": "Cuerpo"})
+            if estantes_moviles > 0:
+                despiece.append({"Pieza": f"{etiqueta_est} MÓVIL", "Cant": int(estantes_moviles * mult_cant), "L": round(ancho_est_final - 2, 1), "A": prof_est, "Tipo": "Cuerpo"})
+
+            # 6. PARANTE Y PUERTAS (Tu lógica intacta)
             if tiene_parante:
-                # --- Lógica de 3 Puertas ---
                 ancho_par = prof_m if tipo_parante == "Largo (Fondo Lateral)" else 100
                 despiece.append({"Pieza": "Parante Divisor", "Cant": 1, "L": altura_lateral, "A": ancho_par, "Tipo": "Cuerpo"})
                 
-                if tipo_estante_manual == "Medio":
-                etiqueta_est = "Medio Estante"
-                # Tu fórmula: (Ancho Interno - Espesor) / 2
-                ancho_est_base = (ancho_interno_total - esp_real) / 2
-                mult_cant = 2  # Asumimos 2 piezas por nivel si es medio
-            else:
-                etiqueta_est = "Estante Completo"
-                ancho_est_base = ancho_interno_total
-                mult_cant = 1
-                
-                # Cálculo de Ancho para 3 Puertas
-                if tipo_tapa == "Embutida":
-                    ancho_p = (ancho_m - (esp_real * 3) - 16) / 3
-                else:
-                    ancho_p = (ancho_m - 12) / 3
-                    
+                # Cálculo 3 Puertas
+                ancho_p = (ancho_m - (esp_real * 3) - 16) / 3 if tipo_tapa == "Embutida" else (ancho_m - 12) / 3
                 despiece.append({"Pieza": "Puerta", "Cant": 3, "L": alto_puerta, "A": round(ancho_p, 1), "Tipo": "Frente"})
-                
             else:
-                # --- Lógica de 2 Puertas ---
-                despiece.append({"Pieza": "Estante Completo", "Cant": 1, "L": ancho_interno_total, "A": prof_m - 20, "Tipo": "Cuerpo"})
-                
-                # Cálculo de Ancho para 2 Puertas
-                if tipo_tapa == "Embutida":
-                    ancho_p = (ancho_m - (esp_real * 2) - 10) / 2
-                else:
-                    ancho_p = (ancho_m - 8) / 2
-                    
-                despiece.append({"Pieza": "Puerta", "Cant": 2, "L": alto_puerta, "A": round(ancho_p, 1), "Tipo": "Frente"})
+                # Cálculo 2 Puertas
+                ancho_p = (ancho_m - (esp_real * 2) - 10) / 2 if tipo_tapa == "Embutida" else (ancho_m - 8) / 2
+                despiece.append({"Pieza": "Puerta", "Cant": 2, "L": alto_puerta, "A": round(ancho_p, 1), "Tipo": "Frente"})"Frente"})
             
         elif tipo == "Cajonera":
             # --- TU LÓGICA DE CAJONERA ORIGINAL (INTACTA) ---
