@@ -185,10 +185,7 @@ def generar_despiece_bvm(tipo, ancho_m, alto_m, prof_m, esp_real, tiene_parante,
         ancho_interno_total = ancho_m - (esp_real * 2)
 
         if tipo == "Bajo Mesada":
-        # 1. BASE
             despiece.append({"Pieza": "Base Módulo", "Cant": 1, "L": ancho_m, "A": prof_m, "Tipo": "Cuerpo"})
-            
-            # 2. LATERALES (Apoyan sobre base)
             altura_lateral = alto_m - esp_real
             despiece.append({"Pieza": "Lateral Exterior", "Cant": 2, "L": altura_lateral, "A": prof_m, "Tipo": "Cuerpo"})
             
@@ -202,9 +199,9 @@ def generar_despiece_bvm(tipo, ancho_m, alto_m, prof_m, esp_real, tiene_parante,
                 alto_puerta = alto_m - 30
             else: 
                 despiece.append({"Pieza": "Frentín Embutido", "Cant": 1, "L": ancho_interno_total, "A": 40, "Tipo": "Cuerpo"})
-                despiece.append({"Pieza": "Travesaño Superior", "Cant": 1, "L": ancho_interno_total, "A": 100, "Tipo": "Cuerpo"})
                 alto_puerta = alto_m - esp_real - 46
-            
+                
+            tipo_estante_manual = st.radio("Formato de Estante", ["Completo", "Medio"], key="fmt_est_bm")
             # 4. TRAVESAÑOS TRASEROS (Doble refuerzo)
             despiece.append({"Pieza": "Travesaño Trasero (100)", "Cant": 1, "L": ancho_interno_total, "A": 100, "Tipo": "Cuerpo"})
             despiece.append({"Pieza": "Travesaño Trasero (60)", "Cant": 1, "L": ancho_interno_total, "A": 60, "Tipo": "Cuerpo"})
@@ -218,7 +215,16 @@ def generar_despiece_bvm(tipo, ancho_m, alto_m, prof_m, esp_real, tiene_parante,
                 # --- Lógica de 3 Puertas ---
                 ancho_par = prof_m if tipo_parante == "Largo (Fondo Lateral)" else 100
                 despiece.append({"Pieza": "Parante Divisor", "Cant": 1, "L": altura_lateral, "A": ancho_par, "Tipo": "Cuerpo"})
-                despiece.append({"Pieza": "Medio Estante", "Cant": 2, "L": ancho_interno_total / 2, "A": prof_m - 20, "Tipo": "Cuerpo"})
+                
+                if tipo_estante_manual == "Medio":
+                etiqueta_est = "Medio Estante"
+                # Tu fórmula: (Ancho Interno - Espesor) / 2
+                ancho_est_base = (ancho_interno_total - esp_real) / 2
+                mult_cant = 2  # Asumimos 2 piezas por nivel si es medio
+            else:
+                etiqueta_est = "Estante Completo"
+                ancho_est_base = ancho_interno_total
+                mult_cant = 1
                 
                 # Cálculo de Ancho para 3 Puertas
                 if tipo_tapa == "Embutida":
@@ -306,7 +312,7 @@ def generar_despiece_bvm(tipo, ancho_m, alto_m, prof_m, esp_real, tiene_parante,
             if cant_puertas in [3, 4]:
                 despiece.append({"Pieza": "Parante Intermedio", "Cant": 1, "L": alto_m - (esp_real * 2), "A": prof_m - 20, "Tipo": "Cuerpo"})
 
-            # 3. ESTANTES DINÁMICOS (Copiá y pegá esto con cuidado de los espacios)
+            # 3. ESTANTES DINÁMICOS 
             prof_est = prof_m - 30
             if cant_puertas == 2:
                 ancho_est_ref = ancho_base
