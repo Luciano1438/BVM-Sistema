@@ -798,14 +798,21 @@ if menu == "Cotizador CNC":
                 #PARÁMETROS FINANCIEROS Y ENVÍO ---
             with st.expander("💰 Soporte y Logística", expanded=False):
                 tipo_base = st.selectbox("Tipo de Soporte", ["Zócalo de Madera", "Banquina", "Patas Plásticas", "Nada"])
-                costo_base = 5000 if tipo_base == "Patas Plásticas" else 0
-                altura_base = st.number_input("Altura de Base/Zócalo (mm)", min_value=0.0, value=100.0, step=5.0)
                 
                 if tipo_base == "Zócalo de Madera":
+                    altura_base = st.number_input("Altura de Zócalo de Madera (mm)", min_value=0.0, value=100.0, step=5.0)
                     st.caption("💡 El sistema sumará las piezas de zócalo al despiece.")
                 elif tipo_base == "Banquina":
+                    altura_base = st.number_input("Altura de Banquina (mm)", min_value=0.0, value=100.0, step=5.0)
                     st.info(f"⚠️ El mueble apoyará sobre base de {altura_base}mm. Ajustando laterales.")
-                
+                elif tipo_base == "Patas Plásticas":
+                    altura_base = st.number_input("Altura de Patas (mm)", min_value=0.0, value=100.0, step=5.0)
+                    st.caption("✅ Se asumen patas niveladoras estándar.")
+                else:
+                    # Si selecciona "Nada", fijamos la altura en 0 internamente para no romper los cálculos
+                    altura_base = 0.0
+                                
+                costo_base = 5000 if tipo_base == "Patas Plásticas" else 0
                 dias_prod = st.number_input("Días de taller", value=0.0, step=0.5)
                 necesita_colocacion = st.checkbox("¿Requiere Colocación?")
                 flete_sel = st.selectbox("Zona Envío", ["Ninguno", "Capital", "Zona Norte"])
