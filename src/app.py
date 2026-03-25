@@ -195,8 +195,7 @@ def generar_despiece_bvm(tipo, ancho_m, alto_m, prof_m, esp_real, tiene_parante,
             # 3. FRENTINES Y ESTILOS
             if tipo_tapa == "Superpuesta":
                 despiece.append({"Pieza": "Frentín Frontal", "Cant": 1, "L": ancho_interno_total, "A": 50, "Tipo": "Cuerpo"})
-                despiece.append({"Pieza": "Travesaño Superior", "Cant": 1, "L": ancho_interno_total, "A": 100, "Tipo": "Cuerpo"})
-                alto_puerta = alto_m - 4
+                alto_puerta = alto_m - 30
             elif tipo_tapa == "Gola BVM":
                 despiece.append({"Pieza": "Frentín Gola L (A)", "Cant": 1, "L": ancho_interno_total, "A": 40, "Tipo": "Cuerpo"})
                 despiece.append({"Pieza": "Frentín Gola L (B)", "Cant": 1, "L": ancho_interno_total, "A": 50, "Tipo": "Cuerpo"})
@@ -208,7 +207,7 @@ def generar_despiece_bvm(tipo, ancho_m, alto_m, prof_m, esp_real, tiene_parante,
             
             # 4. TRAVESAÑOS TRASEROS (Doble refuerzo)
             despiece.append({"Pieza": "Travesaño Trasero (100)", "Cant": 1, "L": ancho_interno_total, "A": 100, "Tipo": "Cuerpo"})
-            despiece.append({"Pieza": "Travesaño Trasero (70)", "Cant": 1, "L": ancho_interno_total, "A": 70, "Tipo": "Cuerpo"})
+            despiece.append({"Pieza": "Travesaño Trasero (60)", "Cant": 1, "L": ancho_interno_total, "A": 60, "Tipo": "Cuerpo"})
             
             # 5. FONDO (Regla 80mm alto y 20mm ancho)
             alto_fondo = alto_m - 80 - esp_real
@@ -670,6 +669,26 @@ if menu == "Cotizador CNC":
                         distancia_parante = c_p2.number_input("Distancia desde lateral izq. (mm)", 
                                                             value=ancho_m/cant_puertas if ancho_m > 0 else 0.0, 
                                                             step=1.0)
+                    st.markdown("---")
+                    st.markdown("#### 🪵 Configuración de Estantes")
+                    cant_total_est = st.number_input("Cantidad Total Estantes", min_value=0, value=1, step=1, key="cant_est_bm")
+        
+                    indices_fijos = []
+                    if cant_total_est > 0:
+                        st.write("Seleccioná los estantes que son **FIJOS**:")
+                        cols_estantes = st.columns(int(cant_total_est))
+            
+                        for i in range(int(cant_total_est)):
+                            with cols_estantes[i]:
+                                # Usamos key único para evitar errores de Streamlit
+                                es_fijo = st.checkbox(f"E{i+1}", value=False, key=f"check_est_bm_{i}")
+                                if es_fijo:
+                                    indices_fijos.append(i)
+        
+                    # Calculamos totales para el motor
+                    estantes_fijos = len(indices_fijos)
+                    estantes_moviles = cant_total_est - estantes_fijos
+                    st.caption(f"Resumen: {estantes_fijos} Fijos y {estantes_moviles} Móviles")
                     
                     # Configuración de herrajes (Bisagras)
                     tipo_bisagra = st.selectbox("Tipo de Bisagra", ["Cazoleta C0 Cierre Suave", "Especial"])
