@@ -673,6 +673,8 @@ if menu == "Cotizador CNC":
                     st.markdown("---")
                     st.markdown("#### 🪵 Configuración de Estantes")
                     cant_total_est = st.number_input("Cantidad Total Estantes", min_value=0, value=1, step=1, key="cant_est_bm")
+                    tipo_estante_manual = st.radio("Formato de Estante", ["Completo", "Medio"], key="fmt_est_bm")
+
         
                     indices_fijos = []
                     if cant_total_est > 0:
