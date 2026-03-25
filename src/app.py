@@ -250,7 +250,7 @@ def generar_despiece_bvm(tipo, ancho_m, alto_m, prof_m, esp_real, tiene_parante,
             altura_lateral_bvm = alto_m - esp_real
             despiece.append({"Pieza": "Lateral Exterior", "Cant": 2, "L": altura_lateral_bvm, "A": prof_m, "Tipo": "Cuerpo"})
             despiece.append({"Pieza": "Travesaño Superior", "Cant": 1, "L": ancho_interno_total, "A": 100, "Tipo": "Cuerpo"})
-            despiece.append({"Pieza": "Travesaño Trasero", "Cant": 1, "L": ancho_interno_total, "A": 70, "Tipo": "Cuerpo"})
+            despiece.append({"Pieza": "Travesaño Trasero", "Cant": 1, "L": ancho_interno_total, "A": 60, "Tipo": "Cuerpo"})
             despiece.append({"Pieza": "Frentín Frontal", "Cant": 1, "L": ancho_interno_total, "A": 50, "Tipo": "Cuerpo"})
             despiece.append({"Pieza": "Fondo Mueble", "Cant": 1, "L": alto_m - 20, "A": ancho_m - 20, "Tipo": "Fondo"})
     
