@@ -239,7 +239,7 @@ def generar_despiece_bvm(tipo, ancho_m, alto_m, prof_m, esp_real, tiene_parante,
             else:
                 # Cálculo 2 Puertas
                 ancho_p = (ancho_m - (esp_real * 2) - 10) / 2 if tipo_tapa == "Embutida" else (ancho_m - 8) / 2
-                despiece.append({"Pieza": "Puerta", "Cant": 2, "L": alto_puerta, "A": round(ancho_p, 1), "Tipo": "Frente"})"Frente"})
+                despiece.append({"Pieza": "Puerta", "Cant": 2, "L": alto_puerta, "A": round(ancho_p, 1), "Tipo": "Frente"})
             
         elif tipo == "Cajonera":
             # --- TU LÓGICA DE CAJONERA ORIGINAL (INTACTA) ---
