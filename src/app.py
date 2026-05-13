@@ -10,6 +10,16 @@ from datetime import datetime, timedelta, timezone
 import urllib.parse
 import ezdxf
 import io
+from motor import (
+    generar_despiece_bvm,
+    obtener_veta_automatica,
+    calcular_medida_frente,
+    calcular_ahorro_retazos,
+    generar_pdf_presupuesto,
+    generar_dxf_bvm,
+    exportar_para_aspire,
+    generar_link_whatsapp,
+)
 
 # --- PARÁMETROS TÉCNICOS DE TALLER ---
 CONFIG_TECNICA = {
@@ -19,85 +29,6 @@ CONFIG_TECNICA = {
     "retazo_min_largo": 400,     # mm
 }
 
-def obtener_veta_automatica(nombre_pieza, material_seleccionado):
-    """
-    Si es Blanco, la veta es libre. Si es enchapado, sigue la regla de BVM.
-    """
-    material_lower = material_seleccionado.lower()
-    # REGLA DE EFICIENCIA: Si es blanco, no desperdiciamos placa con orientaciones fijas
-    if "blanco" in material_lower:
-        return "Libre (Cualquier sentido)"    
-
-    # Regla de tu viejo para materiales con veta (enchapados/colores)
-    nombre_lower = nombre_pieza.lower()
-    if any(x in nombre_lower for x in ["lateral exterior", "puerta", "tapa de cajon", "fondo"]):
-        return "Vertical (Hacia Arriba)"
-    return "Horizontal (Izquierda a Derecha)"
-
-def calcular_medida_frente(ancho_hueco, alto_hueco, tipo_montaje="Superpuesto", es_doble=False):
-    """
-    Calcula la medida real de la placa para un frente.
-    """
-    if tipo_montaje == "Superpuesto":
-        # Se deja 2mm menos en los 4 lados sobre la medida externa
-        ancho_real = ancho_hueco - 4 
-        alto_real = alto_hueco - 4
-    else:  # Embutido
-        # 3mm arriba, abajo y bisagra. 2mm en el encuentro si es doble.
-        alto_real = alto_hueco - 6 # 3mm arriba + 3mm abajo
-        if es_doble:
-            ancho_real = ancho_hueco - 5 # 3mm bisagra + 2mm encuentro
-        else:
-            ancho_real = ancho_hueco - 6 # 3mm de cada lado
-    return ancho_real, alto_real
-
-def generar_pdf_presupuesto(datos):
-    pdf = FPDF()
-    pdf.add_page()
-    
-    # Diseño de Cabecera Profesional
-    pdf.set_font("Arial", 'B', 20)
-    pdf.set_text_color(46, 125, 50) # Verde BVM
-    pdf.cell(200, 20, "PRESUPUESTO COMERCIAL - BVM", ln=True, align='C')
-    
-    pdf.set_text_color(0, 0, 0)
-    pdf.set_font("Arial", '', 10)
-    tz_arg = timezone(timedelta(hours=-3))
-    fecha_hoy = datetime.now(tz_arg).strftime('%d/%m/%Y')
-    pdf.cell(200, 10, f"Fecha de emisión: {fecha_hoy}", ln=True, align='R')    
-
-    # Cuerpo del Presupuesto
-    pdf.set_font("Arial", 'B', 12)
-    pdf.cell(0, 10, "DETALLES DEL PROYECTO", ln=True)
-    pdf.set_font("Arial", '', 11)
-    
-    # Información Clave Solicitada
-    pdf.cell(0, 8, f"Cliente: {datos['cliente']}", ln=True)
-    pdf.cell(0, 8, f"Proyecto: {datos['mueble']}", ln=True)
-    pdf.cell(0, 8, f"Dimensiones Generales: {datos['ancho']} x {datos['alto']} x {datos['prof']} mm", ln=True)
-    pdf.cell(0, 8, f"Material Principal: {datos['material']}", ln=True)
-    pdf.ln(5)
-    
-   # generar_pdf_presupuesto y reemplazala:
-    pdf.set_font("Arial", 'B', 12)
-    pdf.cell(0, 10, "CONDICIONES Y ENTREGA", ln=True)
-    pdf.set_font("Arial", '', 11)
-    pdf.cell(0, 8, f"Tiempo estimado de entrega: {datos['entrega']} días hábiles.", ln=True)
-    
-    # Calculamos la seña dinámicamente
-    monto_seña = datos['precio'] * (datos['pct_seña'] / 100)
-    pdf.cell(0, 8, f"Monto de Seña ({datos['pct_seña']}%): ${monto_seña:,.2f}", ln=True)
-
-    # Precio Final Destacado
-    pdf.set_font("Arial", 'B', 16)
-    pdf.set_fill_color(240, 240, 240)
-    pdf.cell(0, 15, f"VALOR TOTAL: ${datos['precio']:,.2f}", ln=True, align='C', fill=True)
-    
-    pdf.ln(10)
-    pdf.set_font("Arial", 'I', 9)
-    pdf.multi_cell(0, 5, "Nota: Los precios están sujetos a cambios por volatilidad de insumos si no se abona la seña dentro de las 48hs.")
-
-    return pdf.output(dest='S').encode('latin-1')    
 
 # --- CONFIGURACIÓN DE RUTAS ---
 BASE_DIR = Path(__file__).resolve().parent.parent 
@@ -143,248 +74,8 @@ def registrar_retazo(material, largo, ancho):
             st.error(f"❌ Error: {int(largo)}x{int(ancho)} es inferior al mínimo de 150x400.")
     except Exception as e:
         st.error(f"Error técnico al registrar: {e}")
-def generar_dxf_bvm(df):
-    doc = ezdxf.new('R2010')
-    msp = doc.modelspace()
-    
-    x_offset = 0
-    margen = 50 # Espacio entre piezas dibujadas
-    
-    for _, row in df.iterrows():
-        largo = float(row['L'])
-        ancho = float(row['A'])
-        cant = int(row['Cant'])
-        nombre = str(row['Pieza'])
-        
-        for i in range(cant):
-            # Dibujamos el rectángulo de la pieza
-            puntos = [
-                (x_offset, 0),
-                (x_offset + largo, 0),
-                (x_offset + largo, ancho),
-                (x_offset, ancho),
-                (x_offset, 0)
-            ]
-            msp.add_lwpolyline(puntos, close=True)
-            
-            # Le ponemos el nombre adentro para que el operario no se pierda
-            msp.add_text(f"{nombre}", height=15).set_placement((x_offset + 5, 5))
-            
-            x_offset += largo + margen
-            
-    out = io.StringIO()
-    doc.write(out)
-    return out.getvalue().encode('utf-8')
-def generar_despiece_bvm(tipo, ancho_m, alto_m, prof_m, esp_real, tiene_parante, tipo_parante, 
-                         distancia_parante, cant_cajones, tipo_tapa, tipo_base, altura_base, 
-                         luz_entre_tapas, luz_perimetral_tapa, alto_frentin_emb, 
-                         aire_trasero, esp_corredera, distribucion_tapas,
-                         cant_puertas=0, tiene_cenefa=False, alto_cenefa=0.0,
-                         estantes_fijos=0, estantes_moviles=0): 
-        despiece = []
-        ancho_interno_total = ancho_m - (esp_real * 2)
-
-        if tipo == "Bajo Mesada":
-            # 1. BASE Y LATERALES
-            despiece.append({"Pieza": "Base Módulo", "Cant": 1, "L": ancho_m, "A": prof_m, "Tipo": "Cuerpo"})
-            altura_lateral = alto_m - esp_real
-            despiece.append({"Pieza": "Lateral Exterior", "Cant": 2, "L": altura_lateral, "A": prof_m, "Tipo": "Cuerpo"})
-            
-            # 2. FRENTINES Y ESTILOS
-            if tipo_tapa == "Superpuesta":
-                despiece.append({"Pieza": "Frentín Frontal", "Cant": 1, "L": ancho_interno_total, "A": 50, "Tipo": "Cuerpo"})
-                alto_puerta = alto_m - 30
-            elif tipo_tapa == "Gola BVM":
-                despiece.append({"Pieza": "Frentín Gola L (A)", "Cant": 1, "L": ancho_interno_total, "A": 40, "Tipo": "Cuerpo"})
-                despiece.append({"Pieza": "Frentín Gola L (B)", "Cant": 1, "L": ancho_interno_total, "A": 50, "Tipo": "Cuerpo"})
-                alto_puerta = alto_m - 30
-            else: # Embutida
-                despiece.append({"Pieza": "Frentín Embutido", "Cant": 1, "L": ancho_interno_total, "A": 40, "Tipo": "Cuerpo"})
-                alto_puerta = alto_m - esp_real - 46
-            
-            # 3. REFUERZOS TRASEROS
-            despiece.append({"Pieza": "Travesaño Trasero (100)", "Cant": 1, "L": ancho_interno_total, "A": 100, "Tipo": "Cuerpo"})
-            despiece.append({"Pieza": "Travesaño Trasero (60)", "Cant": 1, "L": ancho_interno_total, "A": 60, "Tipo": "Cuerpo"})
-            
-            # 4. FONDO
-            alto_fondo = alto_m - 80 - esp_real
-            despiece.append({"Pieza": "Fondo Mueble", "Cant": 1, "L": alto_fondo, "A": ancho_m - 20, "Tipo": "Fondo"})
-
-            # 5. LÓGICA DE ESTANTES (Independiente de Puertas)
-            prof_est = prof_m - 20
-            # Definimos ancho y nombre según tu elección manual
-            if tipo_estante_manual == "Medio":
-                etiqueta_est = "Medio Estante"
-                ancho_est_final = (ancho_interno_total - esp_real) / 2
-                mult_cant = 2
-            else:
-                etiqueta_est = "Estante Completo"
-                ancho_est_final = ancho_interno_total
-                mult_cant = 1
-
-            # Agregamos según lo que marcaste en los cuadraditos de la UI
-            if estantes_fijos > 0:
-                despiece.append({"Pieza": f"{etiqueta_est} FIJO", "Cant": int(estantes_fijos * mult_cant), "L": round(ancho_est_final, 1), "A": prof_est, "Tipo": "Cuerpo"})
-            if estantes_moviles > 0:
-                despiece.append({"Pieza": f"{etiqueta_est} MÓVIL", "Cant": int(estantes_moviles * mult_cant), "L": round(ancho_est_final - 2, 1), "A": prof_est, "Tipo": "Cuerpo"})
-
-            # 6. PARANTE Y PUERTAS (Tu lógica intacta)
-            if tiene_parante:
-                ancho_par = prof_m if tipo_parante == "Largo (Fondo Lateral)" else 100
-                despiece.append({"Pieza": "Parante Divisor", "Cant": 1, "L": altura_lateral, "A": ancho_par, "Tipo": "Cuerpo"})
-                
-                # Cálculo 3 Puertas
-                ancho_p = (ancho_m - (esp_real * 3) - 16) / 3 if tipo_tapa == "Embutida" else (ancho_m - 12) / 3
-                despiece.append({"Pieza": "Puerta", "Cant": 3, "L": alto_puerta, "A": round(ancho_p, 1), "Tipo": "Frente"})
-            else:
-                # Cálculo 2 Puertas
-                ancho_p = (ancho_m - (esp_real * 2) - 10) / 2 if tipo_tapa == "Embutida" else (ancho_m - 8) / 2
-                despiece.append({"Pieza": "Puerta", "Cant": 2, "L": alto_puerta, "A": round(ancho_p, 1), "Tipo": "Frente"})
-            
-        elif tipo == "Cajonera":
-            # --- TU LÓGICA DE CAJONERA ORIGINAL (INTACTA) ---
-            altura_caja_real = alto_m
-            if tipo_base in ["Banquina de Obra", "Patas Plásticas"]:
-                altura_caja_real = alto_m - altura_base
-    
-            despiece.append({"Pieza": "Base Módulo", "Cant": 1, "L": ancho_m, "A": prof_m, "Tipo": "Cuerpo"})
-            altura_lateral_bvm = alto_m - esp_real
-            despiece.append({"Pieza": "Lateral Exterior", "Cant": 2, "L": altura_lateral_bvm, "A": prof_m, "Tipo": "Cuerpo"})
-            despiece.append({"Pieza": "Travesaño Superior", "Cant": 1, "L": ancho_interno_total, "A": 100, "Tipo": "Cuerpo"})
-            despiece.append({"Pieza": "Travesaño Trasero", "Cant": 1, "L": ancho_interno_total, "A": 60, "Tipo": "Cuerpo"})
-            despiece.append({"Pieza": "Frentín Frontal", "Cant": 1, "L": ancho_interno_total, "A": 50, "Tipo": "Cuerpo"})
-            despiece.append({"Pieza": "Fondo Mueble", "Cant": 1, "L": alto_m - 20, "A": ancho_m - 20, "Tipo": "Fondo"})
-    
-            if tipo_base == "Zócalo de Madera":
-                despiece.append({"Pieza": "Zócalo Frontal", "Cant": 2, "L": altura_base, "A": ancho_interno_total, "Tipo": "Cuerpo"})
-                despiece.append({"Pieza": "Zócalo Lateral", "Cant": 2, "L": altura_base, "A": prof_m - 50, "Tipo": "Cuerpo"})
-    
-            if tiene_parante:
-                altura_interna = altura_caja_real - (esp_real * 2)
-                despiece.append({"Pieza": "Parante Divisor", "Cant": 1, "L": altura_interna, "A": prof_m - 20, "Tipo": "Cuerpo"})
-    
-            if cant_cajones > 0:
-                if "Superpuesta" in tipo_tapa:
-                    espacio_util_total = alto_m - 30 - ((cant_cajones - 1) * luz_entre_tapas)
-                    ancho_tapa_bvm = ancho_m - luz_perimetral_tapa
-                    largo_lateral_caja = prof_m - aire_trasero
-                elif tipo_tapa == "Embutida":
-                    espacio_util_total = alto_m - alto_frentin_emb - esp_real - ((cant_cajones + 1) * luz_entre_tapas)
-                    ancho_tapa_bvm = ancho_interno_total - 6
-                    largo_lateral_caja = prof_m - 30 - esp_real
-                else: # GOLA
-                    espacio_util_total = alto_m - 60 - ((cant_cajones - 1) * luz_entre_tapas)
-                    ancho_tapa_bvm = ancho_m - luz_perimetral_tapa
-                    largo_lateral_caja = prof_m - aire_trasero   
-                    despiece.append({"Pieza": "Frentín Gola L (A)", "Cant": 2, "L": 40, "A": ancho_interno_total, "Tipo": "Cuerpo"})
-                    despiece.append({"Pieza": "Frentín Gola L (B)", "Cant": 2, "L": 50, "A": ancho_interno_total, "Tipo": "Cuerpo"})
-    
-                if distribucion_tapas == "Proporcional (20/35/45)" and cant_cajones == 3:
-                    alturas_tapas = [espacio_util_total * 0.20, espacio_util_total * 0.35, espacio_util_total * 0.45]
-                else:
-                    divisor_seguro = cant_cajones if cant_cajones > 0 else 1
-                    alturas_tapas = [espacio_util_total / divisor_seguro] * int(cant_cajones)
-    
-                for i, alto_tapa in enumerate(alturas_tapas):
-                    despiece.append({"Pieza": f"Tapa de Cajon {i+1}", "Cant": 1, "L": round(alto_tapa,1), "A": ancho_tapa_bvm, "Tipo": "Frente"})
-    
-                ancho_caja_total = ancho_interno_total - (esp_corredera * 2)
-                despiece.append({"Pieza": "Lateral Cajón", "Cant": int(cant_cajones * 2), "L": 150, "A": largo_lateral_caja, "Tipo": "Cuerpo"})
-                ancho_frente_interno = ancho_caja_total - (esp_real * 2)
-                despiece.append({"Pieza": "Frente/Fondo Interno", "Cant": int(cant_cajones * 2), "L": 150, "A": ancho_frente_interno, "Tipo": "Cuerpo"})
-                despiece.append({"Pieza": "Piso Cajón", "Cant": int(cant_cajones), "L": round(largo_lateral_caja - 20, 1), "A": round(ancho_caja_total - 20, 1), "Tipo": "Piso"})
-        elif tipo == "Alacena":
-            ancho_base = ancho_m - (esp_real * 2)
-            
-            # 1. ESTRUCTURA
-            despiece.append({"Pieza": "Piso (Base)", "Cant": 1, "L": ancho_base, "A": prof_m, "Tipo": "Cuerpo"})
-            despiece.append({"Pieza": "Techo", "Cant": 1, "L": ancho_m, "A": prof_m, "Tipo": "Cuerpo"})
-            despiece.append({"Pieza": "Lateral", "Cant": 2, "L": alto_m - esp_real, "A": prof_m, "Tipo": "Cuerpo"})
-            despiece.append({"Pieza": "Fondo", "Cant": 1, "L": alto_m - 10, "A": ancho_m - 10, "Tipo": "Fondo"})
-            despiece.append({"Pieza": "Travesaño Superior", "Cant": 1, "L": ancho_base, "A": 100, "Tipo": "Cuerpo"})
-
-            # 2. PARANTE INTERMEDIO
-            if cant_puertas in [3, 4]:
-                despiece.append({"Pieza": "Parante Intermedio", "Cant": 1, "L": alto_m - (esp_real * 2), "A": prof_m - 20, "Tipo": "Cuerpo"})
-
-            # 3. ESTANTES DINÁMICOS 
-            prof_est = prof_m - 30
-            if cant_puertas == 2:
-                ancho_est_ref = ancho_base
-            elif cant_puertas == 3:
-                ancho_est_ref_grande = round(((ancho_m/3)*2) - (esp_real*2), 1)
-                ancho_est_ref_chico = round((ancho_m/3) - (esp_real*1.5), 1)
-            else: # 4 puertas
-                ancho_est_ref = round((ancho_m/2) - (esp_real*1.5), 1)
-
-            # --- FIJOS (Con etiqueta Tipo) ---
-            if estantes_fijos > 0:
-                if cant_puertas == 3:
-                    despiece.append({"Pieza": "Estante Fijo (V2/3)", "Cant": int(estantes_fijos), "L": ancho_est_ref_grande, "A": prof_est, "Tipo": "Cuerpo"})
-                    despiece.append({"Pieza": "Estante Fijo (V1/3)", "Cant": int(estantes_fijos), "L": ancho_est_ref_chico, "A": prof_est, "Tipo": "Cuerpo"})
-                elif cant_puertas == 4:
-                    despiece.append({"Pieza": "Estante Fijo", "Cant": int(estantes_fijos), "L": ancho_est_ref, "A": prof_est, "Tipo": "Cuerpo"})
-                else:
-                    despiece.append({"Pieza": "Estante Fijo", "Cant": int(estantes_fijos), "L": ancho_est_ref, "A": prof_est, "Tipo": "Cuerpo"})
-
-            # --- MÓVILES (Con etiqueta Tipo) ---
-            if estantes_moviles > 0:
-                if cant_puertas == 3:
-                    despiece.append({"Pieza": "Estante Móvil (V2/3)", "Cant": int(estantes_moviles), "L": ancho_est_ref_grande - 2, "A": prof_est, "Tipo": "Cuerpo"})
-                    despiece.append({"Pieza": "Estante Móvil (V1/3)", "Cant": int(estantes_moviles), "L": ancho_est_ref_chico - 2, "A": prof_est, "Tipo": "Cuerpo"})
-                elif cant_puertas == 4:
-                    despiece.append({"Pieza": "Estante Móvil", "Cant": int(estantes_moviles), "L": ancho_est_ref - 2, "A": prof_est, "Tipo": "Cuerpo"})
-                else:
-                    despiece.append({"Pieza": "Estante Móvil", "Cant": int(estantes_moviles), "L": ancho_est_ref - 2, "A": prof_est, "Tipo": "Cuerpo"})
-            # 4. PUERTAS Y FRENTES
-            if "Uñero" in tipo_tapa:
-                alto_p = alto_m + 20
-                if tiene_cenefa:
-                    despiece.append({"Pieza": "Cenefa", "Cant": 1, "L": ancho_m, "A": alto_cenefa if alto_cenefa > 0 else 50, "Tipo": "Frente"})
-            elif "Embutida" in tipo_tapa:
-                alto_p = alto_m - (esp_real * 2) - 6
-            else:
-                alto_p = alto_m - 4
-
-            if "Embutida" in tipo_tapa:
-                if cant_puertas == 2: ancho_p = (ancho_base - 10) / 2
-                elif cant_puertas == 3: ancho_p = (ancho_m - (esp_real*3) - 16) / 3
-                else: ancho_p = (ancho_m - (esp_real*3) - 20) / 4
-            else:
-                if cant_puertas == 2: ancho_p = (ancho_m - 8) / 2
-                elif cant_puertas == 3: ancho_p = (ancho_m - 12) / 3
-                else: ancho_p = (ancho_m - 16) / 4
-            
-            despiece.append({"Pieza": "Puerta", "Cant": cant_puertas, "L": alto_p, "A": round(ancho_p, 1), "Tipo": "Frente"})
-        return despiece 
-    
  
-def exportar_para_aspire(df, material, espesor):
-    # Forzamos una copia limpia
-    df_aspire = df.copy()
-    
-    # Mapeo explícito: nos aseguramos de que los nombres existan antes de renombrar
-    mapeo = {
-        "Pieza": "Name",
-        "L": "Length",
-        "A": "Width",
-        "Cant": "Quantity"
-    }
-    
-    # Renombramos solo las columnas que existan en el DataFrame actual
-    df_aspire = df_aspire.rename(columns=mapeo)
-    
-    # Agregamos los datos fijos
-    df_aspire["Thickness"] = espesor
-    df_aspire["Material"] = material
-    
-    # Definimos las columnas finales que Aspire espera
-    columnas_finales = ["Name", "Length", "Width", "Thickness", "Quantity", "Material"]
-    
-    # Filtramos solo las que necesitamos (esto evita el error de 'not in index')
-    existentes = [c for c in columnas_finales if c in df_aspire.columns]
-    
-    return df_aspire[existentes].to_csv(index=False, sep=',', decimal='.').encode('utf-8')
+
 # --- 0. SEGURIDAD DE ACCESO MULTIUSUARIO (VALOR PRO) ---
 def gestionar_auth():
     if "autenticado" not in st.session_state:
@@ -565,29 +256,6 @@ def ejecutar_query(query, params=(), fetch=False):
         cursor.execute(query, params)
         if fetch: return cursor.fetchall()
         conn.commit()
-def generar_link_whatsapp(datos):
-    # Formato limpio y profesional sin caracteres especiales
-    lineas = [
-        f"*PRESUPUESTO BVM - {datos['mueble'].upper()}*",
-        "",
-        "Hola! Te envio los detalles de la cotización:",
-        "",
-        f"Medidas: {datos['ancho']}x{datos['alto']}x{datos['prof']} mm",
-        f"Material: {datos['material']}",
-        f"Entrega: {datos['entrega']} dias habiles",
-        "",
-        f"VALOR TOTAL: ${datos['precio']:,.2f}",
-        f"SEÑA REQUERIDA ({datos['pct_seña']}%): ${datos['precio'] * (datos['pct_seña']/100):,.2f}",
-        "",
-        "Nota: Los precios se mantienen por 48hs. Una vez abonada la seña, se congelan los materiales y comienza la producción."
-    ]
-
-    # Unimos con saltos de línea
-    mensaje_final = "\n".join(lineas)
-    
-    # Codificamos solo el texto plano
-    texto_url = urllib.parse.quote(mensaje_final)
-    return f"https://wa.me/?text={texto_url}"
 
 # --- 3. INTERFAZ Y LÓGICA (INTACTA) ---
 st.set_page_config(page_title="BVM - Gestión materiales", layout="wide")
