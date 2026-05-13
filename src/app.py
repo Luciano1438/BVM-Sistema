@@ -588,25 +588,25 @@ if menu == "Cotizador CNC":
             ahorro_madera = 0
                 
         # El precio se calcula SIEMPRE, con o sin retazos
-ahorro_madera, matches = calcular_ahorro_retazos(
-    df_corte,
-    retazos_en_stock,
-    maderas.get(mat_principal, 0.0)
-)
-
-if matches:
-    st.subheader("♻️ Oportunidades de Ahorro")
-    for m in matches:
-        st.success(f"¡Match! '{m['pieza']}' entra en Retazo ID-{m['retazo_id']} — Ahorro: ${m['ahorro']:,.0f}")
-
-total_costo_real = total_costo - ahorro_madera
-utilidad = total_costo_real * config['ganancia_taller_pct']
-precio_final = total_costo_real + utilidad
-
-c1, c2, c3 = st.columns(3)
-c1.metric("Costo Real", f"${total_costo_real:,.0f}")
-c2.metric("M2 Placa", f"{m2_18mm:.2f}")
-c3.metric("Precio Final", f"${precio_final:,.2f}")
+                ahorro_madera, matches = calcular_ahorro_retazos(
+                    df_corte,
+                    retazos_en_stock,
+                    maderas.get(mat_principal, 0.0)
+                )
+                
+                if matches:
+                    st.subheader("♻️ Oportunidades de Ahorro")
+                    for m in matches:
+                        st.success(f"¡Match! '{m['pieza']}' entra en Retazo ID-{m['retazo_id']} — Ahorro: ${m['ahorro']:,.0f}")
+                
+                total_costo_real = total_costo - ahorro_madera
+                utilidad = total_costo_real * config['ganancia_taller_pct']
+                precio_final = total_costo_real + utilidad
+                
+                c1, c2, c3 = st.columns(3)
+                c1.metric("Costo Real", f"${total_costo_real:,.0f}")
+                c2.metric("M2 Placa", f"{m2_18mm:.2f}")
+                c3.metric("Precio Final", f"${precio_final:,.2f}")
                 # 5. --- ANÁLISIS FINANCIERO VISUAL (VALOR PRO) ---
                 st.write("---")
                 st.subheader("📊 Desglose de Inversión y Rentabilidad")
