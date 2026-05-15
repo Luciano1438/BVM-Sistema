@@ -68,7 +68,7 @@ def generar_pdf_presupuesto(datos: dict) -> bytes:
         "si no se abona la seña dentro de las 48hs.",
     )
 
-    return pdf.output(dest="S").encode("latin-1")
+    return bytes(pdf.output())
 
 
 # ---------------------------------------------------------------------------
