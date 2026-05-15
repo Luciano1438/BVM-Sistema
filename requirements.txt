@@ -2,5 +2,5 @@ streamlit
 pandas
 supabase
 python-dotenv
-fpdf
+fpdf2
 ezdxf
