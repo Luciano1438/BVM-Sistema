@@ -5,11 +5,7 @@ import os
 from pathlib import Path
 from supabase import create_client, Client
 from dotenv import load_dotenv
-from fpdf import FPDF
 from datetime import datetime, timedelta, timezone
-import urllib.parse
-import ezdxf
-import io
 from motor import (
     generar_despiece_bvm,
     obtener_veta_automatica,
@@ -23,15 +19,14 @@ from motor import (
 
 # --- PARÁMETROS TÉCNICOS DE TALLER ---
 CONFIG_TECNICA = {
-    "ranura_profundidad": 10.0,  # mm
-    "ranura_distancia_borde": 10.0, # mm
-    "retazo_min_ancho": 150,     # mm
-    "retazo_min_largo": 400,     # mm
+    "ranura_profundidad": 10.0,
+    "ranura_distancia_borde": 10.0,
+    "retazo_min_ancho": 150,
+    "retazo_min_largo": 400,
 }
 
-
 # --- CONFIGURACIÓN DE RUTAS ---
-BASE_DIR = Path(__file__).resolve().parent.parent 
+BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(dotenv_path=BASE_DIR / '.env')
 
 # --- CONEXIÓN SUPABASE ---
@@ -46,37 +41,32 @@ if url and key:
     supabase: Client = create_client(url, key)
 else:
     st.error("Error: No se cargaron las credenciales.")
+
+
 def consultar_retazos_disponibles(material):
     id_ = st.session_state["user"].id
     try:
-        # Traemos todos los retazos de ese material
         res = supabase.table("retazos").select("*").eq("user_id", id_).execute()
         return res.data
     except Exception as e:
         st.error(f"Error al consultar retazos: {e}")
         return []
 
+
 def registrar_retazo(material, largo, ancho):
     id_usuario = st.session_state["user"].id
     try:
-        # Validamos contra el mínimo de 150x400
-        if (largo >= 400 and ancho >= 150) or (largo >= 150 and ancho >= 400): 
-            data = {
-                "material": material, 
-                "largo": largo, 
-                "ancho": ancho, 
-                "user_id": id_usuario
-            }
+        if (largo >= 400 and ancho >= 150) or (largo >= 150 and ancho >= 400):
+            data = {"material": material, "largo": largo, "ancho": ancho, "user_id": id_usuario}
             supabase.table("retazos").insert(data).execute()
             st.toast(f"♻️ Retazo guardado: {int(largo)}x{int(ancho)}")
         else:
-            # Este else debe estar exactamente bajo el 'if'
             st.error(f"❌ Error: {int(largo)}x{int(ancho)} es inferior al mínimo de 150x400.")
     except Exception as e:
         st.error(f"Error técnico al registrar: {e}")
- 
 
-# --- 0. SEGURIDAD DE ACCESO MULTIUSUARIO (VALOR PRO) ---
+
+# --- 0. SEGURIDAD DE ACCESO MULTIUSUARIO ---
 def gestionar_auth():
     if "autenticado" not in st.session_state:
         st.session_state["autenticado"] = False
@@ -85,17 +75,14 @@ def gestionar_auth():
     if not st.session_state["autenticado"]:
         st.title("🚀 BVM - Terminal de Operaciones")
         tab_login, tab_reg = st.tabs(["🔑 Ingresar", "📝 Registro"])
-        
+
         with tab_login:
-            # Encapsulamos en un form para que no refresque al escribir
             with st.form("login_form"):
                 email = st.text_input("Email")
                 pw = st.text_input("Contraseña", type="password")
                 boton_login = st.form_submit_button("Entrar", use_container_width=True)
-                
                 if boton_login:
                     if email and pw:
-                        # Ponemos un spinner para ver que el sistema está trabajando
                         with st.spinner("Conectando con la base de datos de BVM..."):
                             try:
                                 res = supabase.auth.sign_in_with_password({"email": email, "password": pw})
@@ -107,8 +94,6 @@ def gestionar_auth():
                                     st.rerun()
                             except Exception as e:
                                 error_str = str(e).lower()
-                                st.toast(f"Error técnico: {e}") 
-                                err = str(e).lower()
                                 if "invalid login credentials" in error_str:
                                     st.error("❌ Email o contraseña incorrectos.")
                                 elif "network" in error_str:
@@ -117,13 +102,12 @@ def gestionar_auth():
                                     st.error(f"⚠️ Error de conexión: {e}")
                     else:
                         st.warning("⚠️ Completá todos los campos.")
-        
+
         with tab_reg:
             with st.form("registro_form"):
                 new_email = st.text_input("Email Nuevo")
                 new_pw = st.text_input("Password (min. 6 car.)", type="password")
                 boton_reg = st.form_submit_button("Crear Cuenta", use_container_width=True)
-                
                 if boton_reg:
                     try:
                         supabase.auth.sign_up({"email": new_email, "password": new_pw})
@@ -132,46 +116,39 @@ def gestionar_auth():
                         st.error(f"❌ Error al crear cuenta: {e}")
         return False
     return True
+
+
 def actualizar_precio_nube(clave, valor, categoria):
     if "session" not in st.session_state or st.session_state["session"] is None:
         st.error("❌ Sesión no iniciada.")
         return
-
-    # SINTAXIS CORREGIDA: Usamos post_grest_client options o simplemente pasamos el token
     token = st.session_state["session"].access_token
-    
     try:
-        # Usamos el cliente global pero le inyectamos el header de autenticación
-        supabase.postgrest.auth(token) 
-        
+        supabase.postgrest.auth(token)
         data = {
             "user_id": st.session_state["user"].id,
             "clave": clave,
             "valor": float(valor),
             "categoria": categoria
         }
-        
-        # Ejecutamos con la identidad ya inyectada
         supabase.table("configuracion").upsert(data, on_conflict="user_id, clave").execute()
-        
     except Exception as e:
         st.error(f"Error guardando {clave}: {e}")
-# --- 1. MOTOR DE INTELIGENCIA DE NEGOCIO (BVM PRO) ---
+
+
+# --- 1. MOTOR DE INTELIGENCIA DE NEGOCIO ---
 def traer_datos():
     if "session" not in st.session_state or st.session_state["session"] is None:
         return {}, {}, {}
 
     token = st.session_state["session"].access_token
     id_usuario = st.session_state["user"].id
-    
-    # --- 1. DEFAULTS SIEMPRE DISPONIBLES ---
-    # Poné acá todas las placas que querés que aparezcan SIEMPRE
+
     maderas_default = {
         "Melamina Blanca 18mm": 60000.0,
         "Melamina Color 18mm": 85000.0,
         "Enchapado Roble 18mm": 120000.0
     }
-    
     config_default = {
         'bisagra_cazoleta': 1200.0,
         'telescopica_45': 5000.0,
@@ -182,47 +159,37 @@ def traer_datos():
         'colocacion_dia': 45000.0,
         'ganancia_taller_pct': 0.30
     }
-    
+
     try:
         supabase.postgrest.auth(token)
         res = supabase.table("configuracion").select("*").eq("user_id", id_usuario).execute()
-        datos_db = res.data    
-        
-        # --- 2. MAPEAMOS LO QUE VIENE DE LA NUBE ---
+        datos_db = res.data
+
         maderas_db = {
             d['clave']: d['valor']
             for d in datos_db
             if str(d.get('categoria', '')).lower().strip() == 'maderas'
         }
-
         config_db = {
             d['clave']: d['valor']
             for d in datos_db
             if str(d.get('categoria', '')).lower().strip() in ['costos', 'margen', 'herrajes']
         }
-        
-        # --- 3. FUSIÓN MAESTRA ---
-        # Las maderas de la DB pisan a las de default, pero las que no están en la DB se mantienen.
+
         maderas = {**maderas_default, **maderas_db}
         config = {**config_default, **config_db}
-        
         fondos = {
             'Fibroplus Blanco 3mm': 34500.0,
             'Faplac Fondo 5.5mm': 45000.0
         }
-        
         return maderas, fondos, config
 
     except Exception as e:
         st.error(f"Error cargando configuración: {e}")
-        # Retorno de emergencia seguro
         return maderas_default, {'Fibroplus Blanco 3mm': 34500.0}, config_default
 
-    except Exception as e:
-        st.error(f"Error cargando configuración: {e}")
-        return {}, {}, {}
+
 def guardar_presupuesto_nube(cliente, mueble, total):
-    id_ = st.session_state["user"].id
     try:
         data = {
             "cliente": cliente,
@@ -233,48 +200,53 @@ def guardar_presupuesto_nube(cliente, mueble, total):
             "fecha": datetime.now(timezone(timedelta(hours=-3))).strftime("%Y-%m-%d %H:%M")
         }
         supabase.table("ventas").insert(data).execute()
-        st.success(f"🚀 Venta guardada en la nube")
+        st.success("🚀 Venta guardada en la nube")
     except Exception as e:
         st.error(f"Error al impactar nube: {e}")
+
+
 def traer_datos_historial():
-    id_ = st.session_state["user"].id
     try:
-       response = supabase.table("ventas").select("*").eq("user_id", st.session_state["user"].id).execute()
-       return pd.DataFrame(response.data)
+        response = supabase.table("ventas").select("*").eq("user_id", st.session_state["user"].id).execute()
+        return pd.DataFrame(response.data)
     except:
         return pd.DataFrame()
-# --- 2. CONECTIVIDAD LOCAL (Mantenida para guardar localmente) ---
+
+
 def ejecutar_query(query, params=(), fetch=False):
     db_path = BASE_DIR / 'data' / 'carpinteria.db'
-    
-    # ÚNICO AGREGADO PERMITIDO: Que cree la carpeta si falta
     if not os.path.exists(BASE_DIR / 'data'):
         os.makedirs(BASE_DIR / 'data')
-        
     with sqlite3.connect(db_path) as conn:
         cursor = conn.cursor()
         cursor.execute(query, params)
-        if fetch: return cursor.fetchall()
+        if fetch:
+            return cursor.fetchall()
         conn.commit()
 
-# --- 3. INTERFAZ Y LÓGICA (INTACTA) ---
+
+# --- INTERFAZ ---
 st.set_page_config(page_title="BVM - Gestión materiales", layout="wide")
 if not gestionar_auth():
     st.stop()
 
 maderas, fondos, config = traer_datos()
-menu = st.sidebar.radio("Navegación", ["Cotizador CNC","Depósito de Retazos", "Historial de Ventas", "⚙️ Configuración de Precios"])
+menu = st.sidebar.radio("Navegación", ["Cotizador CNC", "Depósito de Retazos", "Historial de Ventas", "⚙️ Configuración de Precios"])
 
-# --- BOTÓN DE CIERRE DE SESIÓN ---
 st.sidebar.write("---")
 if st.sidebar.button("🚪 Cerrar Sesión"):
-    # Limpiamos todo el estado de la sesión para forzar el re-login
     for key in list(st.session_state.keys()):
         del st.session_state[key]
     st.rerun()
+
+# ===========================================================================
+# COTIZADOR CNC
+# ===========================================================================
 if menu == "Cotizador CNC":
     try:
         st.title("🏭 BVM | Control de Producción Industrial")
+
+        # --- DEFAULTS SEGUROS ---
         df_corte = pd.DataFrame()
         costo_madera = 0.0
         costo_fondo = 0.0
@@ -285,15 +257,13 @@ if menu == "Cotizador CNC":
         m2_18mm = 0.0
         m2_fondo = 0.0
         costo_operativo = 0.0
-        tiene_parante = False
-        mueble_nom = "Mueble BVM"
+        utilidad = 0.0
         tiene_parante = False
         tipo_parante = "Corto (100mm)"
         tipo_estante_manual = "Completo"
-        distancia_parante = 0.0     
-        cant_estantes = 0
+        distancia_parante = 0.0
         luz_perimetral_tapa = 4.0
-        aire_trasero = 30.0  
+        aire_trasero = 30.0
         esp_corredera = 13.0
         distribucion_tapas = "Iguales"
         cant_puertas = 0
@@ -301,215 +271,167 @@ if menu == "Cotizador CNC":
         alto_cenefa = 0.0
         estantes_fijos = 0
         estantes_moviles = 0
-        
+        cant_cajones = 0
+        luz_entre_tapas = 3.0
+        alto_frentin_emb = 0.0
+        tipo_tapa = "Superpuesta"
+        tipo_base = "Nada"
+        altura_base = 0.0
+
         col_in, col_out = st.columns([1, 1.2])
+
         with col_in:
-            # Agrupamos los datos básicos en un contenedor expandible
             with st.expander("🛠️ Definición de Estructura", expanded=True):
                 cliente = st.text_input("Cliente", "")
                 tipo_modulo = st.selectbox("Tipo de Mueble", ["Cajonera", "Bajo Mesada", "Alacena"], key="tipo_mueble_sel")
-                
+
                 c1, c2, c3 = st.columns(3)
                 ancho_m = c1.number_input("Ancho Total (mm)", min_value=0.0, max_value=5000.0, value=0.0, step=0.5)
                 alto_m = c2.number_input("Alto Total (mm)", min_value=0.0, max_value=5000.0, value=0.0, step=0.5)
                 prof_m = c3.number_input("Profundo (mm)", min_value=0.0, max_value=2000.0, value=0.0, step=0.5)
-                
+
                 mat_principal = st.selectbox("Material Cuerpo (18mm)", list(maderas.keys()))
                 esp_real = st.number_input("Espesor Real Placa (mm)", min_value=1.0, max_value=50.0, value=18.0, step=0.1)
                 mat_fondo_sel = st.selectbox("Material Fondo", list(fondos.keys()))
 
-            # Agrupamos los módulos en otro contenedor
             with st.expander("🏗️ Configuración de Módulos", expanded=False):
                 if tipo_modulo == "Bajo Mesada":
-                # --- 1. LÓGICA EXCLUSIVA BAJO MESADA ---
                     st.markdown("#### 🚪 Configuración de Frente")
-                    
-                    # Selector de estilo (Gola es el que ya programamos)
-                    opciones_bm = ["Superpuesta", "Gola BVM", "Embutida"]
-                    tipo_tapa = st.radio("Estilo de Bajo Mesada", opciones_bm)
-                    
-                    # Selector de puertas y sincronización con parante
+                    tipo_tapa = st.radio("Estilo de Bajo Mesada", ["Superpuesta", "Gola BVM", "Embutida"])
                     cant_puertas = st.selectbox("Cantidad de Puertas", [2, 3])
-                    
+
                     if cant_puertas == 3:
                         tiene_parante = True
                         st.info("💡 3 puertas: Parante divisor incluido automáticamente.")
-    
                         c_p1, c_p2 = st.columns(2)
-                        tipo_parante = st.selectbox("Tipo de Parante", ["Corto (100mm)", "Largo (Fondo Lateral)"])
-                        distancia_parante = c_p2.number_input("Distancia desde lateral izq. (mm)", 
-                                                            value=ancho_m/cant_puertas if ancho_m > 0 else 0.0, 
-                                                            step=1.0)
+                        tipo_parante = c_p1.selectbox("Tipo de Parante", ["Corto (100mm)", "Largo (Fondo Lateral)"])
+                        distancia_parante = c_p2.number_input("Distancia desde lateral izq. (mm)",
+                                                               value=ancho_m / cant_puertas if ancho_m > 0 else 0.0,
+                                                               step=1.0)
+
                     st.markdown("---")
                     st.markdown("#### 🪵 Configuración de Estantes")
                     cant_total_est = st.number_input("Cantidad Total Estantes", min_value=0, value=1, step=1, key="cant_est_bm")
                     tipo_estante_manual = st.radio("Formato de Estante", ["Completo", "Medio"], key="fmt_est_bm")
 
-        
                     indices_fijos = []
                     if cant_total_est > 0:
                         st.write("Seleccioná los estantes que son **FIJOS**:")
                         cols_estantes = st.columns(int(cant_total_est))
-            
                         for i in range(int(cant_total_est)):
                             with cols_estantes[i]:
-                                # Usamos key único para evitar errores de Streamlit
-                                es_fijo = st.checkbox(f"E{i+1}", value=False, key=f"check_est_bm_{i}")
-                                if es_fijo:
+                                if st.checkbox(f"E{i+1}", value=False, key=f"check_est_bm_{i}"):
                                     indices_fijos.append(i)
-        
-                    # Calculamos totales para el motor
+
                     estantes_fijos = len(indices_fijos)
                     estantes_moviles = cant_total_est - estantes_fijos
                     st.caption(f"Resumen: {estantes_fijos} Fijos y {estantes_moviles} Móviles")
-                    
-                    # Configuración de herrajes (Bisagras)
+
                     tipo_bisagra = st.selectbox("Tipo de Bisagra", ["Cazoleta C0 Cierre Suave", "Especial"])
-                    precio_bisagra = config['bisagra_cazoleta']
-                    
-                    # Reseteamos valores de cajones para que el motor no explote
                     cant_cajones = 0
                     luz_entre_tapas = 3.0
                     luz_perimetral_tapa = 4.0
                     alto_frentin_emb = 0.0
+
                 elif tipo_modulo == "Alacena":
                     st.markdown("#### 🪵 Configuración de Alacena BVM")
-                    
                     c_ala1, c_ala2 = st.columns(2)
-                    opciones_ala = ["Superpuesta", "Uñero", "Embutida"]
-                    tipo_tapa = c_ala1.radio("Sistema de Apertura", opciones_ala)
+                    tipo_tapa = c_ala1.radio("Sistema de Apertura", ["Superpuesta", "Uñero", "Embutida"])
                     cant_puertas = c_ala2.selectbox("Cantidad de Puertas", [2, 3, 4])
 
-                    # CONFIGURACIÓN DE ESTANTES (Nivel Pro)
                     st.markdown("---")
                     cant_total_est = st.number_input("Cantidad Total Estantes", min_value=0, value=1, step=1)
-                    
-                    # Creamos una lista para guardar qué estantes elige el usuario como fijos
                     indices_fijos = []
-                    
                     if cant_total_est > 0:
                         st.write("Seleccioná los estantes que son **FIJOS**:")
-                        # Creamos columnas automáticas según la cantidad de estantes
                         cols_estantes = st.columns(int(cant_total_est))
-                        
                         for i in range(int(cant_total_est)):
                             with cols_estantes[i]:
-                                # Si el checkbox está marcado, guardamos el índice
-                                es_fijo = st.checkbox(f"E{i+1}", value=False, key=f"check_est_{i}")
-                                if es_fijo:
+                                if st.checkbox(f"E{i+1}", value=False, key=f"check_est_{i}"):
                                     indices_fijos.append(i)
-                    
-                    # Calculamos los totales para mandarle al motor de despiece
+
                     estantes_fijos = len(indices_fijos)
                     estantes_moviles = cant_total_est - estantes_fijos
-            
                     st.caption(f"Resumen: {estantes_fijos} Fijos y {estantes_moviles} Móviles")
-                    
-                    # CENEFA PARA UÑERO
+
                     tiene_cenefa = False
                     alto_cenefa = 0.0
                     if "Uñero" in tipo_tapa:
                         tiene_cenefa = st.checkbox("¿Lleva Cenefa inferior?", value=True)
                         if tiene_cenefa:
                             alto_cenefa = st.number_input("Altura de Cenefa (mm)", value=50.0, step=5.0)
-                    
-                    # VARIABLES DE CONTROL
+
                     tipo_bisagra = st.selectbox("Tipo de Bisagra", ["Cazoleta C0 Cierre Suave", "C0 Estándar"])
-                    precio_bisagra = config['bisagra_cazoleta']
                     cant_cajones = 0
                     luz_entre_tapas = 0.0
                     luz_perimetral_tapa = 0.0
                     alto_frentin_emb = 0.0
-                else:
-                    # Configuración de Herrajes
+
+                else:  # Cajonera
                     tipo_bisagra = st.selectbox("Tipo de Bisagra", ["Cazoleta C0 Cierre Suave", "Especial"])
-                    precio_bisagra = config['bisagra_cazoleta']
                     tipo_corredera = st.radio("Tipo de Corredera", ["Telescópica 45cm", "Cierre Suave Pesada"])
-                    precio_guia = config['telescopica_45'] if "45cm" in tipo_corredera else config['telescopica_soft']
-                    
+
                     c_caj, c_hue = st.columns(2)
                     cant_cajones = c_caj.number_input("Cant. Cajones", value=0, min_value=0)
-                    tipo_tapa = "Superpuesta" 
-                    alto_frentin_emb = 0.0
-                    if tipo_tapa == "Tapa Embutida":
-                        alto_frentin_emb = st.number_input("Altura del Frentín Superior (mm)", value=30.0)
-                    
+
                     opciones_estilo = ["Superpuesta", "Embutida"]
-    
-                    if cant_cajones > 0:
-                    # 2. Si hay 3 cajones, le sumamos el Gola
-                       if cant_cajones == 3:
-                           opciones_estilo.append("Gola")
-                    
-                    # 3. Usamos la lista en el radio
+                    if cant_cajones == 3:
+                        opciones_estilo.append("Gola")
                     tipo_tapa = st.radio("Estilo de Tapa", opciones_estilo)
+
                     st.markdown(f"#### 📏 Parámetros del Cajón ({tipo_tapa})")
                     col_l1, col_l2 = st.columns(2)
                     luz_entre_tapas = col_l1.number_input("Luz entre tapas (mm)", value=3.0)
-        
-                    # Si es Tipo 1 pide luz de ancho, si es Tipo 2 pide el frentín de tu viejo
-                if cant_cajones > 0: 
-                    if tipo_tapa == "Superpuesta":
-                        luz_perimetral_tapa = col_l2.number_input("Luz total ancho (mm)", value=4.0)
-                    elif tipo_tapa == "Embutida": 
-                        alto_frentin_emb = col_l2.number_input("Altura Frentín Superior (mm)", value=30.0)
-                        luz_perimetral_tapa = 6.0 # Valor fijo por fórmula para Tipo 2
-                    else: # GOLA
-                        luz_perimetral_tapa = col_l2.number_input("Luz total ancho (mm)", value=4.0)
-                        alto_frentin_emb = 0.0
-                    
-                    distribucion_tapas = col_l1.radio("Distribución", ["Iguales", "Proporcional (20/35/45)"])
-    
-                    col_c1, col_c2 = st.columns(2)
-                    esp_corredera = col_c1.number_input("Espesor de Corredera (mm)", value=13.0)
-                    aire_trasero = col_c2.number_input("Espacio libre trasero (mm)", value=30.0)
-    
-                        
-                #PARÁMETROS FINANCIEROS Y ENVÍO ---
+
+                    if cant_cajones > 0:
+                        if tipo_tapa == "Superpuesta":
+                            luz_perimetral_tapa = col_l2.number_input("Luz total ancho (mm)", value=4.0)
+                        elif tipo_tapa == "Embutida":
+                            alto_frentin_emb = col_l2.number_input("Altura Frentín Superior (mm)", value=30.0)
+                            luz_perimetral_tapa = 6.0
+                        else:  # Gola
+                            luz_perimetral_tapa = col_l2.number_input("Luz total ancho (mm)", value=4.0)
+                            alto_frentin_emb = 0.0
+
+                        distribucion_tapas = col_l1.radio("Distribución", ["Iguales", "Proporcional (20/35/45)"])
+                        col_c1, col_c2 = st.columns(2)
+                        esp_corredera = col_c1.number_input("Espesor de Corredera (mm)", value=13.0)
+                        aire_trasero = col_c2.number_input("Espacio libre trasero (mm)", value=30.0)
+
             with st.expander("💰 Soporte y Logística", expanded=False):
                 tipo_base = st.selectbox("Tipo de Soporte", ["Zócalo de Madera", "Banquina", "Patas Plásticas", "Nada"])
-                
+
                 if tipo_base == "Zócalo de Madera":
                     altura_base = st.number_input("Altura de Zócalo de Madera (mm)", min_value=0.0, value=100.0, step=5.0)
                     st.caption("💡 El sistema sumará las piezas de zócalo al despiece.")
                 elif tipo_base == "Banquina":
                     altura_base = st.number_input("Altura de Banquina (mm)", min_value=0.0, value=100.0, step=5.0)
-                    st.info(f"⚠️ El mueble apoyará sobre base de {altura_base}mm. Ajustando laterales.")
+                    st.info(f"⚠️ El mueble apoyará sobre base de {altura_base}mm.")
                 elif tipo_base == "Patas Plásticas":
                     altura_base = st.number_input("Altura de Patas (mm)", min_value=0.0, value=100.0, step=5.0)
                     st.caption("✅ Se asumen patas niveladoras estándar.")
                 else:
-                    # Si selecciona "Nada", fijamos la altura en 0 internamente para no romper los cálculos
                     altura_base = 0.0
-                                
+
                 costo_base = 5000 if tipo_base == "Patas Plásticas" else 0
                 dias_prod = st.number_input("Días de taller", value=0.0, step=0.5)
                 necesita_colocacion = st.checkbox("¿Requiere Colocación?")
                 flete_sel = st.selectbox("Zona Envío", ["Ninguno", "Capital", "Zona Norte"])
                 dias_col = st.number_input("Días de obra", value=0) if necesita_colocacion else 0
+
+        # --- COLUMNA DERECHA: RESULTADOS ---
         with col_out:
             st.subheader("📐 Planilla de Corte e Inteligencia de Materiales")
-            
-                # --- A. CONFIGURACIÓN DE PRECISIÓN ---
-            c_prec1, c_prec2 = st.columns(2)                
-            def crear_pieza(nombre, cant, largo, ancho):
-                return {
-                    "Pieza": nombre, 
-                    "Cant": cant, 
-                    "L": round(largo, 1), 
-                    "A": round(ancho, 1), 
-                    "Notas": ""
-                }
+
             if alto_m > 0 and ancho_m > 0:
-                # LLAMADA EXPLÍCITA AL MOTOR BVM
                 piezas_calculadas = generar_despiece_bvm(
-                    tipo=tipo_modulo, 
-                    ancho_m=ancho_m, 
-                    alto_m=alto_m, 
-                    prof_m=prof_m, 
+                    tipo=tipo_modulo,
+                    ancho_m=ancho_m,
+                    alto_m=alto_m,
+                    prof_m=prof_m,
                     esp_real=esp_real,
                     tiene_parante=tiene_parante,
-                    tipo_parante=tipo_parante if tiene_parante else "Corto",
+                    tipo_parante=tipo_parante,
                     distancia_parante=distancia_parante,
                     cant_cajones=cant_cajones,
                     tipo_tapa=tipo_tapa,
@@ -521,289 +443,251 @@ if menu == "Cotizador CNC":
                     aire_trasero=aire_trasero,
                     esp_corredera=esp_corredera,
                     distribucion_tapas=distribucion_tapas,
-                    cant_puertas=cant_puertas, 
-                    tiene_cenefa=tiene_cenefa, 
+                    cant_puertas=cant_puertas,
+                    tiene_cenefa=tiene_cenefa,
                     alto_cenefa=alto_cenefa,
-                    estantes_fijos=estantes_fijos, 
-                    estantes_moviles=estantes_moviles
+                    estantes_fijos=estantes_fijos,
+                    estantes_moviles=estantes_moviles,
+                    tipo_estante_manual=tipo_estante_manual,
                 )
-                
-                # 1. Convertimos los resultados en la tabla
-                # 1. Convertimos los resultados en la tabla
+
                 df_corte = pd.DataFrame(piezas_calculadas)
-                
-                # --- 🛡️ ESCUDO TOTAL BVM ---
+
                 if not df_corte.empty and 'L' in df_corte.columns:
-                    # A. Aseguramos columnas básicas
                     for col in ['Tipo', 'L', 'A', 'Cant']:
                         if col not in df_corte.columns:
                             df_corte[col] = 0 if col != 'Tipo' else 'Cuerpo'
-                    
-                    # B. Limpieza de datos
+
                     df_corte['L'] = pd.to_numeric(df_corte['L'], errors='coerce').fillna(0)
                     df_corte['A'] = pd.to_numeric(df_corte['A'], errors='coerce').fillna(0)
                     df_corte['Cant'] = pd.to_numeric(df_corte['Cant'], errors='coerce').fillna(0)
                     df_corte['Tipo'] = df_corte['Tipo'].fillna('Cuerpo').astype(str)
 
-                    # C. Mostramos la tabla
                     st.data_editor(df_corte, use_container_width=True, hide_index=True)
-    
-                    # D. CÁLCULO DE MÉTRICAS Y DINERO (Aquí estaba la falla)
+
                     df_placa = df_corte[~df_corte['Tipo'].isin(['Fondo', 'Piso'])]
                     m2_18mm = (df_placa['L'] * df_placa['A'] * df_placa['Cant']).sum() / 1_000_000
-                    
-                    # Traemos el precio de la madera elegida (Melamina Blanca, etc)
                     precio_placa_unitario = maderas.get(mat_principal, 0.0)
                     costo_madera = m2_18mm * (precio_placa_unitario / 5.03)
 
-                    # Cálculo de Fondos
                     df_fondo_only = df_corte[df_corte['Tipo'].isin(['Fondo', 'Piso'])]
                     m2_fondo = (df_fondo_only['L'] * df_fondo_only['A'] * df_fondo_only['Cant']).sum() / 1_000_000 if not df_fondo_only.empty else 0.0
-                    precio_fondo_unitario = fondos.get(mat_fondo_sel, 0.0)
-                    costo_fondo = m2_fondo * (precio_fondo_unitario / 5.03)
-                    
-                    
-                    # E. HERRAJES
-                    if tipo_modulo in ["Bajo Mesada", "Alacena"]:
-                        costo_herrajes = (cant_puertas * 2 * config.get('bisagra_cazoleta', 0))
-                    else: # Cajonera
-                        costo_herrajes = (cant_cajones * config.get('telescopica_45', 0))
+                    costo_fondo = m2_fondo * (fondos.get(mat_fondo_sel, 0.0) / 5.03)
 
-                    # F. LOGÍSTICA Y OPERATIVOS
+                    if tipo_modulo in ["Bajo Mesada", "Alacena"]:
+                        costo_herrajes = cant_puertas * 2 * config.get('bisagra_cazoleta', 0)
+                    else:
+                        costo_herrajes = cant_cajones * config.get('telescopica_45', 0)
+
                     costo_flete = config.get('flete_capital', 0) if flete_sel == "Capital" else config.get('flete_norte', 0) if flete_sel == "Zona Norte" else 0.0
-                    costo_operativo = (dias_prod * config.get('gastos_fijos_diarios', 0))
-                    
-                    # G. TOTALES
+                    costo_operativo = dias_prod * config.get('gastos_fijos_diarios', 0)
                     total_costo = costo_madera + costo_fondo + costo_herrajes + costo_operativo + costo_base + costo_flete
-                    if necesita_colocacion: total_costo += (dias_col * config.get('colocacion_dia', 0))
-                
+                    if necesita_colocacion:
+                        total_costo += dias_col * config.get('colocacion_dia', 0)
+
                 else:
                     st.warning("⚠️ Esperando medidas para calcular...")
-                    m2_18mm = 0.0
-                    total_costo = 0.0
 
-          
             st.write("---")
+
+            # --- RETAZOS Y PRECIO FINAL (siempre visible) ---
             retazos_en_stock = consultar_retazos_disponibles(mat_principal)
-            ahorro_madera = 0
-                
-        # El precio se calcula SIEMPRE, con o sin retazos
-                ahorro_madera, matches = calcular_ahorro_retazos(
-                    df_corte,
-                    retazos_en_stock,
-                    maderas.get(mat_principal, 0.0)
-                )
-                
-                if matches:
-                    st.subheader("♻️ Oportunidades de Ahorro")
-                    for m in matches:
-                        st.success(f"¡Match! '{m['pieza']}' entra en Retazo ID-{m['retazo_id']} — Ahorro: ${m['ahorro']:,.0f}")
-                
-                total_costo_real = total_costo - ahorro_madera
-                utilidad = total_costo_real * config['ganancia_taller_pct']
-                precio_final = total_costo_real + utilidad
-                
-                c1, c2, c3 = st.columns(3)
-                c1.metric("Costo Real", f"${total_costo_real:,.0f}")
-                c2.metric("M2 Placa", f"{m2_18mm:.2f}")
-                c3.metric("Precio Final", f"${precio_final:,.2f}")
-                # 5. --- ANÁLISIS FINANCIERO VISUAL (VALOR PRO) ---
+
+            ahorro_madera, matches = calcular_ahorro_retazos(
+                df_corte,
+                retazos_en_stock,
+                maderas.get(mat_principal, 0.0)
+            )
+
+            if matches:
+                st.subheader("♻️ Oportunidades de Ahorro")
+                for m in matches:
+                    st.success(f"¡Match! '{m['pieza']}' entra en Retazo ID-{m['retazo_id']} — Ahorro: ${m['ahorro']:,.0f}")
+
+            total_costo_real = total_costo - ahorro_madera
+            utilidad = total_costo_real * config.get('ganancia_taller_pct', 0.30)
+            precio_final = total_costo_real + utilidad
+
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Costo Real", f"${total_costo_real:,.0f}")
+            c2.metric("M2 Placa", f"{m2_18mm:.2f}")
+            c3.metric("Precio Final", f"${precio_final:,.2f}")
+
+            # --- GRÁFICO DE DESGLOSE ---
+            if precio_final > 0:
                 st.write("---")
                 st.subheader("📊 Desglose de Inversión y Rentabilidad")
-                
-                # Preparamos los datos para el gráfico
                 datos_grafico = {
                     "Categoría": ["Madera/Fondo", "Herrajes", "Operativo/Taller", "Logística/Flete", "Ganancia Neta"],
                     "Monto": [costo_madera + costo_fondo, costo_herrajes, costo_operativo + costo_base, costo_flete, utilidad]
                 }
-                df_grafico = pd.DataFrame(datos_grafico)
-                
-                # Mostramos un gráfico de barras horizontal para comparar pesos
-                st.bar_chart(data=df_grafico, x="Categoría", y="Monto", color="#2e7d32")
+                st.bar_chart(data=pd.DataFrame(datos_grafico), x="Categoría", y="Monto", color="#2e7d32")
 
-                # Alerta de Rentabilidad Estilo Burry con protección
-        # Alerta de Rentabilidad con protección contra división por cero
-        if precio_final > 0:
-            pct_utilidad_real = (utilidad / precio_final) * 100
-        else:
-            pct_utilidad_real = 0.0
-        if pct_utilidad_real < 12:
-            st.error(f"⚠️ ALERTA DE MARGEN: La rentabilidad es del {pct_utilidad_real:.1f}%. Revisar costos fijos.")
-        else:
-            st.success(f"✅ OPERACIÓN RENTABLE: Margen del {pct_utilidad_real:.1f}%")
-        st.subheader(f"PRECIO FINAL: ${precio_final:,.2f}")
-
-         # --- 1. GESTIÓN DE GUARDADO UNIFICADA (REDUNDANCIA PRO) ---
-        st.write("---")
-        if st.button("Guardar presupuesto", use_container_width=True):
-            if cliente:
-                try:
-                    # A. Guardado en Nube (Supabase) - Tu respaldo de seguridad
-                    guardar_presupuesto_nube(cliente, tipo_modulo, precio_final)
-                    
-                    # B. Guardado Local (SQLite) - Con fix para que no falle la carpeta
-                    if not os.path.exists(BASE_DIR / 'data'):
-                        os.makedirs(BASE_DIR / 'data')
-                        
-                    # Agregamos 'cliente' a la query local para que no quede huérfana la info
-                    ejecutar_query(
-                        "INSERT INTO ventas (mueble, precio_final, estado, cliente) VALUES (?, ?, ?, ?)", 
-                        (tipo_modulo, precio_final, "Pendiente", cliente)
-                    )
-                    
-                    st.success(f"✅ ÉXITO: Presupuesto de {tipo_modulo} para {cliente} blindado en ambos sistemas.")
-                    st.balloons()
-                except Exception as e:
-                   if "no such table" in str(e).lower():
-                        st.warning("⚠️ Nota: Respaldo local no disponible (Tabla 'ventas' no existe en disco). En la Nube ya se guardó.")
-                   else:
-                       st.error(f"⚠️ Error en Respaldo Local: {e}")
+            # --- ALERTA DE MARGEN ---
+            pct_utilidad_real = (utilidad / precio_final * 100) if precio_final > 0 else 0.0
+            if pct_utilidad_real < 12:
+                st.error(f"⚠️ ALERTA DE MARGEN: La rentabilidad es del {pct_utilidad_real:.1f}%. Revisar costos fijos.")
             else:
-                st.warning("📢 Ingrese el nombre del Cliente antes de guardar.")
-        st.write("---")
-        st.subheader("📄 Generar Propuesta para Cliente")
-                
-        c_com1, c_com2 = st.columns(2)
-        with c_com1:
-            dias_entrega = st.number_input("Días de entrega", value=15, step=1)
-        with c_com2:
-            pct_seña = st.slider("% de Seña", 0, 100, 50, 5) # Default 50%, saltos de 5%
-                # Preparamos el paquete de datos para el PDF (incluimos el % de seña)
-        datos_pdf = {
-            'cliente': cliente,
-            'mueble': tipo_modulo,
-            'precio': precio_final, 'material': mat_principal,
-            'ancho': ancho_m, 'alto': alto_m, 'prof': prof_m,
-            'entrega': dias_entrega,
-            'pct_seña': pct_seña
+                st.success(f"✅ OPERACIÓN RENTABLE: Margen del {pct_utilidad_real:.1f}%")
+
+            st.subheader(f"PRECIO FINAL: ${precio_final:,.2f}")
+
+            # --- GUARDAR ---
+            st.write("---")
+            if st.button("Guardar presupuesto", use_container_width=True):
+                if cliente:
+                    try:
+                        guardar_presupuesto_nube(cliente, tipo_modulo, precio_final)
+                        if not os.path.exists(BASE_DIR / 'data'):
+                            os.makedirs(BASE_DIR / 'data')
+                        ejecutar_query(
+                            "INSERT INTO ventas (mueble, precio_final, estado, cliente) VALUES (?, ?, ?, ?)",
+                            (tipo_modulo, precio_final, "Pendiente", cliente)
+                        )
+                        st.success(f"✅ Presupuesto de {tipo_modulo} para {cliente} guardado.")
+                        st.balloons()
+                    except Exception as e:
+                        if "no such table" in str(e).lower():
+                            st.warning("⚠️ Respaldo local no disponible. En la Nube ya se guardó.")
+                        else:
+                            st.error(f"⚠️ Error: {e}")
+                else:
+                    st.warning("📢 Ingresá el nombre del Cliente antes de guardar.")
+
+            # --- PROPUESTA COMERCIAL ---
+            st.write("---")
+            st.subheader("📄 Generar Propuesta para Cliente")
+            c_com1, c_com2 = st.columns(2)
+            with c_com1:
+                dias_entrega = st.number_input("Días de entrega", value=15, step=1)
+            with c_com2:
+                pct_seña = st.slider("% de Seña", 0, 100, 50, 5)
+
+            datos_pdf = {
+                'cliente': cliente,
+                'mueble': tipo_modulo,
+                'precio': precio_final,
+                'material': mat_principal,
+                'ancho': ancho_m,
+                'alto': alto_m,
+                'prof': prof_m,
+                'entrega': dias_entrega,
+                'pct_seña': pct_seña
             }
-                
-        # --- 1. PREPARACIÓN DE ARCHIVOS (Primero generamos la data) ---
-        pdf_bytes = generar_pdf_presupuesto(datos_pdf)
-        link_wa = generar_link_whatsapp(datos_pdf)
-        archivo_aspire = exportar_para_aspire(df_corte, mat_principal, esp_real)
-        dxf_bytes = generar_dxf_bvm(df_corte)
 
-        # --- 2. INTERFAZ DE USUARIO (Ahora dibujamos los botones) ---
-        st.write("---")
-        st.subheader("📄 Gestión Comercial")
-        
-        col_com1, col_com2 = st.columns(2)
-        with col_com1:
-            st.download_button(
-                label="📥 Descargar Presupuesto PDF",
-                data=pdf_bytes,
-                file_name=f"Presupuesto_{cliente}.pdf",
-                mime="application/pdf",
-                use_container_width=True
-            )
-        with col_com2:
-            st.link_button("🟢 Enviar por WhatsApp", link_wa, use_container_width=True)
+            pdf_bytes = generar_pdf_presupuesto(datos_pdf)
+            link_wa = generar_link_whatsapp(datos_pdf)
+            archivo_aspire = exportar_para_aspire(df_corte, mat_principal, esp_real)
+            dxf_bytes = generar_dxf_bvm(df_corte)
 
-        st.write("---")
-        st.subheader("⚙️ Terminal de Producción CNC")
+            st.write("---")
+            st.subheader("📄 Gestión Comercial")
+            col_com1, col_com2 = st.columns(2)
+            with col_com1:
+                st.download_button(
+                    label="📥 Descargar Presupuesto PDF",
+                    data=pdf_bytes,
+                    file_name=f"Presupuesto_{cliente}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True
+                )
+            with col_com2:
+                st.link_button("🟢 Enviar por WhatsApp", link_wa, use_container_width=True)
 
-        col_cnc1, col_cnc2 = st.columns(2)
-        with col_cnc1:
-            st.download_button(
-                label="📐 Descargar Dibujo DXF (Vectores)",
-                data=dxf_bytes,
-                file_name=f"Vectores_{cliente}.dxf",
-                mime="application/dxf",
-                use_container_width=True
-            )
-        with col_cnc2:
-            st.download_button(
-                label="🤖 Descargar Lista CSV (Aspire)",
-                data=archivo_aspire,
-                file_name=f"CNC_{cliente}.csv",
-                mime="text/csv",
-                use_container_width=True
-            )
-        
-            
-                # 6. --- GENERACIÓN DE ETIQUETAS (VALOR PRO) ---
-        st.write("---") # Una línea divisoria para separar administración de taller
-        if st.button("🖨️ Generar Etiquetas de Taller"):
-            if not df_corte.empty:
-                st.info(f"Generando etiquetas para las {len(df_corte)} piezas...")
-                cols_etiquetas = st.columns(2) 
-                for index, row in df_corte.iterrows():
-                     with cols_etiquetas[index % 2]:
-                         # Usamos .get('Tipo', 'Cuerpo') para que si no existe no explote
-                         tipo_label = row.get('Tipo', 'Cuerpo')
-                         with st.expander(f"📍 {row['Pieza']} - {tipo_label}"):
-                            st.write(f"**Cliente:** {cliente}")
-                            st.code(f"DIM: {int(row['L'])} x {int(row['A'])} mm")
-            else:
-                st.error("No hay piezas para etiquetar.")
-       
+            st.write("---")
+            st.subheader("⚙️ Terminal de Producción CNC")
+            col_cnc1, col_cnc2 = st.columns(2)
+            with col_cnc1:
+                st.download_button(
+                    label="📐 Descargar Dibujo DXF (Vectores)",
+                    data=dxf_bytes,
+                    file_name=f"Vectores_{cliente}.dxf",
+                    mime="application/dxf",
+                    use_container_width=True
+                )
+            with col_cnc2:
+                st.download_button(
+                    label="🤖 Descargar Lista CSV (Aspire)",
+                    data=archivo_aspire,
+                    file_name=f"CNC_{cliente}.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
+
+            # --- ETIQUETAS DE TALLER ---
+            st.write("---")
+            if st.button("🖨️ Generar Etiquetas de Taller"):
+                if not df_corte.empty:
+                    st.info(f"Generando etiquetas para las {len(df_corte)} piezas...")
+                    cols_etiquetas = st.columns(2)
+                    for index, row in df_corte.iterrows():
+                        with cols_etiquetas[index % 2]:
+                            tipo_label = row.get('Tipo', 'Cuerpo')
+                            with st.expander(f"📍 {row['Pieza']} - {tipo_label}"):
+                                st.write(f"**Cliente:** {cliente}")
+                                st.code(f"DIM: {int(row['L'])} x {int(row['A'])} mm")
+                else:
+                    st.error("No hay piezas para etiquetar.")
+
     except Exception as e:
         st.error(f"Error en el Cotizador: {e}")
-            
+
+# ===========================================================================
+# HISTORIAL DE VENTAS
+# ===========================================================================
 elif menu == "Historial de Ventas":
     st.title("📊 Gestión y Seguimiento de Ventas")
     try:
         df_hist = traer_datos_historial()
         if not df_hist.empty:
-            # --- LÓGICA DE AUDITORÍA DE PRECIOS (EL ESCUDO) ---
             st.subheader("⚠️ Monitor de Reposición e Inflación")
-            
-            inflacion_estimada = 0.15 
-            
+            inflacion_estimada = 0.15
             for index, row in df_hist.iterrows():
                 precio_original = row['precio_final']
                 precio_reposicion = precio_original * (1 + inflacion_estimada)
-                
                 if row['estado'] == 'Pendiente':
                     col1, col2, col3 = st.columns([2, 1, 1])
                     col1.write(f"**{row['mueble']}** (Cliente: {row.get('cliente', 'N/A')})")
                     col2.write(f"Venta: ${precio_original:,.0f}")
-                    
-                    # Alerta si el presupuesto quedó viejo
                     st.warning(f"🚨 Valor de reposición hoy: ${precio_reposicion:,.0f}. Sugerencia: Actualizar +15% antes de cobrar señas.")
-            
             st.write("---")
             st.subheader("📈 Balance General")
             st.data_editor(df_hist, use_container_width=True)
-            
     except Exception as e:
         st.error(f"Error en el monitor: {e}")
+
+# ===========================================================================
+# DEPÓSITO DE RETAZOS
+# ===========================================================================
 elif menu == "Depósito de Retazos":
     st.title("♻️ Gestión de Sobrantes (Estándar BVM)")
     st.info("Cargá aquí los recortes del taller para que el sistema los use automáticamente en los presupuestos.")
 
-    # 1. Registro de piezas nuevas
     with st.expander("➕ Registrar Nuevo Retazo en Depósito", expanded=True):
-        st.write("Cargá sobrantes útiles (>150x400mm) para que el sistema los detecte.") 
+        st.write("Cargá sobrantes útiles (>150x400mm) para que el sistema los detecte.")
         c_ret_mat, c_ret1, c_ret2 = st.columns([2, 1, 1])
-        
-        # Necesitamos saber el material para guardarlo bien
         mat_r = c_ret_mat.selectbox("Material del sobrante", list(maderas.keys()))
-        ancho_r = c_ret1.number_input("Ancho (mm)", value=0, key="anc_r_indep") 
-        largo_r = c_ret2.number_input("Largo (mm)", value=0, key="lar_r_indep") 
-    
-        if st.button("💾 Guardar en Inventario"): 
-            if (ancho_r >= 150 and largo_r >= 400) or (ancho_r >= 400 and largo_r >= 150): 
+        ancho_r = c_ret1.number_input("Ancho (mm)", value=0, key="anc_r_indep")
+        largo_r = c_ret2.number_input("Largo (mm)", value=0, key="lar_r_indep")
+        if st.button("💾 Guardar en Inventario"):
+            if (ancho_r >= 150 and largo_r >= 400) or (ancho_r >= 400 and largo_r >= 150):
                 registrar_retazo(mat_r, largo_r, ancho_r)
                 st.success(f"Retazo de {mat_r} guardado correctamente.")
             else:
-                st.warning("El retazo es muy chico para ser útil (mínimo 150x400mm según estándar BVM).") 
+                st.warning("El retazo es muy chico para ser útil (mínimo 150x400mm según estándar BVM).")
 
     st.write("---")
-    
-    # 2. Visualización de lo que hay hoy
     st.subheader("📋 Stock Actual")
-    id_ = st.session_state["user"].id
-    retazos_db = consultar_retazos_disponibles("Todos") # Podés ajustar tu función para que traiga todos
-    
+    retazos_db = consultar_retazos_disponibles("Todos")
     if retazos_db:
         df_inv = pd.DataFrame(retazos_db)
         st.dataframe(df_inv[["material", "largo", "ancho"]], use_container_width=True)
     else:
         st.info("El depósito está vacío.")
 
-# --- PESTAÑA: CONFIGURACIÓN DE PRECIOS ---
+# ===========================================================================
+# CONFIGURACIÓN DE PRECIOS
+# ===========================================================================
 elif menu == "⚙️ Configuración de Precios":
     st.title("⚙️ Administración de Insumos y Costos")
     st.info("Desde aquí podés actualizar los valores base. Los cambios impactarán en todos los nuevos presupuestos.")
@@ -827,240 +711,11 @@ elif menu == "⚙️ Configuración de Precios":
 
     with st.expander("💰 Margen de Ganancia"):
         config['ganancia_taller_pct'] = st.slider("Porcentaje de Utilidad Bruta", 0.0, 1.0, float(config['ganancia_taller_pct']), 0.05)
-        st.write(f"Margen actual: {config['ganancia_taller_pct']*100}%")
-   
+        st.write(f"Margen actual: {config['ganancia_taller_pct'] * 100:.0f}%")
+
     if st.button("💾 Guardar Precios Permanentemente"):
-        # 1. Guardamos los precios de las maderas
         for madera, precio in maderas.items():
             actualizar_precio_nube(madera, precio, 'maderas')
-        
-        # 2. Guardamos herrajes, costos fijos y márgenes
-        # Pasamos la categoría 'costos' para que sepa dónde buscarlos después
         for k, v in config.items():
             actualizar_precio_nube(k, v, 'costos')
-            
         st.success("✅ Configuración blindada.")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
