@@ -289,6 +289,8 @@ if "editar_obra_id" not in st.session_state:
     st.session_state["editar_obra_id"] = None
 if "editar_obra_cliente" not in st.session_state:
     st.session_state["editar_obra_cliente"] = ""
+if "idx_modulo_editar" not in st.session_state:
+    st.session_state["idx_modulo_editar"] = None
 
 maderas, fondos, config = traer_datos()
 # Si hay un presupuesto para editar, forzamos el cotizador
@@ -331,8 +333,9 @@ if menu == "Cotizador CNC":
                 if col_sel.button("Editar este", key=f"sel_mod_obra_{i}"):
                     st.session_state["editar_presupuesto"] = mod
                     st.session_state["editar_cliente"] = cliente_obra_edit
+                    st.session_state["idx_modulo_editar"] = i  # guardamos posición para reemplazar
                     st.session_state["editar_obra_modulos"] = None
-                    st.session_state["menu_idx"] = 0  # fuerza Cotizador CNC
+                    st.session_state["menu_idx"] = 0
                     st.rerun()
             if st.button("Cancelar", key="cancel_obra_edit"):
                 st.session_state["editar_obra_modulos"] = None
@@ -598,11 +601,15 @@ if menu == "Cotizador CNC":
             st.subheader("Gestion de Obra")
             nombre_modulo = st.text_input("Nombre del modulo (ej: Bajo mesada izquierdo)", value=f"{tipo_modulo} {ancho_m:.0f}mm")
 
+            # Si venimos de editar una obra, mostramos qué módulo estamos reemplazando
+            idx_modulo_editar = st.session_state.get("idx_modulo_editar")
+
             col_ag, col_sv = st.columns(2)
             with col_ag:
-                if st.button("+ Agregar modulo a la obra", use_container_width=True, type="primary"):
+                label_boton = "✏️ Reemplazar módulo en la obra" if idx_modulo_editar is not None else "+ Agregar módulo a la obra"
+                if st.button(label_boton, use_container_width=True, type="primary"):
                     if ancho_m > 0 and alto_m > 0 and precio_final > 0:
-                        st.session_state["obra_modulos"].append({
+                        nuevo_mod = {
                             "nombre": nombre_modulo,
                             "tipo": tipo_modulo,
                             "ancho": int(ancho_m),
@@ -611,7 +618,14 @@ if menu == "Cotizador CNC":
                             "material": mat_principal,
                             "precio": precio_final,
                             "df_corte": df_corte.copy() if not df_corte.empty else None,
-                        })
+                        }
+                        if idx_modulo_editar is not None:
+                            # Reemplazamos el módulo en la posición correcta
+                            st.session_state["obra_modulos"][idx_modulo_editar] = nuevo_mod
+                            st.session_state["idx_modulo_editar"] = None
+                            st.session_state["editar_presupuesto"] = None
+                        else:
+                            st.session_state["obra_modulos"].append(nuevo_mod)
                         st.session_state["ultimo_modulo_agregado"] = nombre_modulo
                         st.session_state["ultimo_precio_agregado"] = precio_final
                         st.rerun()
@@ -794,7 +808,6 @@ if menu == "Cotizador CNC":
             if st.button("Guardar obra en historial", use_container_width=True):
                 if cliente:
                     import json
-                    # Guardamos todos los módulos como JSON para poder editar después
                     params_obra = {
                         "es_obra": True,
                         "modulos": [
@@ -810,12 +823,24 @@ if menu == "Cotizador CNC":
                             for m in st.session_state["obra_modulos"]
                         ]
                     }
+                    # Si estamos editando una obra existente, actualizamos ese registro
+                    id_obra_editar = st.session_state.get("editar_obra_id")
                     guardar_presupuesto_nube(
                         cliente,
                         f"Obra ({len(st.session_state['obra_modulos'])} módulos)",
                         total_obra,
-                        parametros=params_obra
+                        parametros=params_obra,
+                        id_editar=id_obra_editar
                     )
+                    # Limpiamos todo el modo edición
+                    st.session_state["obra_modulos"] = []
+                    st.session_state["editar_obra_modulos"] = None
+                    st.session_state["editar_obra_id"] = None
+                    st.session_state["editar_obra_cliente"] = ""
+                    st.session_state["editar_presupuesto"] = None
+                    st.session_state["editar_id"] = None
+                    st.session_state["editar_cliente"] = ""
+                    st.rerun()
                 else:
                     st.warning("Ingresa el nombre del Cliente arriba.")
 
