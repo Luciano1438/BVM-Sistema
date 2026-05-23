@@ -226,7 +226,8 @@ def traer_datos():
         return maderas_default, {'Fibroplus Blanco 3mm': 34500.0}, config_default
 
 
-def guardar_presupuesto_nube(cliente, mueble, total):
+def guardar_presupuesto_nube(cliente, mueble, total, parametros=None):
+    import json
     try:
         data = {
             "cliente": cliente,
@@ -234,7 +235,8 @@ def guardar_presupuesto_nube(cliente, mueble, total):
             "precio_final": float(total),
             "estado": "Pendiente",
             "user_id": st.session_state["user"].id,
-            "fecha": datetime.now(timezone(timedelta(hours=-3))).strftime("%Y-%m-%d %H:%M")
+            "fecha": datetime.now(timezone(timedelta(hours=-3))).strftime("%Y-%m-%d %H:%M"),
+            "parametros": json.dumps(parametros) if parametros else None
         }
         supabase.table("ventas").insert(data).execute()
         st.success("Venta guardada en la nube")
@@ -269,6 +271,12 @@ if not gestionar_auth():
 
 if "obra_modulos" not in st.session_state:
     st.session_state["obra_modulos"] = []
+if "editar_presupuesto" not in st.session_state:
+    st.session_state["editar_presupuesto"] = None
+if "editar_id" not in st.session_state:
+    st.session_state["editar_id"] = None
+if "editar_cliente" not in st.session_state:
+    st.session_state["editar_cliente"] = ""
 
 maderas, fondos, config = traer_datos()
 menu = st.sidebar.radio("Navegacion", ["Cotizador CNC", "Deposito de Retazos", "Historial de Ventas", "Configuracion de Precios"])
@@ -286,6 +294,22 @@ if menu == "Cotizador CNC":
     try:
         st.title("BVM | Control de Produccion Industrial")
 
+        # --- Detectar si hay un presupuesto cargado para editar ---
+        ep = st.session_state.get("editar_presupuesto")
+        if ep:
+            st.info(f"Editando presupuesto guardado — Cliente: {st.session_state.get('editar_cliente', '')}. Modifica lo que necesites y guarda de nuevo.")
+            if st.button("Cancelar edicion"):
+                st.session_state["editar_presupuesto"] = None
+                st.session_state["editar_id"] = None
+                st.session_state["editar_cliente"] = ""
+                st.rerun()
+
+        def _v(key, default):
+            """Devuelve el valor del presupuesto en edicion o el default."""
+            if ep and key in ep:
+                return ep[key]
+            return default
+
         df_corte = pd.DataFrame()
         costo_madera = 0.0
         costo_fondo = 0.0
@@ -297,39 +321,48 @@ if menu == "Cotizador CNC":
         m2_fondo = 0.0
         costo_operativo = 0.0
         utilidad = 0.0
-        tiene_parante = False
-        tipo_parante = "Corto (100mm)"
-        tipo_estante_manual = "Completo"
-        distancia_parante = 0.0
-        luz_perimetral_tapa = 4.0
-        aire_trasero = 30.0
-        esp_corredera = 13.0
-        distribucion_tapas = "Iguales"
-        cant_puertas = 0
-        tiene_cenefa = False
-        alto_cenefa = 0.0
-        estantes_fijos = 0
-        estantes_moviles = 0
-        cant_cajones = 0
-        luz_entre_tapas = 3.0
-        alto_frentin_emb = 0.0
-        tipo_tapa = "Superpuesta"
-        tipo_base = "Nada"
-        altura_base = 0.0
+        tiene_parante = _v("tiene_parante", False)
+        tipo_parante = _v("tipo_parante", "Corto (100mm)")
+        tipo_estante_manual = _v("tipo_estante_manual", "Completo")
+        distancia_parante = _v("distancia_parante", 0.0)
+        luz_perimetral_tapa = _v("luz_perimetral_tapa", 4.0)
+        aire_trasero = _v("aire_trasero", 30.0)
+        esp_corredera = _v("esp_corredera", 13.0)
+        distribucion_tapas = _v("distribucion_tapas", "Iguales")
+        cant_puertas = _v("cant_puertas", 0)
+        tiene_cenefa = _v("tiene_cenefa", False)
+        alto_cenefa = _v("alto_cenefa", 0.0)
+        estantes_fijos = _v("estantes_fijos", 0)
+        estantes_moviles = _v("estantes_moviles", 0)
+        cant_cajones = _v("cant_cajones", 0)
+        luz_entre_tapas = _v("luz_entre_tapas", 3.0)
+        alto_frentin_emb = _v("alto_frentin_emb", 0.0)
+        tipo_tapa = _v("tipo_tapa", "Superpuesta")
+        tipo_base = _v("tipo_base", "Nada")
+        altura_base = _v("altura_base", 0.0)
+
+        # Listas para selectbox con índice correcto al editar
+        lista_modulos = ["Cajonera", "Bajo Mesada", "Alacena"]
+        lista_maderas = list(maderas.keys())
+        lista_fondos  = list(fondos.keys())
+
+        idx_modulo = lista_modulos.index(_v("tipo_modulo", "Cajonera")) if _v("tipo_modulo", "Cajonera") in lista_modulos else 0
+        idx_madera = lista_maderas.index(_v("mat_principal", lista_maderas[0])) if _v("mat_principal", lista_maderas[0]) in lista_maderas else 0
+        idx_fondo  = lista_fondos.index(_v("mat_fondo_sel", lista_fondos[0])) if _v("mat_fondo_sel", lista_fondos[0]) in lista_fondos else 0
 
         col_in, col_out = st.columns([1, 1.2])
 
         with col_in:
             with st.expander("Definicion de Estructura", expanded=True):
-                cliente = st.text_input("Cliente", "")
-                tipo_modulo = st.selectbox("Tipo de Mueble", ["Cajonera", "Bajo Mesada", "Alacena"], key="tipo_mueble_sel")
+                cliente = st.text_input("Cliente", st.session_state.get("editar_cliente", ""))
+                tipo_modulo = st.selectbox("Tipo de Mueble", lista_modulos, index=idx_modulo, key="tipo_mueble_sel")
                 c1, c2, c3 = st.columns(3)
-                ancho_m = c1.number_input("Ancho Total (mm)", min_value=0.0, max_value=5000.0, value=0.0, step=0.5)
-                alto_m = c2.number_input("Alto Total (mm)", min_value=0.0, max_value=5000.0, value=0.0, step=0.5)
-                prof_m = c3.number_input("Profundo (mm)", min_value=0.0, max_value=2000.0, value=0.0, step=0.5)
-                mat_principal = st.selectbox("Material Cuerpo (18mm)", list(maderas.keys()))
-                esp_real = st.number_input("Espesor Real Placa (mm)", min_value=1.0, max_value=50.0, value=18.0, step=0.1)
-                mat_fondo_sel = st.selectbox("Material Fondo", list(fondos.keys()))
+                ancho_m = c1.number_input("Ancho Total (mm)", min_value=0.0, max_value=5000.0, value=float(_v("ancho_m", 0.0)), step=0.5)
+                alto_m  = c2.number_input("Alto Total (mm)",  min_value=0.0, max_value=5000.0, value=float(_v("alto_m",  0.0)), step=0.5)
+                prof_m  = c3.number_input("Profundo (mm)",    min_value=0.0, max_value=2000.0, value=float(_v("prof_m",  0.0)), step=0.5)
+                mat_principal = st.selectbox("Material Cuerpo (18mm)", lista_maderas, index=idx_madera)
+                esp_real = st.number_input("Espesor Real Placa (mm)", min_value=1.0, max_value=50.0, value=float(_v("esp_real", 18.0)), step=0.1)
+                mat_fondo_sel = st.selectbox("Material Fondo", lista_fondos, index=idx_fondo)
 
             with st.expander("Configuracion de Modulos", expanded=False):
                 if tipo_modulo == "Bajo Mesada":
@@ -544,7 +577,21 @@ if menu == "Cotizador CNC":
             with col_sv:
                 if st.button("Guardar solo este modulo", use_container_width=True):
                     if cliente:
-                        guardar_presupuesto_nube(cliente, tipo_modulo, precio_final)
+                        params = {
+                            "tipo_modulo": tipo_modulo, "ancho_m": ancho_m, "alto_m": alto_m,
+                            "prof_m": prof_m, "esp_real": esp_real, "mat_principal": mat_principal,
+                            "mat_fondo_sel": mat_fondo_sel, "tipo_tapa": tipo_tapa,
+                            "cant_puertas": cant_puertas, "cant_cajones": cant_cajones,
+                            "tiene_parante": tiene_parante, "tipo_parante": tipo_parante,
+                            "tipo_base": tipo_base, "altura_base": altura_base,
+                            "estantes_fijos": estantes_fijos, "estantes_moviles": estantes_moviles,
+                            "tipo_estante_manual": tipo_estante_manual,
+                            "luz_entre_tapas": luz_entre_tapas, "luz_perimetral_tapa": luz_perimetral_tapa,
+                            "alto_frentin_emb": alto_frentin_emb, "aire_trasero": aire_trasero,
+                            "esp_corredera": esp_corredera, "distribucion_tapas": distribucion_tapas,
+                            "tiene_cenefa": tiene_cenefa, "alto_cenefa": alto_cenefa,
+                        }
+                        guardar_presupuesto_nube(cliente, tipo_modulo, precio_final, parametros=params)
                     else:
                         st.warning("Ingresa el nombre del Cliente.")
 
@@ -693,7 +740,7 @@ elif menu == "Historial de Ventas":
                         unsafe_allow_html=True
                     )
 
-                    col_fecha, col_estado, col_btn1, col_btn2 = st.columns([2, 2, 1, 1])
+                    col_fecha, col_estado, col_btn1, col_btn2, col_btn3 = st.columns([2, 2, 1, 1, 1])
 
                     fecha_str = str(row.get('fecha', ''))[:16] if row.get('fecha') else 'Sin fecha'
                     col_fecha.caption(f"📅 {fecha_str}")
@@ -714,6 +761,27 @@ elif menu == "Historial de Ventas":
                                 st.rerun()
 
                     with col_btn2:
+                        # Botón editar — solo si tiene parámetros guardados
+                        tiene_params = row.get('parametros') not in [None, '', 'null']
+                        if st.button(
+                            "Editar" if tiene_params else "—",
+                            key=f"edit_{id_venta}_{_}",
+                            use_container_width=True,
+                            disabled=not tiene_params,
+                            help="Cargar este presupuesto en el cotizador para editarlo" if tiene_params else "Este presupuesto no tiene parametros guardados (fue creado antes de esta funcion)"
+                        ):
+                            import json
+                            try:
+                                params = json.loads(row['parametros'])
+                                st.session_state["editar_presupuesto"] = params
+                                st.session_state["editar_id"] = id_venta
+                                st.session_state["editar_cliente"] = row.get('cliente', '')
+                                st.info("Presupuesto cargado. Ve al Cotizador para editarlo.")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Error al cargar parametros: {e}")
+
+                    with col_btn3:
                         if st.button("Borrar", key=f"del_{id_venta}_{_}", use_container_width=True):
                             try:
                                 token = st.session_state["session"].access_token
