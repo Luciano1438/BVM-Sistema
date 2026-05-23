@@ -279,7 +279,11 @@ if "editar_cliente" not in st.session_state:
     st.session_state["editar_cliente"] = ""
 
 maderas, fondos, config = traer_datos()
-menu = st.sidebar.radio("Navegacion", ["Cotizador CNC", "Deposito de Retazos", "Historial de Ventas", "Configuracion de Precios"])
+# Si hay un presupuesto para editar, forzamos el cotizador
+_opciones_menu = ["Cotizador CNC", "Deposito de Retazos", "Historial de Ventas", "Configuracion de Precios"]
+_idx_menu = 0 if st.session_state.get("editar_presupuesto") else None
+menu = st.sidebar.radio("Navegacion", _opciones_menu, index=_idx_menu if _idx_menu is not None else st.session_state.get("menu_idx", 0))
+st.session_state["menu_idx"] = _opciones_menu.index(menu)
 
 if st.session_state["obra_modulos"]:
     st.sidebar.info(f"Obra en curso: {len(st.session_state['obra_modulos'])} modulo(s)")
@@ -611,6 +615,77 @@ if menu == "Cotizador CNC":
                 st.session_state["ultimo_precio_agregado"] = 0
 
             if not df_corte.empty:
+                # --- PROPUESTA COMERCIAL MODULO INDIVIDUAL ---
+                st.write("---")
+                st.subheader("Propuesta para este modulo")
+                col_ent, col_sena = st.columns(2)
+                with col_ent:
+                    dias_entrega = st.number_input("Dias de entrega", value=15, step=1, key="dias_mod")
+                with col_sena:
+                    pct_seña = st.slider("% de Sena", 0, 100, 50, 5, key="sena_mod")
+
+                from fpdf import FPDF
+                import urllib.parse as _up
+
+                # PDF modulo individual
+                def _pdf_modulo(cliente, nombre, tipo, ancho, alto, prof, mat, precio, dias, pct):
+                    pdf = FPDF()
+                    pdf.add_page()
+                    pdf.set_font("Arial", "B", 20)
+                    pdf.set_text_color(46, 125, 50)
+                    pdf.cell(200, 20, "PRESUPUESTO - BVM", ln=True, align="C")
+                    pdf.set_text_color(0, 0, 0)
+                    pdf.set_font("Arial", "", 10)
+                    from datetime import datetime, timedelta, timezone as tz
+                    fecha = datetime.now(tz(timedelta(hours=-3))).strftime("%d/%m/%Y")
+                    pdf.cell(200, 8, f"Fecha: {fecha}    Cliente: {cliente}", ln=True, align="R")
+                    pdf.ln(6)
+                    pdf.set_font("Arial", "B", 12)
+                    pdf.set_fill_color(230, 245, 238)
+                    pdf.cell(0, 11, f"  {nombre}", ln=True, fill=True)
+                    pdf.set_font("Arial", "", 11)
+                    pdf.cell(95, 8, f"  Tipo: {tipo}", ln=False)
+                    pdf.cell(95, 8, f"  Material: {mat}", ln=True)
+                    pdf.cell(95, 8, f"  Ancho: {ancho} mm", ln=False)
+                    pdf.cell(95, 8, f"  Alto: {alto} mm", ln=True)
+                    pdf.cell(95, 8, f"  Profundidad: {prof} mm", ln=True)
+                    pdf.ln(4)
+                    monto_sena = precio * (pct / 100)
+                    pdf.set_font("Arial", "B", 14)
+                    pdf.set_fill_color(240, 240, 240)
+                    pdf.cell(0, 14, f"TOTAL: ${precio:,.0f}", ln=True, align="C", fill=True)
+                    pdf.set_font("Arial", "", 11)
+                    pdf.cell(0, 8, f"Seña requerida ({pct}%): ${monto_sena:,.0f}", ln=True, align="C")
+                    pdf.cell(0, 8, f"Entrega: {dias} dias habiles", ln=True, align="C")
+                    pdf.ln(4)
+                    pdf.set_font("Arial", "I", 9)
+                    pdf.multi_cell(0, 5, "Precios validos por 48hs. Una vez abonada la seña se congelan los materiales.")
+                    return bytes(pdf.output())
+
+                def _wa_modulo(cliente, nombre, tipo, ancho, alto, prof, mat, precio, dias, pct):
+                    monto = precio * (pct / 100)
+                    lineas = [
+                        f"*PRESUPUESTO BVM — {nombre.upper()}*",
+                        f"Cliente: {cliente}", "",
+                        f"• Tipo: {tipo}",
+                        f"• Medidas: {ancho}x{alto}x{prof} mm",
+                        f"• Material: {mat}", "",
+                        f"*TOTAL: ${precio:,.0f}*",
+                        f"Seña ({pct}%): ${monto:,.0f}",
+                        f"Entrega: {dias} dias habiles", "",
+                        "Precios validos por 48hs.",
+                    ]
+                    return f"https://wa.me/?text={_up.quote(chr(10).join(lineas))}"
+
+                pdf_mod = _pdf_modulo(cliente, nombre_modulo, tipo_modulo, int(ancho_m), int(alto_m), int(prof_m), mat_principal, precio_final, dias_entrega, pct_seña)
+                wa_mod  = _wa_modulo(cliente, nombre_modulo, tipo_modulo, int(ancho_m), int(alto_m), int(prof_m), mat_principal, precio_final, dias_entrega, pct_seña)
+
+                col_p1, col_p2 = st.columns(2)
+                with col_p1:
+                    st.download_button(label="PDF este modulo", data=pdf_mod, file_name=f"Presupuesto_{nombre_modulo}.pdf", mime="application/pdf", use_container_width=True)
+                with col_p2:
+                    st.link_button("WhatsApp este modulo", wa_mod, use_container_width=True)
+
                 with st.expander("Terminal CNC - Este modulo", expanded=False):
                     archivo_aspire = exportar_para_aspire(df_corte, mat_principal, esp_real)
                     dxf_bytes = generar_dxf_bvm(df_corte)
@@ -776,7 +851,7 @@ elif menu == "Historial de Ventas":
                                 st.session_state["editar_presupuesto"] = params
                                 st.session_state["editar_id"] = id_venta
                                 st.session_state["editar_cliente"] = row.get('cliente', '')
-                                st.info("Presupuesto cargado. Ve al Cotizador para editarlo.")
+                                st.session_state["menu_idx"] = 0  # fuerza Cotizador CNC
                                 st.rerun()
                             except Exception as e:
                                 st.error(f"Error al cargar parametros: {e}")
