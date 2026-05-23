@@ -626,25 +626,107 @@ if menu == "Cotizador CNC":
         st.error(f"Error en el Cotizador: {e}")
 
 elif menu == "Historial de Ventas":
-    st.title("Gestion y Seguimiento de Ventas")
+    st.title("Historial de Presupuestos")
+
+    ESTADOS = ["Pendiente", "Señado", "Pagado"]
+    COLORES = {
+        "Pendiente": ("🔴", "#FCEBEB", "#A32D2D"),
+        "Señado":    ("🟡", "#FAEEDA", "#854F0B"),
+        "Pagado":    ("🟢", "#E1F5EE", "#0F6E56"),
+    }
+
+    def actualizar_estado(id_venta, nuevo_estado):
+        try:
+            token = st.session_state["session"].access_token
+            supabase.postgrest.auth(token)
+            supabase.table("ventas").update({"estado": nuevo_estado}).eq("id", id_venta).execute()
+        except Exception as e:
+            st.error(f"Error al actualizar estado: {e}")
+
     try:
         df_hist = traer_datos_historial()
-        if not df_hist.empty:
-            st.subheader("Monitor de Reposicion e Inflacion")
-            inflacion_estimada = 0.15
-            for index, row in df_hist.iterrows():
-                precio_original = row['precio_final']
-                precio_reposicion = precio_original * (1 + inflacion_estimada)
-                if row['estado'] == 'Pendiente':
-                    col1, col2, col3 = st.columns([2, 1, 1])
-                    col1.write(f"**{row['mueble']}** (Cliente: {row.get('cliente', 'N/A')})")
-                    col2.write(f"Venta: ${precio_original:,.0f}")
-                    st.warning(f"Valor de reposicion hoy: ${precio_reposicion:,.0f}. Actualizar +15% antes de cobrar senas.")
+
+        if df_hist.empty:
+            st.info("Todavia no hay presupuestos guardados. Cuando guardes uno desde el Cotizador va a aparecer acá.")
+        else:
+            # --- RESUMEN SUPERIOR ---
+            total_pendiente = df_hist[df_hist['estado'] == 'Pendiente']['precio_final'].sum()
+            total_señado    = df_hist[df_hist['estado'] == 'Señado']['precio_final'].sum()
+            total_pagado    = df_hist[df_hist['estado'] == 'Pagado']['precio_final'].sum()
+
+            c1, c2, c3 = st.columns(3)
+            c1.metric("🔴 Pendientes", f"${total_pendiente:,.0f}", f"{len(df_hist[df_hist['estado']=='Pendiente'])} presupuestos")
+            c2.metric("🟡 Señados",    f"${total_señado:,.0f}",    f"{len(df_hist[df_hist['estado']=='Señado'])} presupuestos")
+            c3.metric("🟢 Pagados",    f"${total_pagado:,.0f}",    f"{len(df_hist[df_hist['estado']=='Pagado'])} presupuestos")
+
             st.write("---")
-            st.subheader("Balance General")
-            st.data_editor(df_hist, use_container_width=True)
+
+            # --- FILTRO ---
+            filtro = st.radio(
+                "Mostrar",
+                ["Todos", "Pendiente", "Señado", "Pagado"],
+                horizontal=True
+            )
+
+            df_filtrado = df_hist if filtro == "Todos" else df_hist[df_hist['estado'] == filtro]
+            df_filtrado = df_filtrado.sort_values("fecha", ascending=False) if "fecha" in df_filtrado.columns else df_filtrado
+
+            st.write(f"**{len(df_filtrado)} presupuesto(s) encontrado(s)**")
+            st.write("---")
+
+            # --- TARJETAS POR PRESUPUESTO ---
+            for _, row in df_filtrado.iterrows():
+                estado_actual = row.get('estado', 'Pendiente')
+                if estado_actual not in COLORES:
+                    estado_actual = 'Pendiente'
+
+                icono, bg_color, text_color = COLORES[estado_actual]
+                id_venta = row.get('id', None)
+
+                with st.container():
+                    # Usamos markdown para el fondo de color
+                    st.markdown(
+                        f"""<div style="background:{bg_color}; border-radius:8px; padding:12px 16px; margin-bottom:4px;">
+                        <span style="color:{text_color}; font-weight:600; font-size:15px;">{icono} {row.get('cliente','Sin nombre')} — {row.get('mueble','')}</span>
+                        <span style="color:{text_color}; float:right; font-size:15px; font-weight:600;">${row['precio_final']:,.0f}</span>
+                        </div>""",
+                        unsafe_allow_html=True
+                    )
+
+                    col_fecha, col_estado, col_btn1, col_btn2 = st.columns([2, 2, 1, 1])
+
+                    fecha_str = str(row.get('fecha', ''))[:16] if row.get('fecha') else 'Sin fecha'
+                    col_fecha.caption(f"📅 {fecha_str}")
+
+                    nuevo_estado = col_estado.selectbox(
+                        "Estado",
+                        ESTADOS,
+                        index=ESTADOS.index(estado_actual),
+                        key=f"estado_{id_venta}_{_}",
+                        label_visibility="collapsed"
+                    )
+
+                    with col_btn1:
+                        if st.button("Guardar", key=f"save_{id_venta}_{_}", use_container_width=True):
+                            if id_venta and nuevo_estado != estado_actual:
+                                actualizar_estado(id_venta, nuevo_estado)
+                                st.success(f"Estado actualizado a {nuevo_estado}")
+                                st.rerun()
+
+                    with col_btn2:
+                        if st.button("Borrar", key=f"del_{id_venta}_{_}", use_container_width=True):
+                            try:
+                                token = st.session_state["session"].access_token
+                                supabase.postgrest.auth(token)
+                                supabase.table("ventas").delete().eq("id", id_venta).execute()
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Error al borrar: {e}")
+
+                    st.write("---")
+
     except Exception as e:
-        st.error(f"Error en el monitor: {e}")
+        st.error(f"Error en el historial: {e}")
 
 elif menu == "Deposito de Retazos":
     st.title("Gestion de Sobrantes (Estandar BVM)")
