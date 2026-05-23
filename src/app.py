@@ -56,34 +56,25 @@ def generar_pdf_obra(cliente, modulos, dias_entrega, pct_seña):
     total_obra = sum(m["precio"] for m in modulos)
 
     for i, mod in enumerate(modulos):
+        # Cabecera del módulo con fondo verde suave
         pdf.set_font("Arial", "B", 12)
         pdf.set_fill_color(230, 245, 238)
-        pdf.cell(0, 10, f"  Modulo {i+1}: {mod['nombre']}  -  {mod['ancho']}x{mod['alto']}x{mod['prof']} mm", ln=True, fill=True)
+        pdf.cell(0, 11, f"  {i+1}. {mod['nombre']}", ln=True, fill=True)
+
+        # Datos del módulo en dos columnas
         pdf.set_font("Arial", "", 10)
-        pdf.cell(0, 7, f"  Material: {mod['material']}", ln=True)
+        pdf.set_fill_color(250, 250, 250)
+        pdf.cell(95, 7, f"  Tipo: {mod['tipo']}", border="L", ln=False)
+        pdf.cell(95, 7, f"  Material: {mod['material']}", border="R", ln=True)
+        pdf.cell(95, 7, f"  Ancho: {mod['ancho']} mm", border="L", ln=False)
+        pdf.cell(95, 7, f"  Alto: {mod['alto']} mm", border="R", ln=True)
+        pdf.cell(95, 7, f"  Profundidad: {mod['prof']} mm", border="LB", ln=False)
+        pdf.cell(95, 7, f"  Terminacion: {mod.get('tipo_tapa', 'Estandar')}", border="RB", ln=True)
 
-        pdf.set_font("Arial", "B", 9)
-        pdf.set_fill_color(240, 240, 240)
-        pdf.cell(70, 6, "Pieza", border=1, fill=True)
-        pdf.cell(25, 6, "Largo", border=1, fill=True, align="C")
-        pdf.cell(25, 6, "Ancho", border=1, fill=True, align="C")
-        pdf.cell(20, 6, "Cant", border=1, fill=True, align="C")
-        pdf.cell(30, 6, "Tipo", border=1, fill=True, align="C")
-        pdf.ln()
-
-        pdf.set_font("Arial", "", 9)
-        if mod["df_corte"] is not None and not mod["df_corte"].empty:
-            for _, row in mod["df_corte"].iterrows():
-                pdf.cell(70, 6, str(row["Pieza"])[:35], border=1)
-                pdf.cell(25, 6, str(int(row["L"])), border=1, align="C")
-                pdf.cell(25, 6, str(int(row["A"])), border=1, align="C")
-                pdf.cell(20, 6, str(int(row["Cant"])), border=1, align="C")
-                pdf.cell(30, 6, str(row.get("Tipo", ""))[:12], border=1, align="C")
-                pdf.ln()
-
-        pdf.set_font("Arial", "B", 10)
-        pdf.cell(0, 8, f"  Subtotal modulo: ${mod['precio']:,.0f}", ln=True, align="R")
-        pdf.ln(3)
+        # Subtotal alineado a la derecha
+        pdf.set_font("Arial", "B", 11)
+        pdf.cell(0, 9, f"  Subtotal: ${mod['precio']:,.0f}", ln=True, align="R")
+        pdf.ln(4)
 
     pdf.set_font("Arial", "B", 14)
     pdf.set_fill_color(240, 240, 240)
@@ -544,7 +535,8 @@ if menu == "Cotizador CNC":
                             "precio": precio_final,
                             "df_corte": df_corte.copy() if not df_corte.empty else None,
                         })
-                        st.success(f"'{nombre_modulo}' agregado. Total modulos: {len(st.session_state['obra_modulos'])}")
+                        st.session_state["ultimo_modulo_agregado"] = nombre_modulo
+                        st.session_state["ultimo_precio_agregado"] = precio_final
                         st.rerun()
                     else:
                         st.warning("Ingresa las medidas y calcula el modulo antes de agregar.")
@@ -555,6 +547,21 @@ if menu == "Cotizador CNC":
                         guardar_presupuesto_nube(cliente, tipo_modulo, precio_final)
                     else:
                         st.warning("Ingresa el nombre del Cliente.")
+
+            # Cartel de confirmación cuando se acaba de agregar un módulo
+            if st.session_state.get("ultimo_modulo_agregado"):
+                total_actual = sum(m["precio"] for m in st.session_state["obra_modulos"])
+                st.info(f"""
+**✅ Módulo agregado: {st.session_state['ultimo_modulo_agregado']}** — ${st.session_state['ultimo_precio_agregado']:,.0f}
+
+📋 Tenés **{len(st.session_state['obra_modulos'])} módulo(s)** en la obra — Total acumulado: **${total_actual:,.0f}**
+
+👉 **¿Qué hacer ahora?**
+- Configurá el siguiente módulo arriba y volvé a hacer click en "Agregar"
+- Cuando terminés todos los módulos, bajá a **Resumen de Obra** para generar el PDF y el WhatsApp
+                """)
+                st.session_state["ultimo_modulo_agregado"] = None
+                st.session_state["ultimo_precio_agregado"] = 0
 
             if not df_corte.empty:
                 with st.expander("Terminal CNC - Este modulo", expanded=False):
