@@ -294,15 +294,18 @@ maderas, fondos, config = traer_datos()
 # Si hay un presupuesto para editar, forzamos el cotizador
 _opciones_menu = ["Cotizador CNC", "Deposito de Retazos", "Historial de Ventas", "Configuracion de Precios"]
 
-# Si hay edición en curso, forzamos el cotizador ignorando lo que el usuario tenía seleccionado
+# Si hay edición en curso, forzamos el cotizador
 _forzar_cotizador = (
     st.session_state.get("editar_presupuesto") is not None or
     st.session_state.get("editar_obra_modulos") is not None
 )
-_idx_menu = 0 if _forzar_cotizador else st.session_state.get("menu_idx", 0)
 
-menu = st.sidebar.radio("Navegacion", _opciones_menu, index=_idx_menu, key="menu_radio")
-st.session_state["menu_idx"] = _opciones_menu.index(menu)
+if _forzar_cotizador:
+    menu = "Cotizador CNC"
+    st.sidebar.radio("Navegacion", _opciones_menu, index=0)
+else:
+    menu = st.sidebar.radio("Navegacion", _opciones_menu, index=st.session_state.get("menu_idx", 0))
+    st.session_state["menu_idx"] = _opciones_menu.index(menu)
 
 if st.session_state["obra_modulos"]:
     st.sidebar.info(f"Obra en curso: {len(st.session_state['obra_modulos'])} modulo(s)")
