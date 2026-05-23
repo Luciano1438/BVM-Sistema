@@ -226,20 +226,26 @@ def traer_datos():
         return maderas_default, {'Fibroplus Blanco 3mm': 34500.0}, config_default
 
 
-def guardar_presupuesto_nube(cliente, mueble, total, parametros=None):
+def guardar_presupuesto_nube(cliente, mueble, total, parametros=None, id_editar=None):
     import json
     try:
         data = {
             "cliente": cliente,
             "mueble": mueble,
             "precio_final": float(total),
-            "estado": "Pendiente",
             "user_id": st.session_state["user"].id,
             "fecha": datetime.now(timezone(timedelta(hours=-3))).strftime("%Y-%m-%d %H:%M"),
             "parametros": json.dumps(parametros) if parametros else None
         }
-        supabase.table("ventas").insert(data).execute()
-        st.success("Venta guardada en la nube")
+        if id_editar:
+            # Actualizamos el registro existente
+            supabase.table("ventas").update(data).eq("id", id_editar).execute()
+            st.success("✅ Presupuesto actualizado en el historial.")
+        else:
+            # Creamos uno nuevo
+            data["estado"] = "Pendiente"
+            supabase.table("ventas").insert(data).execute()
+            st.success("✅ Presupuesto guardado.")
     except Exception as e:
         st.error(f"Error al guardar: {e}")
 
@@ -287,8 +293,15 @@ if "editar_obra_cliente" not in st.session_state:
 maderas, fondos, config = traer_datos()
 # Si hay un presupuesto para editar, forzamos el cotizador
 _opciones_menu = ["Cotizador CNC", "Deposito de Retazos", "Historial de Ventas", "Configuracion de Precios"]
-_idx_menu = 0 if st.session_state.get("editar_presupuesto") else None
-menu = st.sidebar.radio("Navegacion", _opciones_menu, index=_idx_menu if _idx_menu is not None else st.session_state.get("menu_idx", 0))
+
+# Si hay edición en curso, forzamos el cotizador ignorando lo que el usuario tenía seleccionado
+_forzar_cotizador = (
+    st.session_state.get("editar_presupuesto") is not None or
+    st.session_state.get("editar_obra_modulos") is not None
+)
+_idx_menu = 0 if _forzar_cotizador else st.session_state.get("menu_idx", 0)
+
+menu = st.sidebar.radio("Navegacion", _opciones_menu, index=_idx_menu, key="menu_radio")
 st.session_state["menu_idx"] = _opciones_menu.index(menu)
 
 if st.session_state["obra_modulos"]:
@@ -316,6 +329,7 @@ if menu == "Cotizador CNC":
                     st.session_state["editar_presupuesto"] = mod
                     st.session_state["editar_cliente"] = cliente_obra_edit
                     st.session_state["editar_obra_modulos"] = None
+                    st.session_state["menu_idx"] = 0  # fuerza Cotizador CNC
                     st.rerun()
             if st.button("Cancelar", key="cancel_obra_edit"):
                 st.session_state["editar_obra_modulos"] = None
@@ -618,7 +632,15 @@ if menu == "Cotizador CNC":
                             "esp_corredera": esp_corredera, "distribucion_tapas": distribucion_tapas,
                             "tiene_cenefa": tiene_cenefa, "alto_cenefa": alto_cenefa,
                         }
-                        guardar_presupuesto_nube(cliente, tipo_modulo, precio_final, parametros=params)
+                        guardar_presupuesto_nube(
+                            cliente, tipo_modulo, precio_final,
+                            parametros=params,
+                            id_editar=st.session_state.get("editar_id")
+                        )
+                        # Limpiamos el modo edición
+                        st.session_state["editar_presupuesto"] = None
+                        st.session_state["editar_id"] = None
+                        st.session_state["editar_cliente"] = ""
                     else:
                         st.warning("Ingresa el nombre del Cliente.")
 
