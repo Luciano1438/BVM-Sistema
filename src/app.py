@@ -729,29 +729,87 @@ elif menu == "Historial de Ventas":
         st.error(f"Error en el historial: {e}")
 
 elif menu == "Deposito de Retazos":
-    st.title("Gestion de Sobrantes (Estandar BVM)")
-    st.info("Carga aqui los recortes del taller para que el sistema los use automaticamente.")
+    st.title("Deposito de Retazos")
+    st.caption("Registra los sobrantes del taller. El sistema los usa automaticamente al calcular presupuestos para ahorrarte material.")
 
-    with st.expander("Registrar Nuevo Retazo en Deposito", expanded=True):
-        c_ret_mat, c_ret1, c_ret2 = st.columns([2, 1, 1])
-        mat_r = c_ret_mat.selectbox("Material del sobrante", list(maderas.keys()))
-        ancho_r = c_ret1.number_input("Ancho (mm)", value=0, key="anc_r_indep")
-        largo_r = c_ret2.number_input("Largo (mm)", value=0, key="lar_r_indep")
-        if st.button("Guardar en Inventario"):
-            if (ancho_r >= 150 and largo_r >= 400) or (ancho_r >= 400 and largo_r >= 150):
-                registrar_retazo(mat_r, largo_r, ancho_r)
-                st.success(f"Retazo de {mat_r} guardado.")
+    # --- REGISTRAR NUEVO RETAZO ---
+    with st.expander("+ Registrar nuevo retazo", expanded=True):
+        st.markdown("**Medida minima para que sea util: 150 x 400 mm**")
+        c_mat, c_largo, c_ancho = st.columns([2, 1, 1])
+        mat_r  = c_mat.selectbox("Material", list(maderas.keys()), key="mat_ret")
+        largo_r = c_largo.number_input("Largo (mm)", min_value=0, value=0, step=10, key="lar_r_indep")
+        ancho_r = c_ancho.number_input("Ancho (mm)", min_value=0, value=0, step=10, key="anc_r_indep")
+
+        # Preview en tiempo real
+        if largo_r > 0 and ancho_r > 0:
+            es_util = (largo_r >= 400 and ancho_r >= 150) or (largo_r >= 150 and ancho_r >= 400)
+            area_m2 = (largo_r * ancho_r) / 1_000_000
+            precio_mat = maderas.get(mat_r, 0)
+            valor_est = area_m2 * (precio_mat / 5.03)
+            if es_util:
+                st.success(f"Retazo valido — {largo_r}x{ancho_r} mm — {area_m2:.3f} m² — Valor estimado: ${valor_est:,.0f}")
             else:
-                st.warning("El retazo es muy chico (minimo 150x400mm).")
+                st.error(f"Retazo demasiado chico ({largo_r}x{ancho_r} mm). Minimo requerido: 150x400 mm en cualquier orientacion.")
+
+        if st.button("Guardar en deposito", use_container_width=True, type="primary"):
+            if largo_r > 0 and ancho_r > 0:
+                if (largo_r >= 400 and ancho_r >= 150) or (largo_r >= 150 and ancho_r >= 400):
+                    registrar_retazo(mat_r, largo_r, ancho_r)
+                    st.success(f"Retazo de {mat_r} ({largo_r}x{ancho_r} mm) guardado en el deposito.")
+                    st.rerun()
+                else:
+                    st.warning("El retazo no cumple el minimo. No se guardo.")
+            else:
+                st.warning("Ingresa las medidas antes de guardar.")
 
     st.write("---")
-    st.subheader("Stock Actual")
+
+    # --- STOCK ACTUAL ---
     retazos_db = consultar_retazos_disponibles("Todos")
-    if retazos_db:
-        df_inv = pd.DataFrame(retazos_db)
-        st.dataframe(df_inv[["material", "largo", "ancho"]], use_container_width=True)
+
+    if not retazos_db:
+        st.info("El deposito esta vacio. Cuando cargues retazos van a aparecer aca y el sistema los va a usar automaticamente.")
     else:
-        st.info("El deposito esta vacio.")
+        df_inv = pd.DataFrame(retazos_db)
+
+        # Métricas del depósito
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Retazos en stock", len(df_inv))
+        materiales_unicos = df_inv['material'].nunique() if 'material' in df_inv.columns else 0
+        c2.metric("Materiales distintos", materiales_unicos)
+        if 'largo' in df_inv.columns and 'ancho' in df_inv.columns:
+            area_total = (df_inv['largo'] * df_inv['ancho']).sum() / 1_000_000
+            c3.metric("Area total en stock", f"{area_total:.2f} m²")
+
+        st.write("---")
+        st.subheader("Stock por material")
+
+        # Agrupamos por material para que sea más fácil de leer
+        materiales = df_inv['material'].unique() if 'material' in df_inv.columns else []
+
+        for mat in materiales:
+            df_mat = df_inv[df_inv['material'] == mat]
+            with st.expander(f"{mat} — {len(df_mat)} retazo(s)", expanded=True):
+                for _, ret in df_mat.iterrows():
+                    col_info, col_area, col_del = st.columns([3, 2, 1])
+                    largo = ret.get('largo', 0)
+                    ancho = ret.get('ancho', 0)
+                    area = (largo * ancho) / 1_000_000
+                    precio_mat = maderas.get(mat, 0)
+                    valor = area * (precio_mat / 5.03)
+
+                    col_info.markdown(f"**{int(largo)} x {int(ancho)} mm**")
+                    col_area.caption(f"{area:.3f} m²  —  Valor est. ${valor:,.0f}")
+
+                    ret_id = ret.get('id')
+                    if col_del.button("X", key=f"del_ret_{ret_id}", help="Eliminar este retazo"):
+                        try:
+                            token = st.session_state["session"].access_token
+                            supabase.postgrest.auth(token)
+                            supabase.table("retazos").delete().eq("id", ret_id).execute()
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error al eliminar: {e}")
 
 elif menu == "Configuracion de Precios":
     st.title("Administracion de Insumos y Costos")
