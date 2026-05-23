@@ -680,11 +680,16 @@ if menu == "Cotizador CNC":
                 pdf_mod = _pdf_modulo(cliente, nombre_modulo, tipo_modulo, int(ancho_m), int(alto_m), int(prof_m), mat_principal, precio_final, dias_entrega, pct_seña)
                 wa_mod  = _wa_modulo(cliente, nombre_modulo, tipo_modulo, int(ancho_m), int(alto_m), int(prof_m), mat_principal, precio_final, dias_entrega, pct_seña)
 
-                col_p1, col_p2 = st.columns(2)
-                with col_p1:
-                    st.download_button(label="PDF este modulo", data=pdf_mod, file_name=f"Presupuesto_{nombre_modulo}.pdf", mime="application/pdf", use_container_width=True)
-                with col_p2:
-                    st.link_button("WhatsApp este modulo", wa_mod, use_container_width=True)
+                # Solo mostramos PDF/WA individual si NO hay obra en curso
+                # (si hay obra, el PDF completo está en el Resumen de Obra)
+                if not st.session_state["obra_modulos"]:
+                    col_p1, col_p2 = st.columns(2)
+                    with col_p1:
+                        st.download_button(label="PDF este módulo", data=pdf_mod, file_name=f"Presupuesto_{nombre_modulo}.pdf", mime="application/pdf", use_container_width=True)
+                    with col_p2:
+                        st.link_button("WhatsApp este módulo", wa_mod, use_container_width=True)
+                else:
+                    st.info("📄 Cuando termines de agregar todos los módulos, generá el PDF completo en el **Resumen de Obra** de abajo.")
 
                 with st.expander("Terminal CNC - Este modulo", expanded=False):
                     archivo_aspire = exportar_para_aspire(df_corte, mat_principal, esp_real)
@@ -740,7 +745,29 @@ if menu == "Cotizador CNC":
 
             if st.button("Guardar obra en historial", use_container_width=True):
                 if cliente:
-                    guardar_presupuesto_nube(cliente, f"Obra ({len(st.session_state['obra_modulos'])} modulos)", total_obra)
+                    import json
+                    # Guardamos todos los módulos como JSON para poder editar después
+                    params_obra = {
+                        "es_obra": True,
+                        "modulos": [
+                            {
+                                "nombre": m["nombre"],
+                                "tipo_modulo": m["tipo"],
+                                "ancho_m": m["ancho"],
+                                "alto_m": m["alto"],
+                                "prof_m": m["prof"],
+                                "mat_principal": m["material"],
+                                "precio": m["precio"],
+                            }
+                            for m in st.session_state["obra_modulos"]
+                        ]
+                    }
+                    guardar_presupuesto_nube(
+                        cliente,
+                        f"Obra ({len(st.session_state['obra_modulos'])} módulos)",
+                        total_obra,
+                        parametros=params_obra
+                    )
                 else:
                     st.warning("Ingresa el nombre del Cliente arriba.")
 
