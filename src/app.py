@@ -306,14 +306,13 @@ if menu == "Cotizador CNC":
 
         # --- OBRA MULTI-MÓDULO: selector de módulo a editar ---
         obra_mods = st.session_state.get("editar_obra_modulos")
-        if obra_mods:
+        if obra_mods and not st.session_state.get("editar_presupuesto"):
             cliente_obra_edit = st.session_state.get("editar_obra_cliente", "")
             st.warning(f"**Editando obra de {cliente_obra_edit}** — Elegí qué módulo querés rehacer:")
             for i, mod in enumerate(obra_mods):
                 col_info, col_sel = st.columns([4, 1])
                 col_info.write(f"**{i+1}. {mod['nombre']}** — {mod['ancho_m']}x{mod['alto_m']}x{mod['prof_m']} mm — {mod['mat_principal']} — ${mod['precio']:,.0f}")
                 if col_sel.button("Editar este", key=f"sel_mod_obra_{i}"):
-                    # Cargamos ese módulo en el cotizador
                     st.session_state["editar_presupuesto"] = mod
                     st.session_state["editar_cliente"] = cliente_obra_edit
                     st.session_state["editar_obra_modulos"] = None
@@ -321,7 +320,6 @@ if menu == "Cotizador CNC":
             if st.button("Cancelar", key="cancel_obra_edit"):
                 st.session_state["editar_obra_modulos"] = None
                 st.rerun()
-            st.stop()
 
         # --- MÓDULO INDIVIDUAL: detectar si hay un presupuesto cargado para editar ---
         ep = st.session_state.get("editar_presupuesto")
