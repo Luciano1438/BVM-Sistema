@@ -277,6 +277,12 @@ if "editar_id" not in st.session_state:
     st.session_state["editar_id"] = None
 if "editar_cliente" not in st.session_state:
     st.session_state["editar_cliente"] = ""
+if "editar_obra_modulos" not in st.session_state:
+    st.session_state["editar_obra_modulos"] = None
+if "editar_obra_id" not in st.session_state:
+    st.session_state["editar_obra_id"] = None
+if "editar_obra_cliente" not in st.session_state:
+    st.session_state["editar_obra_cliente"] = ""
 
 maderas, fondos, config = traer_datos()
 # Si hay un presupuesto para editar, forzamos el cotizador
@@ -298,11 +304,30 @@ if menu == "Cotizador CNC":
     try:
         st.title("BVM | Control de Produccion Industrial")
 
-        # --- Detectar si hay un presupuesto cargado para editar ---
+        # --- OBRA MULTI-MÓDULO: selector de módulo a editar ---
+        obra_mods = st.session_state.get("editar_obra_modulos")
+        if obra_mods:
+            cliente_obra_edit = st.session_state.get("editar_obra_cliente", "")
+            st.warning(f"**Editando obra de {cliente_obra_edit}** — Elegí qué módulo querés rehacer:")
+            for i, mod in enumerate(obra_mods):
+                col_info, col_sel = st.columns([4, 1])
+                col_info.write(f"**{i+1}. {mod['nombre']}** — {mod['ancho_m']}x{mod['alto_m']}x{mod['prof_m']} mm — {mod['mat_principal']} — ${mod['precio']:,.0f}")
+                if col_sel.button("Editar este", key=f"sel_mod_obra_{i}"):
+                    # Cargamos ese módulo en el cotizador
+                    st.session_state["editar_presupuesto"] = mod
+                    st.session_state["editar_cliente"] = cliente_obra_edit
+                    st.session_state["editar_obra_modulos"] = None
+                    st.rerun()
+            if st.button("Cancelar", key="cancel_obra_edit"):
+                st.session_state["editar_obra_modulos"] = None
+                st.rerun()
+            st.stop()
+
+        # --- MÓDULO INDIVIDUAL: detectar si hay un presupuesto cargado para editar ---
         ep = st.session_state.get("editar_presupuesto")
         if ep:
-            st.info(f"Editando presupuesto guardado — Cliente: {st.session_state.get('editar_cliente', '')}. Modifica lo que necesites y guarda de nuevo.")
-            if st.button("Cancelar edicion"):
+            st.info(f"**Editando módulo guardado** — Cliente: {st.session_state.get('editar_cliente', '')}. Modificá lo que necesites y guardá de nuevo.")
+            if st.button("Cancelar edición"):
                 st.session_state["editar_presupuesto"] = None
                 st.session_state["editar_id"] = None
                 st.session_state["editar_cliente"] = ""
@@ -863,25 +888,37 @@ elif menu == "Historial de Ventas":
                                 st.rerun()
 
                     with col_btn2:
-                        # Botón editar — solo si tiene parámetros guardados
+                        import json as _json
                         tiene_params = row.get('parametros') not in [None, '', 'null']
                         if st.button(
                             "Editar" if tiene_params else "—",
                             key=f"edit_{id_venta}_{_}",
                             use_container_width=True,
                             disabled=not tiene_params,
-                            help="Cargar este presupuesto en el cotizador para editarlo" if tiene_params else "Este presupuesto no tiene parametros guardados (fue creado antes de esta funcion)"
+                            help="Editar este presupuesto" if tiene_params else "Este presupuesto fue creado antes de que existiera esta función"
                         ):
-                            import json
                             try:
-                                params = json.loads(row['parametros'])
-                                st.session_state["editar_presupuesto"] = params
-                                st.session_state["editar_id"] = id_venta
-                                st.session_state["editar_cliente"] = row.get('cliente', '')
-                                st.session_state["menu_idx"] = 0  # fuerza Cotizador CNC
-                                st.rerun()
+                                params = _json.loads(row['parametros'])
+                                es_obra = params.get("es_obra", False)
+
+                                if es_obra:
+                                    # OBRA MULTI-MÓDULO: mostramos los módulos para elegir cuál editar
+                                    st.session_state["editar_obra_modulos"] = params.get("modulos", [])
+                                    st.session_state["editar_obra_id"] = id_venta
+                                    st.session_state["editar_obra_cliente"] = row.get('cliente', '')
+                                    st.session_state["editar_presupuesto"] = None
+                                    st.session_state["menu_idx"] = 0
+                                    st.rerun()
+                                else:
+                                    # MÓDULO INDIVIDUAL: carga directo en el cotizador
+                                    st.session_state["editar_presupuesto"] = params
+                                    st.session_state["editar_id"] = id_venta
+                                    st.session_state["editar_cliente"] = row.get('cliente', '')
+                                    st.session_state["editar_obra_modulos"] = None
+                                    st.session_state["menu_idx"] = 0
+                                    st.rerun()
                             except Exception as e:
-                                st.error(f"Error al cargar parametros: {e}")
+                                st.error(f"Error al cargar parámetros: {e}")
 
                     with col_btn3:
                         if st.button("Borrar", key=f"del_{id_venta}_{_}", use_container_width=True):
