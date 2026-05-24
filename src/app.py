@@ -286,10 +286,12 @@ if "onboarding_visto" not in st.session_state:
 if not st.session_state["onboarding_visto"]:
     st.markdown("""
     <div style="background: linear-gradient(135deg, #1D9E75 0%, #0F6E56 100%);
-                border-radius: 12px; padding: 32px; margin-bottom: 24px; color: white;">
-        <h1 style="color:white; margin:0 0 8px 0;">🪵 Bienvenido a BVM</h1>
-        <p style="font-size:17px; margin:0 0 20px 0; opacity:0.9;">
-            El sistema de gestión y presupuestación diseñado para carpinteros profesionales.
+                border-radius: 16px; padding: 40px 48px; margin-bottom: 32px; text-align:center;">
+        <div style="font-size:48px; margin-bottom:12px;">🪵</div>
+        <h1 style="color:white; margin:0 0 10px 0; font-size:32px; letter-spacing:-0.5px;">Bienvenido a BVM</h1>
+        <p style="color:white; font-size:17px; margin:0; opacity:0.9; max-width:520px; margin:0 auto;">
+            El sistema de presupuestación y gestión diseñado para carpinteros profesionales.
+            Calculá precios exactos, generá presupuestos en segundos y ganale al que tarda más.
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -297,30 +299,51 @@ if not st.session_state["onboarding_visto"]:
     c1, c2, c3 = st.columns(3)
     with c1:
         st.markdown("""
-        **📐 Paso 1 — Cotizador**
-        
-        Ingresá el nombre del cliente, elegí el tipo de mueble, 
-        cargá las medidas y el sistema genera la planilla de corte automáticamente.
-        """)
+        <div style="border:1.5px solid #E0E0E0; border-radius:12px; padding:24px; height:180px;">
+            <div style="font-size:32px; margin-bottom:10px;">📐</div>
+            <div style="font-weight:600; font-size:15px; margin-bottom:8px;">Paso 1 — Calculá el mueble</div>
+            <div style="font-size:13px; color:#666; line-height:1.5;">
+                Ingresá las medidas del mueble y el sistema genera automáticamente la lista de corte 
+                con las piezas exactas. Sin errores, sin desperdicios.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
     with c2:
         st.markdown("""
-        **🏗️ Paso 2 — Armá la obra**
-        
-        Agregá todos los módulos de la obra (bajo mesada, alacena, cajonera) 
-        y el sistema los acumula en un solo presupuesto.
-        """)
+        <div style="border:1.5px solid #E0E0E0; border-radius:12px; padding:24px; height:180px;">
+            <div style="font-size:32px; margin-bottom:10px;">🏗️</div>
+            <div style="font-weight:600; font-size:15px; margin-bottom:8px;">Paso 2 — Armá la obra completa</div>
+            <div style="font-size:13px; color:#666; line-height:1.5;">
+                Agregá módulo por módulo — bajo mesada, alacena, cajonera — 
+                y BVM los acumula en un solo presupuesto total para el cliente.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
     with c3:
         st.markdown("""
-        **📄 Paso 3 — Enviá el presupuesto**
-        
-        Descargá el PDF o mandalo directo por WhatsApp con un solo click. 
-        El historial guarda todo para que puedas hacer seguimiento.
-        """)
+        <div style="border:1.5px solid #E0E0E0; border-radius:12px; padding:24px; height:180px;">
+            <div style="font-size:32px; margin-bottom:10px;">📲</div>
+            <div style="font-weight:600; font-size:15px; margin-bottom:8px;">Paso 3 — Enviá y cerrá</div>
+            <div style="font-size:13px; color:#666; line-height:1.5;">
+                Generá el PDF o mandá el presupuesto directo por WhatsApp. 
+                El historial registra cada trabajo para que puedas hacer seguimiento.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
     st.write("")
+    st.markdown("""
+    <div style="background:#F8F8F6; border-radius:10px; padding:16px 24px; margin:16px 0; text-align:center;">
+        <span style="font-size:13px; color:#666;">
+            💡 <b>Consejo:</b> El que presupuesta primero y con precisión, gana la obra. 
+            BVM te da esa ventaja.
+        </span>
+    </div>
+    """, unsafe_allow_html=True)
+
     col_start, _, _ = st.columns(3)
     with col_start:
-        if st.button("✅ Entendido, empezar a usar BVM", type="primary", use_container_width=True):
+        if st.button("✅ Empezar a usar BVM", type="primary", use_container_width=True):
             st.session_state["onboarding_visto"] = True
             st.rerun()
     st.stop()
@@ -629,11 +652,13 @@ if menu == "🪵 Cotizador":
                 color_margen = "#0F6E56" if pct_utilidad_real >= 12 else "#A32D2D"
                 icono_margen = "✅" if pct_utilidad_real >= 12 else "⚠️"
                 alerta = "Operación rentable" if pct_utilidad_real >= 12 else "Margen bajo — revisá los costos"
+                precio_str = f"${precio_final:,.0f}"
+                margen_str = f"{pct_utilidad_real:.1f}%"
                 st.markdown(f"""
-                <div style="background:{color_margen}; border-radius:10px; padding:16px 20px; margin:8px 0 16px 0; text-align:center;">
-                    <div style="color:white; font-size:13px; opacity:0.85; margin-bottom:4px;">PRECIO FINAL AL CLIENTE</div>
-                    <div style="color:white; font-size:36px; font-weight:700; letter-spacing:-1px;">${{precio_final:,.0f}}</div>
-                    <div style="color:white; font-size:12px; opacity:0.8; margin-top:6px;">{icono_margen} Margen: {{pct_utilidad_real:.1f}}% — {{alerta}}</div>
+                <div style="background:{color_margen}; border-radius:10px; padding:20px 24px; margin:8px 0 16px 0; text-align:center;">
+                    <div style="color:white; font-size:12px; letter-spacing:0.1em; opacity:0.8; margin-bottom:6px;">PRECIO FINAL AL CLIENTE</div>
+                    <div style="color:white; font-size:40px; font-weight:700; letter-spacing:-1px;">{precio_str}</div>
+                    <div style="color:white; font-size:12px; opacity:0.8; margin-top:8px;">{icono_margen} Margen: {margen_str} — {alerta}</div>
                 </div>
                 """, unsafe_allow_html=True)
 
