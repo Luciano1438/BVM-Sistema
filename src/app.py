@@ -271,8 +271,58 @@ def ejecutar_query(query, params=(), fetch=False):
 
 
 # INTERFAZ
-st.set_page_config(page_title="BVM - Sistema", layout="wide")
+st.set_page_config(
+    page_title="BVM — Sistema de Gestión para Carpintería",
+    page_icon="🪵",
+    layout="wide"
+)
 if not gestionar_auth():
+    st.stop()
+
+# --- ONBOARDING: primera vez que entra ---
+if "onboarding_visto" not in st.session_state:
+    st.session_state["onboarding_visto"] = False
+
+if not st.session_state["onboarding_visto"]:
+    st.markdown("""
+    <div style="background: linear-gradient(135deg, #1D9E75 0%, #0F6E56 100%);
+                border-radius: 12px; padding: 32px; margin-bottom: 24px; color: white;">
+        <h1 style="color:white; margin:0 0 8px 0;">🪵 Bienvenido a BVM</h1>
+        <p style="font-size:17px; margin:0 0 20px 0; opacity:0.9;">
+            El sistema de gestión y presupuestación diseñado para carpinteros profesionales.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.markdown("""
+        **📐 Paso 1 — Cotizador**
+        
+        Ingresá el nombre del cliente, elegí el tipo de mueble, 
+        cargá las medidas y el sistema genera la planilla de corte automáticamente.
+        """)
+    with c2:
+        st.markdown("""
+        **🏗️ Paso 2 — Armá la obra**
+        
+        Agregá todos los módulos de la obra (bajo mesada, alacena, cajonera) 
+        y el sistema los acumula en un solo presupuesto.
+        """)
+    with c3:
+        st.markdown("""
+        **📄 Paso 3 — Enviá el presupuesto**
+        
+        Descargá el PDF o mandalo directo por WhatsApp con un solo click. 
+        El historial guarda todo para que puedas hacer seguimiento.
+        """)
+
+    st.write("")
+    col_start, _, _ = st.columns(3)
+    with col_start:
+        if st.button("✅ Entendido, empezar a usar BVM", type="primary", use_container_width=True):
+            st.session_state["onboarding_visto"] = True
+            st.rerun()
     st.stop()
 
 if "obra_modulos" not in st.session_state:
@@ -294,7 +344,7 @@ if "idx_modulo_editar" not in st.session_state:
 
 maderas, fondos, config = traer_datos()
 # Si hay un presupuesto para editar, forzamos el cotizador
-_opciones_menu = ["Cotizador CNC", "Deposito de Retazos", "Historial de Ventas", "Configuracion de Precios"]
+_opciones_menu = ["🪵 Cotizador", "♻️ Retazos", "📋 Historial", "⚙️ Precios"]
 
 # Si hay edición en curso, forzamos el cotizador
 _forzar_cotizador = (
@@ -303,10 +353,10 @@ _forzar_cotizador = (
 )
 
 if _forzar_cotizador:
-    menu = "Cotizador CNC"
-    st.sidebar.radio("Navegacion", _opciones_menu, index=0)
+    menu = "🪵 Cotizador"
+    st.sidebar.radio("Navegación", _opciones_menu, index=0)
 else:
-    menu = st.sidebar.radio("Navegacion", _opciones_menu, index=st.session_state.get("menu_idx", 0))
+    menu = st.sidebar.radio("Navegación", _opciones_menu, index=st.session_state.get("menu_idx", 0))
     st.session_state["menu_idx"] = _opciones_menu.index(menu)
 
 if st.session_state["obra_modulos"]:
@@ -318,9 +368,9 @@ if st.sidebar.button("Cerrar Sesion"):
         del st.session_state[key]
     st.rerun()
 
-if menu == "Cotizador CNC":
+if menu == "🪵 Cotizador":
     try:
-        st.title("BVM | Control de Produccion Industrial")
+        st.title("🪵 BVM — Cotizador de muebles")
 
         # --- OBRA MULTI-MÓDULO: selector de módulo a editar ---
         obra_mods = st.session_state.get("editar_obra_modulos")
@@ -400,18 +450,18 @@ if menu == "Cotizador CNC":
         col_in, col_out = st.columns([1, 1.2])
 
         with col_in:
-            with st.expander("Definicion de Estructura", expanded=True):
+            with st.expander("🛠️ Definición de estructura", expanded=True):
                 cliente = st.text_input("Cliente", st.session_state.get("editar_cliente", ""))
                 tipo_modulo = st.selectbox("Tipo de Mueble", lista_modulos, index=idx_modulo, key="tipo_mueble_sel")
                 c1, c2, c3 = st.columns(3)
-                ancho_m = c1.number_input("Ancho Total (mm)", min_value=0.0, max_value=5000.0, value=float(_v("ancho_m", 0.0)), step=0.5)
-                alto_m  = c2.number_input("Alto Total (mm)",  min_value=0.0, max_value=5000.0, value=float(_v("alto_m",  0.0)), step=0.5)
-                prof_m  = c3.number_input("Profundo (mm)",    min_value=0.0, max_value=2000.0, value=float(_v("prof_m",  0.0)), step=0.5)
-                mat_principal = st.selectbox("Material Cuerpo (18mm)", lista_maderas, index=idx_madera)
-                esp_real = st.number_input("Espesor Real Placa (mm)", min_value=1.0, max_value=50.0, value=float(_v("esp_real", 18.0)), step=0.1)
-                mat_fondo_sel = st.selectbox("Material Fondo", lista_fondos, index=idx_fondo)
+                ancho_m = c1.number_input("Ancho total (mm)", min_value=0.0, max_value=5000.0, value=float(_v("ancho_m", 0.0)), step=0.5, help="Medida exterior total del módulo de izquierda a derecha")
+                alto_m  = c2.number_input("Alto total (mm)",  min_value=0.0, max_value=5000.0, value=float(_v("alto_m",  0.0)), step=0.5, help="Medida exterior total del módulo de abajo hacia arriba")
+                prof_m  = c3.number_input("Profundidad (mm)", min_value=0.0, max_value=2000.0, value=float(_v("prof_m",  0.0)), step=0.5, help="Medida de fondo del módulo. Estándar: 550mm para bajo mesada, 350mm para alacena")
+                mat_principal = st.selectbox("Material del cuerpo (18mm)", lista_maderas, index=idx_madera, help="Material principal con el que se construye la estructura del mueble")
+                esp_real = st.number_input("Espesor real de placa (mm)", min_value=1.0, max_value=50.0, value=float(_v("esp_real", 18.0)), step=0.1, help="El espesor nominal es 18mm pero puede variar según el proveedor. Medí la placa real para mayor precisión")
+                mat_fondo_sel = st.selectbox("Material del fondo", lista_fondos, index=idx_fondo, help="Material para el panel trasero del mueble. Normalmente es un material más delgado que el cuerpo")
 
-            with st.expander("Configuracion de Modulos", expanded=False):
+            with st.expander("🏗️ Configuración del módulo", expanded=False):
                 if tipo_modulo == "Bajo Mesada":
                     st.markdown("#### Configuracion de Frente")
                     tipo_tapa = st.radio("Estilo de Bajo Mesada", ["Superpuesta", "Gola BVM", "Embutida"])
@@ -484,22 +534,22 @@ if menu == "Cotizador CNC":
                     tipo_tapa = st.radio("Estilo de Tapa", opciones_estilo)
                     st.markdown(f"#### Parametros del Cajon ({tipo_tapa})")
                     col_l1, col_l2 = st.columns(2)
-                    luz_entre_tapas = col_l1.number_input("Luz entre tapas (mm)", value=3.0)
+                    luz_entre_tapas = col_l1.number_input("Luz entre tapas (mm)", value=3.0, help="Espacio entre la tapa de un cajón y el siguiente. Estándar BVM: 3mm")
                     if cant_cajones > 0:
                         if tipo_tapa == "Superpuesta":
-                            luz_perimetral_tapa = col_l2.number_input("Luz total ancho (mm)", value=4.0)
+                            luz_perimetral_tapa = col_l2.number_input("Luz total ancho (mm)", value=4.0, help="Espacio total entre el mueble y la tapa en sentido horizontal. Estándar BVM: 4mm")
                         elif tipo_tapa == "Embutida":
                             alto_frentin_emb = col_l2.number_input("Altura Frentin Superior (mm)", value=30.0)
                             luz_perimetral_tapa = 6.0
                         else:
-                            luz_perimetral_tapa = col_l2.number_input("Luz total ancho (mm)", value=4.0)
+                            luz_perimetral_tapa = col_l2.number_input("Luz total ancho (mm)", value=4.0, help="Espacio total entre el mueble y la tapa en sentido horizontal. Estándar BVM: 4mm")
                             alto_frentin_emb = 0.0
                         distribucion_tapas = col_l1.radio("Distribucion", ["Iguales", "Proporcional (20/35/45)"])
                         col_c1, col_c2 = st.columns(2)
-                        esp_corredera = col_c1.number_input("Espesor de Corredera (mm)", value=13.0)
-                        aire_trasero = col_c2.number_input("Espacio libre trasero (mm)", value=30.0)
+                        esp_corredera = col_c1.number_input("Espesor de corredera (mm)", value=13.0, help="Espacio que ocupa la corredera a cada lado del cajón. Corredera telescópica estándar: 13mm")
+                        aire_trasero = col_c2.number_input("Espacio libre trasero (mm)", value=30.0, help="Espacio entre el fondo del cajón y el panel trasero del mueble. Mínimo recomendado: 30mm")
 
-            with st.expander("Soporte y Logistica", expanded=False):
+            with st.expander("📦 Soporte y logística", expanded=False):
                 tipo_base = st.selectbox("Tipo de Soporte", ["Zocalo de Madera", "Banquina", "Patas Plasticas", "Nada"])
                 if tipo_base == "Zocalo de Madera":
                     altura_base = st.number_input("Altura de Zocalo (mm)", min_value=0.0, value=100.0, step=5.0)
@@ -516,9 +566,13 @@ if menu == "Cotizador CNC":
                 dias_col = st.number_input("Dias de obra", value=0) if necesita_colocacion else 0
 
         with col_out:
-            st.subheader("Planilla de Corte e Inteligencia de Materiales")
+            st.subheader("📐 Planilla de corte")
 
-            if alto_m > 0 and ancho_m > 0:
+            # Cliente obligatorio
+            if not cliente:
+                st.info("👆 Ingresá el nombre del cliente para comenzar a calcular.")
+
+            if alto_m > 0 and ancho_m > 0 and cliente:
                 piezas_calculadas = generar_despiece_bvm(
                     tipo=tipo_modulo, ancho_m=ancho_m, alto_m=alto_m, prof_m=prof_m,
                     esp_real=esp_real, tiene_parante=tiene_parante, tipo_parante=tipo_parante,
@@ -565,40 +619,49 @@ if menu == "Cotizador CNC":
             retazos_en_stock = consultar_retazos_disponibles(mat_principal)
             ahorro_madera, matches = calcular_ahorro_retazos(df_corte, retazos_en_stock, maderas.get(mat_principal, 0.0))
 
-            if matches:
-                st.subheader("Oportunidades de Ahorro")
-                for m in matches:
-                    st.success(f"Match! '{m['pieza']}' entra en Retazo ID-{m['retazo_id']} - Ahorro: ${m['ahorro']:,.0f}")
-
             total_costo_real = total_costo - ahorro_madera
             utilidad = total_costo_real * config.get('ganancia_taller_pct', 0.30)
             precio_final = total_costo_real + utilidad
-
-            c1, c2, c3 = st.columns(3)
-            c1.metric("Costo Real", f"${total_costo_real:,.0f}")
-            c2.metric("M2 Placa", f"{m2_18mm:.2f}")
-            c3.metric("Precio Final", f"${precio_final:,.2f}")
-
-            if precio_final > 0:
-                st.write("---")
-                st.subheader("Desglose de Inversion y Rentabilidad")
-                datos_grafico = {
-                    "Categoria": ["Madera/Fondo", "Herrajes", "Operativo/Taller", "Logistica/Flete", "Ganancia Neta"],
-                    "Monto": [costo_madera + costo_fondo, costo_herrajes, costo_operativo + costo_base, costo_flete, utilidad]
-                }
-                st.bar_chart(data=pd.DataFrame(datos_grafico), x="Categoria", y="Monto", color="#2e7d32")
-
             pct_utilidad_real = (utilidad / precio_final * 100) if precio_final > 0 else 0.0
-            if pct_utilidad_real < 12:
-                st.error(f"ALERTA DE MARGEN: La rentabilidad es del {pct_utilidad_real:.1f}%. Revisar costos fijos.")
-            else:
-                st.success(f"OPERACION RENTABLE: Margen del {pct_utilidad_real:.1f}%")
 
-            st.subheader(f"PRECIO FINAL: ${precio_final:,.2f}")
+            # PRECIO FINAL — destacado arriba
+            if precio_final > 0:
+                color_margen = "#0F6E56" if pct_utilidad_real >= 12 else "#A32D2D"
+                icono_margen = "✅" if pct_utilidad_real >= 12 else "⚠️"
+                alerta = "Operación rentable" if pct_utilidad_real >= 12 else "Margen bajo — revisá los costos"
+                st.markdown(f"""
+                <div style="background:{color_margen}; border-radius:10px; padding:16px 20px; margin:8px 0 16px 0; text-align:center;">
+                    <div style="color:white; font-size:13px; opacity:0.85; margin-bottom:4px;">PRECIO FINAL AL CLIENTE</div>
+                    <div style="color:white; font-size:36px; font-weight:700; letter-spacing:-1px;">${{precio_final:,.0f}}</div>
+                    <div style="color:white; font-size:12px; opacity:0.8; margin-top:6px;">{icono_margen} Margen: {{pct_utilidad_real:.1f}}% — {{alerta}}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            # Métricas secundarias
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Costo real", f"${total_costo_real:,.0f}")
+            c2.metric("M² de placa", f"{m2_18mm:.2f}")
+            c3.metric("Ganancia neta", f"${utilidad:,.0f}")
+
+            # Retazos disponibles
+            if matches:
+                st.success(f"♻️ **¡Ahorro por retazos!** Podés reutilizar material en {len(matches)} pieza(s) — Ahorro estimado: **${ahorro_madera:,.0f}**")
+                with st.expander("Ver detalle de retazos", expanded=False):
+                    for m in matches:
+                        st.write(f"• **{m['pieza']}** entra en Retazo ID-{m['retazo_id']} — Ahorro: ${m['ahorro']:,.0f}")
+
+            # Desglose visual
+            if precio_final > 0:
+                with st.expander("📊 Ver desglose de costos", expanded=False):
+                    datos_grafico = {
+                        "Categoría": ["Madera/Fondo", "Herrajes", "Operativo/Taller", "Logística/Flete", "Ganancia Neta"],
+                        "Monto": [costo_madera + costo_fondo, costo_herrajes, costo_operativo + costo_base, costo_flete, utilidad]
+                    }
+                    st.bar_chart(data=pd.DataFrame(datos_grafico), x="Categoría", y="Monto", color="#2e7d32")
 
             # AGREGAR A OBRA
             st.write("---")
-            st.subheader("Gestion de Obra")
+            st.subheader("🏠 Gestión de obra")
             nombre_modulo = st.text_input("Nombre del modulo (ej: Bajo mesada izquierdo)", value=f"{tipo_modulo} {ancho_m:.0f}mm")
 
             # Si venimos de editar una obra, mostramos qué módulo estamos reemplazando
@@ -847,8 +910,8 @@ if menu == "Cotizador CNC":
     except Exception as e:
         st.error(f"Error en el Cotizador: {e}")
 
-elif menu == "Historial de Ventas":
-    st.title("Historial de Presupuestos")
+elif menu == "📋 Historial":
+    st.title("📋 Historial de presupuestos")
 
     ESTADOS = ["Pendiente", "Señado", "Pagado"]
     COLORES = {
@@ -983,8 +1046,8 @@ elif menu == "Historial de Ventas":
     except Exception as e:
         st.error(f"Error en el historial: {e}")
 
-elif menu == "Deposito de Retazos":
-    st.title("Deposito de Retazos")
+elif menu == "♻️ Retazos":
+    st.title("♻️ Depósito de retazos")
     st.caption("Registra los sobrantes del taller. El sistema los usa automaticamente al calcular presupuestos para ahorrarte material.")
 
     # --- REGISTRAR NUEVO RETAZO ---
@@ -1066,8 +1129,8 @@ elif menu == "Deposito de Retazos":
                         except Exception as e:
                             st.error(f"Error al eliminar: {e}")
 
-elif menu == "Configuracion de Precios":
-    st.title("Administracion de Insumos y Costos")
+elif menu == "⚙️ Precios":
+    st.title("⚙️ Configuración de precios")
 
     with st.expander("Precios de Placas (18mm)"):
         for madera, precio in maderas.items():
@@ -1096,3 +1159,4 @@ elif menu == "Configuracion de Precios":
         for k, v in config.items():
             actualizar_precio_nube(k, v, 'costos')
         st.success("Configuracion guardada.")
+        
