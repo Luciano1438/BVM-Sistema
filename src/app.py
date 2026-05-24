@@ -517,7 +517,7 @@ if not st.session_state["onboarding_visto"]:
     </div>
     """, unsafe_allow_html=True)
 
-    col_start, _, _ = st.columns(3)
+    _, col_start, _ = st.columns([1, 2, 1])
     with col_start:
         if st.button("✅ Empezar a usar BVM", type="primary", use_container_width=True):
             st.session_state["onboarding_visto"] = True
@@ -744,8 +744,11 @@ if menu == "🪵 Cotizador":
             with st.expander("🏗️ Configuración del módulo", expanded=False):
                 if tipo_modulo == "Bajo Mesada":
                     st.markdown("#### Configuracion de Frente")
-                    tipo_tapa = st.radio("Estilo de Bajo Mesada", ["Superpuesta", "Gola BVM", "Embutida"])
-                    cant_puertas = st.selectbox("Cantidad de Puertas", [2, 3])
+                    _bm_opts = ["Superpuesta", "Gola BVM", "Embutida"]
+                    _bm_idx = _bm_opts.index(_v("tipo_tapa", "Superpuesta")) if _v("tipo_tapa", "Superpuesta") in _bm_opts else 0
+                    tipo_tapa = st.radio("Estilo de Bajo Mesada", _bm_opts, index=_bm_idx)
+                    _puertas_bm = int(_v("cant_puertas", 2))
+                    cant_puertas = st.selectbox("Cantidad de Puertas", [2, 3], index=0 if _puertas_bm == 2 else 1)
                     if cant_puertas == 3:
                         tiene_parante = True
                         st.info("3 puertas: Parante divisor incluido automaticamente.")
@@ -754,8 +757,11 @@ if menu == "🪵 Cotizador":
                         distancia_parante = c_p2.number_input("Distancia desde lateral izq. (mm)", value=ancho_m / cant_puertas if ancho_m > 0 else 0.0, step=1.0)
                     st.markdown("---")
                     st.markdown("#### Configuracion de Estantes")
-                    cant_total_est = st.number_input("Cantidad Total Estantes", min_value=0, value=1, step=1, key="cant_est_bm")
-                    tipo_estante_manual = st.radio("Formato de Estante", ["Completo", "Medio"], key="fmt_est_bm")
+                    _cant_est_default = int(_v("estantes_fijos", 0)) + int(_v("estantes_moviles", 0))
+                    cant_total_est = st.number_input("Cantidad Total Estantes", min_value=0, value=max(1, _cant_est_default), step=1, key="cant_est_bm")
+                    _fmt_opts = ["Completo", "Medio"]
+                    _fmt_idx = _fmt_opts.index(_v("tipo_estante_manual", "Completo")) if _v("tipo_estante_manual", "Completo") in _fmt_opts else 0
+                    tipo_estante_manual = st.radio("Formato de Estante", _fmt_opts, index=_fmt_idx, key="fmt_est_bm")
                     indices_fijos = []
                     if cant_total_est > 0:
                         st.write("Selecciona los estantes que son FIJOS:")
@@ -776,8 +782,12 @@ if menu == "🪵 Cotizador":
                 elif tipo_modulo == "Alacena":
                     st.markdown("#### Configuracion de Alacena BVM")
                     c_ala1, c_ala2 = st.columns(2)
-                    tipo_tapa = c_ala1.radio("Sistema de Apertura", ["Superpuesta", "Unero", "Embutida"])
-                    cant_puertas = c_ala2.selectbox("Cantidad de Puertas", [2, 3, 4])
+                    _ala_opts = ["Superpuesta", "Unero", "Embutida"]
+                    _ala_idx = _ala_opts.index(_v("tipo_tapa", "Superpuesta")) if _v("tipo_tapa", "Superpuesta") in _ala_opts else 0
+                    tipo_tapa = c_ala1.radio("Sistema de Apertura", _ala_opts, index=_ala_idx)
+                    _puertas_ala = int(_v("cant_puertas", 2))
+                    _puertas_ala_idx = [2, 3, 4].index(_puertas_ala) if _puertas_ala in [2, 3, 4] else 0
+                    cant_puertas = c_ala2.selectbox("Cantidad de Puertas", [2, 3, 4], index=_puertas_ala_idx)
                     st.markdown("---")
                     cant_total_est = st.number_input("Cantidad Total Estantes", min_value=0, value=1, step=1)
                     indices_fijos = []
@@ -803,31 +813,41 @@ if menu == "🪵 Cotizador":
                     luz_perimetral_tapa = 0.0
                     alto_frentin_emb = 0.0
 
-                else:
+                else:  # CAJONERA
                     tipo_bisagra = st.selectbox("Tipo de Bisagra", ["Cazoleta C0 Cierre Suave", "Especial"])
                     tipo_corredera = st.radio("Tipo de Corredera", ["Telescopica 45cm", "Cierre Suave Pesada"])
                     c_caj, c_hue = st.columns(2)
-                    cant_cajones = c_caj.number_input("Cant. Cajones", value=0, min_value=0)
+                    cant_cajones = c_caj.number_input("Cant. Cajones", value=int(_v("cant_cajones", 0)), min_value=0)
+
                     opciones_estilo = ["Superpuesta", "Embutida"]
                     if cant_cajones == 3:
                         opciones_estilo.append("Gola")
-                    tipo_tapa = st.radio("Estilo de Tapa", opciones_estilo)
-                    st.markdown(f"#### Parametros del Cajon ({tipo_tapa})")
+
+                    # Índice correcto para el radio al editar
+                    _tapa_default = _v("tipo_tapa", "Superpuesta")
+                    _tapa_idx = opciones_estilo.index(_tapa_default) if _tapa_default in opciones_estilo else 0
+                    tipo_tapa = st.radio("Estilo de Tapa", opciones_estilo, index=_tapa_idx)
+
+                    st.markdown(f"#### Parámetros del cajón ({tipo_tapa})")
                     col_l1, col_l2 = st.columns(2)
-                    luz_entre_tapas = col_l1.number_input("Luz entre tapas (mm)", value=3.0, help="Espacio entre la tapa de un cajón y el siguiente. Estándar BVM: 3mm")
+                    luz_entre_tapas = col_l1.number_input("Luz entre tapas (mm)", value=float(_v("luz_entre_tapas", 3.0)), help="Espacio entre la tapa de un cajón y el siguiente. Estándar BVM: 3mm")
+
                     if cant_cajones > 0:
                         if tipo_tapa == "Superpuesta":
-                            luz_perimetral_tapa = col_l2.number_input("Luz total ancho (mm)", value=4.0, help="Espacio total entre el mueble y la tapa en sentido horizontal. Estándar BVM: 4mm")
+                            luz_perimetral_tapa = col_l2.number_input("Luz total ancho (mm)", value=float(_v("luz_perimetral_tapa", 4.0)), help="Espacio total entre el mueble y la tapa en sentido horizontal. Estándar BVM: 4mm")
                         elif tipo_tapa == "Embutida":
-                            alto_frentin_emb = col_l2.number_input("Altura Frentin Superior (mm)", value=30.0)
+                            alto_frentin_emb = col_l2.number_input("Altura Frentín Superior (mm)", value=float(_v("alto_frentin_emb", 30.0)))
                             luz_perimetral_tapa = 6.0
-                        else:
-                            luz_perimetral_tapa = col_l2.number_input("Luz total ancho (mm)", value=4.0, help="Espacio total entre el mueble y la tapa en sentido horizontal. Estándar BVM: 4mm")
+                        else:  # Gola
+                            luz_perimetral_tapa = col_l2.number_input("Luz total ancho (mm)", value=float(_v("luz_perimetral_tapa", 4.0)), help="Espacio total entre el mueble y la tapa en sentido horizontal. Estándar BVM: 4mm")
                             alto_frentin_emb = 0.0
-                        distribucion_tapas = col_l1.radio("Distribucion", ["Iguales", "Proporcional (20/35/45)"])
+
+                        _dist_default = _v("distribucion_tapas", "Iguales")
+                        _dist_idx = ["Iguales", "Proporcional (20/35/45)"].index(_dist_default) if _dist_default in ["Iguales", "Proporcional (20/35/45)"] else 0
+                        distribucion_tapas = col_l1.radio("Distribución", ["Iguales", "Proporcional (20/35/45)"], index=_dist_idx)
                         col_c1, col_c2 = st.columns(2)
-                        esp_corredera = col_c1.number_input("Espesor de corredera (mm)", value=13.0, help="Espacio que ocupa la corredera a cada lado del cajón. Corredera telescópica estándar: 13mm")
-                        aire_trasero = col_c2.number_input("Espacio libre trasero (mm)", value=30.0, help="Espacio entre el fondo del cajón y el panel trasero del mueble. Mínimo recomendado: 30mm")
+                        esp_corredera = col_c1.number_input("Espesor de corredera (mm)", value=float(_v("esp_corredera", 13.0)), help="Espacio que ocupa la corredera a cada lado del cajón. Corredera telescópica estándar: 13mm")
+                        aire_trasero = col_c2.number_input("Espacio libre trasero (mm)", value=float(_v("aire_trasero", 30.0)), help="Espacio entre el fondo del cajón y el panel trasero del mueble. Mínimo recomendado: 30mm")
 
             with st.expander("📦 Soporte y logística", expanded=False):
                 tipo_base = st.selectbox("Tipo de Soporte", ["Zocalo de Madera", "Banquina", "Patas Plasticas", "Nada"])
@@ -850,7 +870,15 @@ if menu == "🪵 Cotizador":
 
             # Cliente obligatorio
             if not cliente:
-                st.info("👆 Ingresá el nombre del cliente para comenzar a calcular.")
+                st.markdown("""
+                <div style="background:#FFF8E6; border-left:3px solid #EF9F27; border-radius:0 8px 8px 0;
+                            padding:12px 16px; margin:8px 0;">
+                    <b style="color:#854F0B;">👆 Ingresá el nombre del cliente</b>
+                    <div style="color:#854F0B; font-size:13px; margin-top:2px;">
+                        Para calcular el presupuesto necesitás ingresar el nombre del cliente primero.
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
 
             if alto_m > 0 and ancho_m > 0 and cliente:
                 piezas_calculadas = generar_despiece_bvm(
