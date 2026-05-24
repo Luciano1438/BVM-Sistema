@@ -276,6 +276,182 @@ st.set_page_config(
     page_icon="🪵",
     layout="wide"
 )
+
+# =====================================================================
+# CSS CUSTOM — DISEÑO PROFESIONAL BVM
+# =====================================================================
+st.markdown("""
+<style>
+/* --- FUENTE Y BASE --- */
+html, body, [class*="css"] {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* --- SIDEBAR VERDE --- */
+[data-testid="stSidebar"] {
+    background-color: #0F6E56 !important;
+    border-right: none !important;
+}
+[data-testid="stSidebar"] * {
+    color: rgba(255,255,255,0.85) !important;
+}
+[data-testid="stSidebar"] .stRadio label {
+    color: rgba(255,255,255,0.75) !important;
+    font-size: 14px !important;
+    padding: 6px 0 !important;
+}
+[data-testid="stSidebar"] .stRadio [data-baseweb="radio"] {
+    background: transparent !important;
+}
+[data-testid="stSidebar"] hr {
+    border-color: rgba(255,255,255,0.15) !important;
+}
+[data-testid="stSidebar"] .stButton button {
+    background: rgba(255,255,255,0.1) !important;
+    color: rgba(255,255,255,0.8) !important;
+    border: 1px solid rgba(255,255,255,0.2) !important;
+    border-radius: 8px !important;
+}
+[data-testid="stSidebar"] .stButton button:hover {
+    background: rgba(255,255,255,0.2) !important;
+}
+
+/* --- LOGO BVM EN SIDEBAR --- */
+[data-testid="stSidebarNav"] { display: none; }
+
+/* --- HEADER DE PÁGINA --- */
+[data-testid="stAppViewContainer"] > .main .block-container {
+    padding-top: 1.5rem !important;
+    padding-bottom: 2rem !important;
+    max-width: 1400px !important;
+}
+
+/* --- TÍTULOS --- */
+h1 { font-size: 22px !important; font-weight: 500 !important; letter-spacing: -0.3px !important; }
+h2 { font-size: 17px !important; font-weight: 500 !important; }
+h3 { font-size: 15px !important; font-weight: 500 !important; }
+
+/* --- BOTÓN PRIMARIO VERDE --- */
+.stButton > button[kind="primary"] {
+    background-color: #1D9E75 !important;
+    border-color: #1D9E75 !important;
+    color: white !important;
+    border-radius: 8px !important;
+    font-weight: 500 !important;
+    padding: 10px 20px !important;
+    font-size: 14px !important;
+    transition: background 0.15s !important;
+}
+.stButton > button[kind="primary"]:hover {
+    background-color: #0F6E56 !important;
+    border-color: #0F6E56 !important;
+}
+
+/* --- BOTONES SECUNDARIOS --- */
+.stButton > button[kind="secondary"] {
+    border-radius: 8px !important;
+    font-size: 13px !important;
+    border-color: #D3D1C7 !important;
+}
+
+/* --- MÉTRICAS MÁS GRANDES --- */
+[data-testid="stMetric"] {
+    background: #F8F8F6 !important;
+    border-radius: 10px !important;
+    padding: 14px 16px !important;
+    border: 0.5px solid #E0DED6 !important;
+}
+[data-testid="stMetricLabel"] {
+    font-size: 12px !important;
+    color: #888780 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.04em !important;
+}
+[data-testid="stMetricValue"] {
+    font-size: 22px !important;
+    font-weight: 500 !important;
+    color: #2C2C2A !important;
+}
+
+/* --- EXPANDERS MÁS LIMPIOS --- */
+[data-testid="stExpander"] {
+    border: 0.5px solid #E0DED6 !important;
+    border-radius: 10px !important;
+    background: white !important;
+    margin-bottom: 8px !important;
+}
+[data-testid="stExpander"] summary {
+    font-weight: 500 !important;
+    font-size: 13px !important;
+    padding: 10px 14px !important;
+    background: #F8F8F6 !important;
+    border-radius: 10px !important;
+}
+
+/* --- INPUTS MÁS COMPACTOS --- */
+[data-testid="stNumberInput"] input,
+[data-testid="stTextInput"] input,
+[data-testid="stSelectbox"] select {
+    border-radius: 7px !important;
+    font-size: 13px !important;
+    border-color: #D3D1C7 !important;
+}
+
+/* --- DATA EDITOR (TABLA DE CORTE) --- */
+[data-testid="stDataFrame"] {
+    border: 0.5px solid #E0DED6 !important;
+    border-radius: 10px !important;
+    overflow: hidden !important;
+}
+
+/* --- ALERTS Y SUCCESS --- */
+[data-testid="stAlert"] {
+    border-radius: 8px !important;
+    font-size: 13px !important;
+}
+
+/* --- TABS --- */
+[data-testid="stTabs"] [role="tab"] {
+    font-size: 13px !important;
+    font-weight: 500 !important;
+}
+[data-testid="stTabs"] [role="tab"][aria-selected="true"] {
+    color: #1D9E75 !important;
+    border-bottom-color: #1D9E75 !important;
+}
+
+/* --- DOWNLOAD BUTTONS --- */
+[data-testid="stDownloadButton"] button {
+    border-radius: 8px !important;
+    font-size: 13px !important;
+    border-color: #D3D1C7 !important;
+}
+
+/* --- INFO BOX --- */
+[data-testid="stInfo"] {
+    background: #E1F5EE !important;
+    border: none !important;
+    border-left: 3px solid #1D9E75 !important;
+    color: #0F6E56 !important;
+    border-radius: 0 8px 8px 0 !important;
+}
+
+/* --- CAPTION / HELPER TEXT --- */
+[data-testid="stCaptionContainer"] {
+    font-size: 12px !important;
+    color: #888780 !important;
+}
+
+/* --- SLIDER --- */
+[data-testid="stSlider"] [role="slider"] {
+    background-color: #1D9E75 !important;
+}
+[data-testid="stSlider"] [data-testid="stSliderTrack"] div:first-child {
+    background-color: #1D9E75 !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 if not gestionar_auth():
     st.stop()
 
@@ -375,6 +551,14 @@ _forzar_cotizador = (
     st.session_state.get("editar_obra_modulos") is not None
 )
 
+# --- LOGO EN SIDEBAR ---
+st.sidebar.markdown("""
+<div style="padding: 8px 4px 16px 4px; border-bottom: 1px solid rgba(255,255,255,0.12); margin-bottom: 12px;">
+    <div style="font-size: 22px; font-weight: 500; color: white; letter-spacing: -0.5px;">🪵 BVM</div>
+    <div style="font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 2px;">Sistema de carpintería</div>
+</div>
+""", unsafe_allow_html=True)
+
 if _forzar_cotizador:
     menu = "🪵 Cotizador"
     st.sidebar.radio("Navegación", _opciones_menu, index=0)
@@ -382,11 +566,19 @@ else:
     menu = st.sidebar.radio("Navegación", _opciones_menu, index=st.session_state.get("menu_idx", 0))
     st.session_state["menu_idx"] = _opciones_menu.index(menu)
 
+# Widget de obra en curso en el sidebar
 if st.session_state["obra_modulos"]:
-    st.sidebar.info(f"Obra en curso: {len(st.session_state['obra_modulos'])} modulo(s)")
+    total_obra_sb = sum(m["precio"] for m in st.session_state["obra_modulos"])
+    st.sidebar.markdown(f"""
+    <div style="background: rgba(255,255,255,0.1); border-radius: 8px; padding: 10px 12px; margin: 12px 0 4px 0;">
+        <div style="font-size: 10px; color: rgba(255,255,255,0.5); letter-spacing: 0.06em; margin-bottom: 4px;">OBRA EN CURSO</div>
+        <div style="font-size: 20px; font-weight: 500; color: white;">${total_obra_sb:,.0f}</div>
+        <div style="font-size: 11px; color: rgba(255,255,255,0.6); margin-top: 2px;">{len(st.session_state['obra_modulos'])} módulo(s)</div>
+    </div>
+    """, unsafe_allow_html=True)
 
 st.sidebar.write("---")
-if st.sidebar.button("Cerrar Sesion"):
+if st.sidebar.button("Cerrar sesión"):
     for key in list(st.session_state.keys()):
         del st.session_state[key]
     st.rerun()
