@@ -600,9 +600,29 @@ if menu == "🪵 Cotizador":
                 if col_sel.button("Editar este", key=f"sel_mod_obra_{i}"):
                     st.session_state["editar_presupuesto"] = mod
                     st.session_state["editar_cliente"] = cliente_obra_edit
-                    st.session_state["idx_modulo_editar"] = i  # guardamos posición para reemplazar
+                    st.session_state["idx_modulo_editar"] = i
                     st.session_state["editar_obra_modulos"] = None
                     st.session_state["menu_idx"] = 0
+
+                    # Cargamos los demás módulos de la obra en obra_modulos
+                    # para que al agregar nuevos queden todos juntos
+                    otros_modulos = []
+                    for j, m in enumerate(obra_mods):
+                        if j != i:
+                            otros_modulos.append({
+                                "nombre": m["nombre"],
+                                "tipo": m.get("tipo_modulo", m.get("tipo", "")),
+                                "ancho": m.get("ancho_m", m.get("ancho", 0)),
+                                "alto": m.get("alto_m", m.get("alto", 0)),
+                                "prof": m.get("prof_m", m.get("prof", 0)),
+                                "material": m.get("mat_principal", m.get("material", "")),
+                                "precio": m.get("precio", 0),
+                                "df_corte": None,
+                            })
+                    # El módulo editado va en la posición i, los demás quedan en sus posiciones
+                    # Creamos la lista con un placeholder en la posición i
+                    lista_completa = otros_modulos[:i] + [None] + otros_modulos[i:]
+                    st.session_state["obra_modulos"] = lista_completa
                     st.rerun()
             if st.button("Cancelar", key="cancel_obra_edit"):
                 st.session_state["editar_obra_modulos"] = None
@@ -1000,8 +1020,14 @@ if menu == "🪵 Cotizador":
                             "df_corte": df_corte.copy() if not df_corte.empty else None,
                         }
                         if idx_modulo_editar is not None:
-                            # Reemplazamos el módulo en la posición correcta
-                            st.session_state["obra_modulos"][idx_modulo_editar] = nuevo_mod
+                            # Reemplazamos el placeholder None con el módulo editado
+                            obra_actual = st.session_state["obra_modulos"]
+                            if idx_modulo_editar < len(obra_actual):
+                                obra_actual[idx_modulo_editar] = nuevo_mod
+                            else:
+                                obra_actual.append(nuevo_mod)
+                            # Limpiamos cualquier None que haya quedado
+                            st.session_state["obra_modulos"] = [m for m in obra_actual if m is not None]
                             st.session_state["idx_modulo_editar"] = None
                             st.session_state["editar_presupuesto"] = None
                             st.session_state["editar_id"] = None
@@ -1175,7 +1201,8 @@ if menu == "🪵 Cotizador":
             with col_pdf2:
                 pct_seña_obra = st.slider("% de Sena", 0, 100, 50, 5, key="sena_obra")
 
-            cliente_obra = cliente if cliente else "Cliente"
+            # Tomamos el cliente del campo activo o del que vino en la edición
+            cliente_obra = cliente or st.session_state.get("editar_cliente", "") or "Cliente"
             col_gen1, col_gen2, col_gen3 = st.columns(3)
 
             with col_gen1:
@@ -1192,6 +1219,9 @@ if menu == "🪵 Cotizador":
                     st.rerun()
 
             if st.button("Guardar obra en historial", use_container_width=True):
+                _cliente_final = cliente or st.session_state.get("editar_cliente", "")
+                if _cliente_final:
+                    cliente = _cliente_final
                 if cliente:
                     import json
                     params_obra = {
