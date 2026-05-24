@@ -470,12 +470,77 @@ if menu == "🪵 Cotizador":
         idx_madera = lista_maderas.index(_v("mat_principal", lista_maderas[0])) if _v("mat_principal", lista_maderas[0]) in lista_maderas else 0
         idx_fondo  = lista_fondos.index(_v("mat_fondo_sel", lista_fondos[0])) if _v("mat_fondo_sel", lista_fondos[0]) in lista_fondos else 0
 
+        # Si venimos de edición, preseleccionamos el tipo correcto
+        if ep and "tipo_modulo" in ep:
+            st.session_state["tipo_modulo_sel"] = ep["tipo_modulo"]
+
         col_in, col_out = st.columns([1, 1.2])
 
         with col_in:
             with st.expander("🛠️ Definición de estructura", expanded=True):
                 cliente = st.text_input("Cliente", st.session_state.get("editar_cliente", ""))
-                tipo_modulo = st.selectbox("Tipo de Mueble", lista_modulos, index=idx_modulo, key="tipo_mueble_sel")
+
+                # --- SELECTOR VISUAL DE MUEBLE ---
+                st.markdown("**Tipo de mueble**")
+
+                # Inicializamos el tipo seleccionado
+                if "tipo_modulo_sel" not in st.session_state:
+                    st.session_state["tipo_modulo_sel"] = lista_modulos[idx_modulo]
+
+                _svgs = {
+                    "Bajo Mesada": """<svg viewBox="0 0 80 60" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="2" y="18" width="76" height="38" rx="2" fill="currentColor" opacity="0.12" stroke="currentColor" stroke-width="1.5"/>
+                        <rect x="2" y="18" width="76" height="8" rx="1" fill="currentColor" opacity="0.25"/>
+                        <line x1="41" y1="26" x2="41" y2="56" stroke="currentColor" stroke-width="1.2"/>
+                        <rect x="5" y="30" width="33" height="22" rx="1.5" fill="currentColor" opacity="0.18"/>
+                        <rect x="44" y="30" width="33" height="22" rx="1.5" fill="currentColor" opacity="0.18"/>
+                        <circle cx="39" cy="41" r="2" fill="currentColor" opacity="0.6"/>
+                        <circle cx="43" cy="41" r="2" fill="currentColor" opacity="0.6"/>
+                        <rect x="8" y="56" width="64" height="4" rx="1" fill="currentColor" opacity="0.15"/>
+                    </svg>""",
+                    "Cajonera": """<svg viewBox="0 0 80 60" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="5" y="4" width="70" height="52" rx="2" fill="currentColor" opacity="0.12" stroke="currentColor" stroke-width="1.5"/>
+                        <rect x="8" y="8" width="64" height="13" rx="1.5" fill="currentColor" opacity="0.2"/>
+                        <rect x="8" y="24" width="64" height="13" rx="1.5" fill="currentColor" opacity="0.2"/>
+                        <rect x="8" y="40" width="64" height="13" rx="1.5" fill="currentColor" opacity="0.2"/>
+                        <circle cx="40" cy="14.5" r="2" fill="currentColor" opacity="0.7"/>
+                        <circle cx="40" cy="30.5" r="2" fill="currentColor" opacity="0.7"/>
+                        <circle cx="40" cy="46.5" r="2" fill="currentColor" opacity="0.7"/>
+                    </svg>""",
+                    "Alacena": """<svg viewBox="0 0 80 60" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="2" y="2" width="76" height="52" rx="2" fill="currentColor" opacity="0.12" stroke="currentColor" stroke-width="1.5"/>
+                        <rect x="2" y="2" width="76" height="7" rx="1" fill="currentColor" opacity="0.2"/>
+                        <line x1="41" y1="9" x2="41" y2="54" stroke="currentColor" stroke-width="1.2"/>
+                        <rect x="5" y="13" width="33" height="37" rx="1.5" fill="currentColor" opacity="0.18"/>
+                        <rect x="44" y="13" width="33" height="37" rx="1.5" fill="currentColor" opacity="0.18"/>
+                        <circle cx="39" cy="31" r="2" fill="currentColor" opacity="0.6"/>
+                        <circle cx="43" cy="31" r="2" fill="currentColor" opacity="0.6"/>
+                        <line x1="5" y1="28" x2="38" y2="28" stroke="currentColor" stroke-width="0.8" opacity="0.4"/>
+                        <line x1="44" y1="28" x2="77" y2="28" stroke="currentColor" stroke-width="0.8" opacity="0.4"/>
+                        <rect x="8" y="54" width="64" height="4" rx="1" fill="currentColor" opacity="0.15"/>
+                    </svg>""",
+                }
+
+                col_bm, col_caj, col_ala = st.columns(3)
+                for col, nombre in [(col_bm, "Bajo Mesada"), (col_caj, "Cajonera"), (col_ala, "Alacena")]:
+                    with col:
+                        seleccionado = st.session_state["tipo_modulo_sel"] == nombre
+                        color = "#1D9E75" if seleccionado else "#888780"
+                        bg = "#E1F5EE" if seleccionado else "transparent"
+                        borde = "#1D9E75" if seleccionado else "#D3D1C7"
+                        st.markdown(f"""
+                        <div style="border:2px solid {borde}; border-radius:10px; padding:12px 8px 8px 8px;
+                                    background:{bg}; text-align:center; color:{color}; cursor:pointer;">
+                            {_svgs[nombre].replace('currentColor', color)}
+                            <div style="font-size:12px; font-weight:600; margin-top:6px;">{nombre}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        if st.button("Seleccionar", key=f"sel_{nombre}", use_container_width=True,
+                                     type="primary" if seleccionado else "secondary"):
+                            st.session_state["tipo_modulo_sel"] = nombre
+                            st.rerun()
+
+                tipo_modulo = st.session_state["tipo_modulo_sel"]
                 c1, c2, c3 = st.columns(3)
                 ancho_m = c1.number_input("Ancho total (mm)", min_value=0.0, max_value=5000.0, value=float(_v("ancho_m", 0.0)), step=0.5, help="Medida exterior total del módulo de izquierda a derecha")
                 alto_m  = c2.number_input("Alto total (mm)",  min_value=0.0, max_value=5000.0, value=float(_v("alto_m",  0.0)), step=0.5, help="Medida exterior total del módulo de abajo hacia arriba")
@@ -1184,4 +1249,3 @@ elif menu == "⚙️ Precios":
         for k, v in config.items():
             actualizar_precio_nube(k, v, 'costos')
         st.success("Configuracion guardada.")
-        
