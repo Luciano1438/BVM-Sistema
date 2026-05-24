@@ -997,6 +997,10 @@ if menu == "🪵 Cotizador":
                             st.session_state["obra_modulos"][idx_modulo_editar] = nuevo_mod
                             st.session_state["idx_modulo_editar"] = None
                             st.session_state["editar_presupuesto"] = None
+                            st.session_state["editar_id"] = None
+                            st.session_state["editar_cliente"] = ""
+                            # Reseteamos el selector de mueble para que pueda elegir otro
+                            st.session_state["tipo_modulo_sel"] = "Bajo Mesada"
                         else:
                             st.session_state["obra_modulos"].append(nuevo_mod)
                         st.session_state["ultimo_modulo_agregado"] = nombre_modulo
@@ -1027,10 +1031,11 @@ if menu == "🪵 Cotizador":
                             parametros=params,
                             id_editar=st.session_state.get("editar_id")
                         )
-                        # Limpiamos el modo edición
+                        # Limpiamos el modo edición y reseteamos el selector
                         st.session_state["editar_presupuesto"] = None
                         st.session_state["editar_id"] = None
                         st.session_state["editar_cliente"] = ""
+                        st.session_state["tipo_modulo_sel"] = "Bajo Mesada"
                     else:
                         st.warning("Ingresa el nombre del Cliente.")
 
