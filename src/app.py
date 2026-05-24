@@ -540,6 +540,8 @@ if "editar_obra_cliente" not in st.session_state:
     st.session_state["editar_obra_cliente"] = ""
 if "idx_modulo_editar" not in st.session_state:
     st.session_state["idx_modulo_editar"] = None
+if "edicion_tipo_cargado" not in st.session_state:
+    st.session_state["edicion_tipo_cargado"] = False
 
 maderas, fondos, config = traer_datos()
 # Si hay un presupuesto para editar, forzamos el cotizador
@@ -662,9 +664,14 @@ if menu == "🪵 Cotizador":
         idx_madera = lista_maderas.index(_v("mat_principal", lista_maderas[0])) if _v("mat_principal", lista_maderas[0]) in lista_maderas else 0
         idx_fondo  = lista_fondos.index(_v("mat_fondo_sel", lista_fondos[0])) if _v("mat_fondo_sel", lista_fondos[0]) in lista_fondos else 0
 
-        # Si venimos de edición, preseleccionamos el tipo correcto
-        if ep and "tipo_modulo" in ep:
+        # Si venimos de edición, preseleccionamos el tipo correcto SOLO la primera vez
+        # Usamos una bandera para no pisar el selector en cada rerun
+        if ep and "tipo_modulo" in ep and not st.session_state.get("edicion_tipo_cargado"):
             st.session_state["tipo_modulo_sel"] = ep["tipo_modulo"]
+            st.session_state["edicion_tipo_cargado"] = True
+        elif not ep:
+            # Cuando no hay edición activa, reseteamos la bandera
+            st.session_state["edicion_tipo_cargado"] = False
 
         col_in, col_out = st.columns([1, 1.2])
 
@@ -999,8 +1006,8 @@ if menu == "🪵 Cotizador":
                             st.session_state["editar_presupuesto"] = None
                             st.session_state["editar_id"] = None
                             st.session_state["editar_cliente"] = ""
-                            # Reseteamos el selector de mueble para que pueda elegir otro
                             st.session_state["tipo_modulo_sel"] = "Bajo Mesada"
+                            st.session_state["edicion_tipo_cargado"] = False
                         else:
                             st.session_state["obra_modulos"].append(nuevo_mod)
                         st.session_state["ultimo_modulo_agregado"] = nombre_modulo
@@ -1036,6 +1043,7 @@ if menu == "🪵 Cotizador":
                         st.session_state["editar_id"] = None
                         st.session_state["editar_cliente"] = ""
                         st.session_state["tipo_modulo_sel"] = "Bajo Mesada"
+                        st.session_state["edicion_tipo_cargado"] = False
                     else:
                         st.warning("Ingresa el nombre del Cliente.")
 
