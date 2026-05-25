@@ -385,8 +385,10 @@ else:
     menu = st.sidebar.radio("Navegación", _opciones_menu, index=st.session_state.get("menu_idx", 0))
     st.session_state["menu_idx"] = _opciones_menu.index(menu)
 
-if st.session_state["obra_modulos"]:
-    total_obra_sb = sum(m["precio"] for m in st.session_state["obra_modulos"])
+# Filtramos None para evitar error cuando hay un placeholder de edición
+_modulos_validos = [m for m in st.session_state["obra_modulos"] if m is not None]
+if _modulos_validos:
+    total_obra_sb = sum(m["precio"] for m in _modulos_validos)
     st.sidebar.markdown(f"""<div style="background:rgba(255,255,255,0.1);border-radius:8px;padding:10px 12px;margin:12px 0 4px 0;">
     <div style="font-size:10px;color:rgba(255,255,255,0.5);letter-spacing:0.06em;margin-bottom:4px;">OBRA EN CURSO</div>
     <div style="font-size:20px;font-weight:500;color:white;">${total_obra_sb:,.0f}</div>
@@ -615,23 +617,31 @@ if menu == "🪵 Cotizador":
                         esp_corredera = col_c1.number_input("Espesor de corredera (mm)", value=float(_v("esp_corredera", 13.0)), help="Estándar: 13mm")
                         aire_trasero  = col_c2.number_input("Espacio libre trasero (mm)", value=float(_v("aire_trasero", 30.0)),  help="Mínimo: 30mm")
 
-            with st.expander("📦 Soporte (por módulo)", expanded=False):
-                # Alacena no tiene banquina
-                _opts_base = ["Zócalo de Madera", "Patas Plásticas", "Nada"] if tipo_modulo == "Alacena" else ["Zócalo de Madera", "Banquina", "Patas Plásticas", "Nada"]
-                _base_default = _v("tipo_base", "Nada")
-                if _base_default not in _opts_base:
-                    _base_default = "Nada"
-                tipo_base = st.selectbox("Tipo de Soporte", _opts_base, index=_opts_base.index(_base_default))
-                if tipo_base == "Zócalo de Madera":
-                    altura_base = st.number_input("Altura de Zócalo (mm)", min_value=0.0, value=100.0, step=5.0)
-                elif tipo_base == "Banquina":
-                    altura_base = st.number_input("Altura de Banquina (mm)", min_value=0.0, value=100.0, step=5.0)
-                elif tipo_base == "Patas Plásticas":
-                    altura_base = st.number_input("Altura de Patas (mm)", min_value=0.0, value=100.0, step=5.0)
-                else:
-                    altura_base = 0.0
-                costo_base = 5000 if tipo_base == "Patas Plásticas" else 0
-                dias_prod = st.number_input("Días de taller (este módulo)", value=0.0, step=0.5)
+            # Soporte solo para Bajo Mesada y Cajonera, no para Alacena
+            if tipo_modulo != "Alacena":
+                with st.expander("📦 Soporte (por módulo)", expanded=False):
+                    _opts_base = ["Zócalo de Madera", "Banquina", "Patas Plásticas", "Nada"]
+                    _base_default = _v("tipo_base", "Nada")
+                    if _base_default not in _opts_base:
+                        _base_default = "Nada"
+                    tipo_base = st.selectbox("Tipo de Soporte", _opts_base, index=_opts_base.index(_base_default))
+                    if tipo_base == "Zócalo de Madera":
+                        altura_base = st.number_input("Altura de Zócalo (mm)", min_value=0.0, value=100.0, step=5.0)
+                    elif tipo_base == "Banquina":
+                        altura_base = st.number_input("Altura de Banquina (mm)", min_value=0.0, value=100.0, step=5.0)
+                    elif tipo_base == "Patas Plásticas":
+                        altura_base = st.number_input("Altura de Patas (mm)", min_value=0.0, value=100.0, step=5.0)
+                    else:
+                        altura_base = 0.0
+                    costo_base = 5000 if tipo_base == "Patas Plásticas" else 0
+            else:
+                tipo_base   = "Nada"
+                altura_base = 0.0
+                costo_base  = 0
+
+            with st.expander("🔨 Días de taller (este módulo)", expanded=False):
+                dias_prod = st.number_input("Días de trabajo en taller", value=0.0, step=0.5,
+                                             help="Los días de taller afectan el costo operativo de este módulo")
 
         # COLUMNA DERECHA
         with col_out:
@@ -787,6 +797,23 @@ if menu == "🪵 Cotizador":
                 st.write("---")
                 if not st.session_state["obra_modulos"]:
                     st.subheader("Propuesta para este módulo")
+
+                    # Logística para módulo individual
+                    with st.expander("🚛 Logística y colocación", expanded=False):
+                        st.caption("Estos costos se suman al precio final de este módulo.")
+                        col_fl_m, col_col_m, col_dias_m = st.columns(3)
+                        flete_sel_mod  = col_fl_m.selectbox("Flete", ["Ninguno","Capital","Zona Norte"], key="flete_mod")
+                        nec_col_mod    = col_col_m.checkbox("¿Requiere colocación?", key="col_mod")
+                        dias_col_mod   = col_dias_m.number_input("Días de colocación", value=0, min_value=0, key="dias_col_mod") if nec_col_mod else 0
+                        costo_flete_mod = config.get('flete_capital',0) if flete_sel_mod=="Capital" else config.get('flete_norte',0) if flete_sel_mod=="Zona Norte" else 0.0
+                        costo_col_mod   = dias_col_mod * config.get('colocacion_dia', 0)
+                        costo_log_mod   = costo_flete_mod + costo_col_mod
+                        if costo_log_mod > 0:
+                            precio_final_con_log = precio_final + costo_log_mod
+                            st.info(f"Con logística: **${precio_final_con_log:,.0f}** (logística: ${costo_log_mod:,.0f})")
+                        else:
+                            precio_final_con_log = precio_final
+                    
                     col_ent, col_sena = st.columns(2)
                     dias_entrega = col_ent.number_input("Días de entrega", value=15, step=1, key="dias_mod")
                     pct_seña     = col_sena.slider("% de Seña", 0, 100, 50, 5, key="sena_mod")
@@ -812,10 +839,13 @@ if menu == "🪵 Cotizador":
                         pdf.cell(0,8,f"Entrega: {dias} días hábiles",ln=True,align="C")
                         return bytes(pdf.output())
 
-                    pdf_mod = _pdf_mod(cliente, nombre_modulo, tipo_modulo, int(ancho_m), int(alto_m), int(prof_m), mat_principal, precio_final, dias_entrega, pct_seña)
+                    pdf_mod = _pdf_mod(cliente, nombre_modulo, tipo_modulo, int(ancho_m), int(alto_m), int(prof_m), mat_principal, precio_final_con_log, dias_entrega, pct_seña)
                     lineas_wa = [f"*PRESUPUESTO BVM — {nombre_modulo.upper()}*", f"Cliente: {cliente}", "",
-                                 f"• {tipo_modulo}: {int(ancho_m)}x{int(alto_m)}x{int(prof_m)} mm", f"• Material: {mat_principal}", "",
-                                 f"*TOTAL: ${precio_final:,.0f}*", f"Seña ({pct_seña}%): ${precio_final*(pct_seña/100):,.0f}",
+                                 f"• {tipo_modulo}: {int(ancho_m)}x{int(alto_m)}x{int(prof_m)} mm", f"• Material: {mat_principal}", ""]
+                    if costo_log_mod > 0:
+                        lineas_wa.append(f"• Logística: ${costo_log_mod:,.0f}")
+                    lineas_wa += [f"",
+                                 f"*TOTAL: ${precio_final_con_log:,.0f}*", f"Seña ({pct_seña}%): ${precio_final_con_log*(pct_seña/100):,.0f}",
                                  f"Entrega: {dias_entrega} días hábiles", "", "Precios válidos 48hs."]
                     wa_mod = f"https://wa.me/?text={urllib.parse.quote(chr(10).join(lineas_wa))}"
 
@@ -858,15 +888,18 @@ if menu == "🪵 Cotizador":
             st.write("---")
             st.header("🏠 Resumen de Obra Completa")
 
-            subtotal_modulos = sum(m["precio"] for m in st.session_state["obra_modulos"])
+            # Filtramos None (placeholders de edición)
+            _mods_obra = [m for m in st.session_state["obra_modulos"] if m is not None]
+            subtotal_modulos = sum(m["precio"] for m in _mods_obra)
 
             # Lista de módulos
-            for i, mod in enumerate(st.session_state["obra_modulos"]):
+            for i, mod in enumerate(_mods_obra):
                 col_mod, col_del = st.columns([5,1])
                 with col_mod:
                     st.write(f"**{i+1}. {mod['nombre']}** — {mod['ancho']}x{mod['alto']}x{mod['prof']} mm — {mod['material']} — `${mod['precio']:,.0f}`")
                 with col_del:
                     if st.button("✕", key=f"del_mod_{i}"):
+                        st.session_state["obra_modulos"] = [m for m in st.session_state["obra_modulos"] if m is not None]
                         st.session_state["obra_modulos"].pop(i); st.rerun()
 
             st.write("---")
@@ -950,7 +983,7 @@ if menu == "🪵 Cotizador":
                         "es_obra": True,
                         "modulos": [{"nombre": m["nombre"], "tipo_modulo": m["tipo"], "ancho_m": m["ancho"],
                                      "alto_m": m["alto"], "prof_m": m["prof"], "mat_principal": m["material"],
-                                     "precio": m["precio"]} for m in st.session_state["obra_modulos"]]
+                                     "precio": m["precio"]} for m in st.session_state["obra_modulos"] if m is not None]
                     }
                     guardar_presupuesto_nube(_cli, f"Obra ({len(st.session_state['obra_modulos'])} módulos)",
                                              total_obra, parametros=params_obra,
