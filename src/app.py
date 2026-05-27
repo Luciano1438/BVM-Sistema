@@ -784,10 +784,28 @@ if menu == "🪵 Cotizador":
             with col_ag:
                 if st.button(label_boton, use_container_width=True, type="primary"):
                     if ancho_m > 0 and alto_m > 0 and precio_final > 0:
-                        nuevo_mod = {"nombre": nombre_modulo, "tipo": tipo_modulo, "ancho": int(ancho_m),
-                                     "alto": int(alto_m), "prof": int(prof_m), "material": mat_principal,
-                                     "precio": precio_final, "df_corte": df_corte.copy() if not df_corte.empty else None,
-                                     "tipo_tapa": tipo_tapa}
+                        nuevo_mod = {
+                            "nombre": nombre_modulo, "tipo": tipo_modulo, "ancho": int(ancho_m),
+                            "alto": int(alto_m), "prof": int(prof_m), "material": mat_principal,
+                            "precio": precio_final, "df_corte": df_corte.copy() if not df_corte.empty else None,
+                            "tipo_tapa": tipo_tapa,
+                            # Guardamos todos los params para poder editar después
+                            "params": {
+                                "tipo_modulo": tipo_modulo, "ancho_m": ancho_m, "alto_m": alto_m,
+                                "prof_m": prof_m, "esp_real": esp_real, "mat_principal": mat_principal,
+                                "mat_fondo_sel": mat_fondo_sel, "tipo_tapa": tipo_tapa,
+                                "cant_puertas": cant_puertas, "cant_cajones": cant_cajones,
+                                "tiene_parante": tiene_parante, "tipo_parante": tipo_parante,
+                                "tiene_parante_medio": tiene_parante_medio,
+                                "tipo_base": tipo_base, "altura_base": altura_base,
+                                "estantes_fijos": estantes_fijos, "estantes_moviles": estantes_moviles,
+                                "tipo_estante_manual": tipo_estante_manual, "sin_fondo": sin_fondo,
+                                "luz_entre_tapas": luz_entre_tapas, "luz_perimetral_tapa": luz_perimetral_tapa,
+                                "alto_frentin_emb": alto_frentin_emb, "aire_trasero": aire_trasero,
+                                "esp_corredera": esp_corredera, "distribucion_tapas": distribucion_tapas,
+                                "tiene_cenefa": tiene_cenefa, "alto_cenefa": alto_cenefa,
+                            }
+                        }
                         if idx_mod_editar is not None:
                             obra_actual = st.session_state["obra_modulos"]
                             if idx_mod_editar < len(obra_actual):
@@ -857,6 +875,11 @@ if menu == "🪵 Cotizador":
                         else:
                             precio_final_con_log = precio_final
                     
+                    # Garantizamos que precio_final_con_log siempre esté definido
+                    if 'precio_final_con_log' not in dir():
+                        precio_final_con_log = precio_final
+                        costo_log_mod = 0
+
                     col_ent, col_sena = st.columns(2)
                     dias_entrega = col_ent.number_input("Días de entrega", value=15, step=1, key="dias_mod")
                     pct_seña     = col_sena.slider("% de Seña", 0, 100, 50, 5, key="sena_mod")
@@ -1025,9 +1048,34 @@ if menu == "🪵 Cotizador":
                 if _cli:
                     params_obra = {
                         "es_obra": True,
-                        "modulos": [{"nombre": m["nombre"], "tipo_modulo": m["tipo"], "ancho_m": m["ancho"],
-                                     "alto_m": m["alto"], "prof_m": m["prof"], "mat_principal": m["material"],
-                                     "precio": m["precio"]} for m in st.session_state["obra_modulos"] if m is not None]
+                        "modulos": [{
+                            "nombre": m["nombre"], "tipo_modulo": m["tipo"], "ancho_m": m["ancho"],
+                            "alto_m": m["alto"], "prof_m": m["prof"], "mat_principal": m["material"],
+                            "precio": m["precio"],
+                            # Params completos para poder editar después
+                            "mat_fondo_sel":       m.get("params", {}).get("mat_fondo_sel", "Fibroplus Blanco 3mm"),
+                            "esp_real":            m.get("params", {}).get("esp_real", 18.0),
+                            "tipo_tapa":           m.get("tipo_tapa", "Superpuesta"),
+                            "cant_puertas":        m.get("params", {}).get("cant_puertas", 2),
+                            "cant_cajones":        m.get("params", {}).get("cant_cajones", 0),
+                            "tiene_parante":       m.get("params", {}).get("tiene_parante", False),
+                            "tipo_parante":        m.get("params", {}).get("tipo_parante", "Corto (100mm)"),
+                            "tiene_parante_medio": m.get("params", {}).get("tiene_parante_medio", False),
+                            "tipo_base":           m.get("params", {}).get("tipo_base", "Nada"),
+                            "altura_base":         m.get("params", {}).get("altura_base", 0.0),
+                            "estantes_fijos":      m.get("params", {}).get("estantes_fijos", 0),
+                            "estantes_moviles":    m.get("params", {}).get("estantes_moviles", 0),
+                            "tipo_estante_manual": m.get("params", {}).get("tipo_estante_manual", "Completo"),
+                            "sin_fondo":           m.get("params", {}).get("sin_fondo", False),
+                            "luz_entre_tapas":     m.get("params", {}).get("luz_entre_tapas", 3.0),
+                            "luz_perimetral_tapa": m.get("params", {}).get("luz_perimetral_tapa", 4.0),
+                            "alto_frentin_emb":    m.get("params", {}).get("alto_frentin_emb", 0.0),
+                            "aire_trasero":        m.get("params", {}).get("aire_trasero", 30.0),
+                            "esp_corredera":       m.get("params", {}).get("esp_corredera", 13.0),
+                            "distribucion_tapas":  m.get("params", {}).get("distribucion_tapas", "Iguales"),
+                            "tiene_cenefa":        m.get("params", {}).get("tiene_cenefa", False),
+                            "alto_cenefa":         m.get("params", {}).get("alto_cenefa", 0.0),
+                        } for m in st.session_state["obra_modulos"] if m is not None]
                     }
                     guardar_presupuesto_nube(_cli, f"Obra ({len(st.session_state['obra_modulos'])} módulos)",
                                              total_obra, parametros=params_obra,
