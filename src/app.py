@@ -392,7 +392,7 @@ if _modulos_validos:
     st.sidebar.markdown(f"""<div style="background:rgba(255,255,255,0.1);border-radius:8px;padding:10px 12px;margin:12px 0 4px 0;">
     <div style="font-size:10px;color:rgba(255,255,255,0.5);letter-spacing:0.06em;margin-bottom:4px;">OBRA EN CURSO</div>
     <div style="font-size:20px;font-weight:500;color:white;">${total_obra_sb:,.0f}</div>
-    <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:2px;">{len(st.session_state['obra_modulos'])} módulo(s)</div></div>""", unsafe_allow_html=True)
+    <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:2px;">{len(_modulos_validos)} módulo(s)</div></div>""", unsafe_allow_html=True)
 
 st.sidebar.write("---")
 if st.sidebar.button("Cerrar sesión"):
@@ -416,17 +416,60 @@ if menu == "🪵 Cotizador":
                 col_info, col_sel = st.columns([4, 1])
                 col_info.write(f"**{i+1}. {mod['nombre']}** — {mod['ancho_m']}x{mod['alto_m']}x{mod['prof_m']} mm — {mod['mat_principal']} — ${mod['precio']:,.0f}")
                 if col_sel.button("Editar este", key=f"sel_mod_obra_{i}"):
+                    # Mapeamos los campos del JSON guardado al formato que espera _v()
+                    mod_para_editar = {
+                        "tipo_modulo":          mod.get("tipo_modulo", mod.get("tipo", "")),
+                        "ancho_m":              mod.get("ancho_m", mod.get("ancho", 0)),
+                        "alto_m":               mod.get("alto_m",  mod.get("alto",  0)),
+                        "prof_m":               mod.get("prof_m",  mod.get("prof",  0)),
+                        "mat_principal":        mod.get("mat_principal", mod.get("material", "")),
+                        "mat_fondo_sel":        mod.get("mat_fondo_sel", "Fibroplus Blanco 3mm"),
+                        "esp_real":             mod.get("esp_real", 18.0),
+                        "tipo_tapa":            mod.get("tipo_tapa", "Superpuesta"),
+                        "cant_puertas":         mod.get("cant_puertas", 2),
+                        "cant_cajones":         mod.get("cant_cajones", 0),
+                        "tiene_parante":        mod.get("tiene_parante", False),
+                        "tipo_parante":         mod.get("tipo_parante", "Corto (100mm)"),
+                        "tiene_parante_medio":  mod.get("tiene_parante_medio", False),
+                        "tipo_base":            mod.get("tipo_base", "Nada"),
+                        "altura_base":          mod.get("altura_base", 0.0),
+                        "estantes_fijos":       mod.get("estantes_fijos", 0),
+                        "estantes_moviles":     mod.get("estantes_moviles", 0),
+                        "tipo_estante_manual":  mod.get("tipo_estante_manual", "Completo"),
+                        "sin_fondo":            mod.get("sin_fondo", False),
+                        "luz_entre_tapas":      mod.get("luz_entre_tapas", 3.0),
+                        "luz_perimetral_tapa":  mod.get("luz_perimetral_tapa", 4.0),
+                        "alto_frentin_emb":     mod.get("alto_frentin_emb", 0.0),
+                        "aire_trasero":         mod.get("aire_trasero", 30.0),
+                        "esp_corredera":        mod.get("esp_corredera", 13.0),
+                        "distribucion_tapas":   mod.get("distribucion_tapas", "Iguales"),
+                        "tiene_cenefa":         mod.get("tiene_cenefa", False),
+                        "alto_cenefa":          mod.get("alto_cenefa", 0.0),
+                        "nombre":               mod.get("nombre", ""),
+                    }
                     otros = []
                     for j, m in enumerate(obra_mods):
                         if j != i:
-                            otros.append({"nombre": m["nombre"], "tipo": m.get("tipo_modulo", ""), "ancho": m.get("ancho_m", 0),
-                                          "alto": m.get("alto_m", 0), "prof": m.get("prof_m", 0),
-                                          "material": m.get("mat_principal", ""), "precio": m.get("precio", 0), "df_corte": None})
+                            otros.append({
+                                "nombre":   m.get("nombre", ""),
+                                "tipo":     m.get("tipo_modulo", m.get("tipo", "")),
+                                "ancho":    m.get("ancho_m", m.get("ancho", 0)),
+                                "alto":     m.get("alto_m",  m.get("alto",  0)),
+                                "prof":     m.get("prof_m",  m.get("prof",  0)),
+                                "material": m.get("mat_principal", m.get("material", "")),
+                                "precio":   m.get("precio", 0),
+                                "df_corte": None,
+                            })
                     lista = otros[:i] + [None] + otros[i:]
-                    st.session_state.update({"obra_modulos": lista, "editar_presupuesto": mod,
-                                             "editar_cliente": cliente_obra_edit, "idx_modulo_editar": i,
-                                             "editar_obra_modulos": None, "menu_idx": 0,
-                                             "edicion_tipo_cargado": False})
+                    st.session_state.update({
+                        "obra_modulos":         lista,
+                        "editar_presupuesto":   mod_para_editar,
+                        "editar_cliente":       cliente_obra_edit,
+                        "idx_modulo_editar":    i,
+                        "editar_obra_modulos":  None,
+                        "menu_idx":             0,
+                        "edicion_tipo_cargado": False,
+                    })
                     st.rerun()
             if st.button("Cancelar", key="cancel_obra_edit"):
                 st.session_state["editar_obra_modulos"] = None
@@ -938,7 +981,8 @@ if menu == "🪵 Cotizador":
             col_gen1, col_gen2, col_gen3 = st.columns(3)
 
             with col_gen1:
-                pdf_obra = generar_pdf_obra(cliente_obra, st.session_state["obra_modulos"],
+                _mods_pdf = [m for m in st.session_state["obra_modulos"] if m is not None]
+                pdf_obra = generar_pdf_obra(cliente_obra, _mods_pdf,
                                              dias_entrega_obra, pct_seña_obra,
                                              costo_logistica=costo_flete_obra,
                                              dias_colocacion=dias_col_obra,
@@ -947,7 +991,7 @@ if menu == "🪵 Cotizador":
                                    file_name=f"Obra_{cliente_obra}.pdf", mime="application/pdf", use_container_width=True)
 
             with col_gen2:
-                link_wa = generar_link_whatsapp_obra(cliente_obra, st.session_state["obra_modulos"],
+                link_wa = generar_link_whatsapp_obra(cliente_obra, _mods_pdf,
                                                       dias_entrega_obra, pct_seña_obra,
                                                       costo_logistica=costo_flete_obra,
                                                       dias_colocacion=dias_col_obra,
