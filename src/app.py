@@ -1005,7 +1005,7 @@ if menu == "🪵 Cotizador":
             # CNC DE TODA LA OBRA
             with st.expander("⚙️ Terminal CNC — Obra completa"):
                 st.caption("Todos los módulos en un solo archivo, separados por sección.")
-                modulos_con_df = [m for m in st.session_state["obra_modulos"] if m.get("df_corte") is not None]
+                modulos_con_df = [m for m in st.session_state["obra_modulos"] if m is not None and m.get("df_corte") is not None]
                 if modulos_con_df:
                     dxf_obra = generar_dxf_obra(modulos_con_df)
                     csv_obra = exportar_csv_obra(modulos_con_df, esp_real)
