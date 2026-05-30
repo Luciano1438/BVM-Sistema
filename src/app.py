@@ -446,6 +446,7 @@ if menu == "🪵 Cotizador":
                         "tiene_cenefa":         mod.get("tiene_cenefa", False),
                         "alto_cenefa":          mod.get("alto_cenefa", 0.0),
                         "nombre":               mod.get("nombre", ""),
+                        "dias_prod":            mod.get("dias_prod", 0.0),
                     }
                     otros = []
                     for j, m in enumerate(obra_mods):
@@ -683,7 +684,7 @@ if menu == "🪵 Cotizador":
                 costo_base  = 0
 
             with st.expander("🔨 Días de taller (este módulo)", expanded=False):
-                dias_prod = st.number_input("Días de trabajo en taller", value=0.0, step=0.5,
+                dias_prod = st.number_input("Días de trabajo en taller", value=float(_v("dias_prod", 0.0)), step=0.5,
                                              help="Los días de taller afectan el costo operativo de este módulo")
 
         # COLUMNA DERECHA
@@ -804,6 +805,7 @@ if menu == "🪵 Cotizador":
                                 "alto_frentin_emb": alto_frentin_emb, "aire_trasero": aire_trasero,
                                 "esp_corredera": esp_corredera, "distribucion_tapas": distribucion_tapas,
                                 "tiene_cenefa": tiene_cenefa, "alto_cenefa": alto_cenefa,
+                                "dias_prod": dias_prod,
                             }
                         }
                         if idx_mod_editar is not None:
@@ -838,7 +840,8 @@ if menu == "🪵 Cotizador":
                                   "luz_entre_tapas": luz_entre_tapas, "luz_perimetral_tapa": luz_perimetral_tapa,
                                   "alto_frentin_emb": alto_frentin_emb, "aire_trasero": aire_trasero,
                                   "esp_corredera": esp_corredera, "distribucion_tapas": distribucion_tapas,
-                                  "tiene_cenefa": tiene_cenefa, "alto_cenefa": alto_cenefa}
+                                  "tiene_cenefa": tiene_cenefa, "alto_cenefa": alto_cenefa,
+                                  "dias_prod": dias_prod}
                         guardar_presupuesto_nube(cliente, tipo_modulo, precio_final, parametros=params,
                                                   id_editar=st.session_state.get("editar_id"))
                         st.session_state.update({"editar_presupuesto": None, "editar_id": None,
@@ -1075,6 +1078,7 @@ if menu == "🪵 Cotizador":
                             "distribucion_tapas":  m.get("params", {}).get("distribucion_tapas", "Iguales"),
                             "tiene_cenefa":        m.get("params", {}).get("tiene_cenefa", False),
                             "alto_cenefa":         m.get("params", {}).get("alto_cenefa", 0.0),
+                            "dias_prod":           m.get("params", {}).get("dias_prod", 0.0),
                         } for m in st.session_state["obra_modulos"] if m is not None]
                     }
                     guardar_presupuesto_nube(_cli, f"Obra ({len(st.session_state['obra_modulos'])} módulos)",
