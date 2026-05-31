@@ -825,13 +825,59 @@ if menu == "🪵 Cotizador":
                                 obra_actual[idx_mod_editar] = nuevo_mod
                             else:
                                 obra_actual.append(nuevo_mod)
-                            st.session_state["obra_modulos"] = [m for m in obra_actual if m is not None]
-                            # NO limpiamos editar_obra_id para que al guardar la obra
-                            # se actualice el registro existente en Supabase
+                            mods_limpios = [m for m in obra_actual if m is not None]
+                            st.session_state["obra_modulos"] = mods_limpios
+
+                            # Guardamos automáticamente en Supabase si venimos de editar una obra
+                            _obra_id = st.session_state.get("editar_obra_id")
+                            _cli_obra = st.session_state.get("editar_obra_cliente","") or cliente
+                            if _obra_id and _cli_obra:
+                                import json as _json2
+                                _params_auto = {
+                                    "es_obra": True,
+                                    "modulos": [{
+                                        "nombre": m["nombre"], "tipo_modulo": m["tipo"],
+                                        "ancho_m": m["ancho"], "alto_m": m["alto"], "prof_m": m["prof"],
+                                        "mat_principal": m["material"], "precio": m["precio"],
+                                        "mat_fondo_sel":       m.get("params",{}).get("mat_fondo_sel","Fibroplus Blanco 3mm"),
+                                        "esp_real":            m.get("params",{}).get("esp_real",18.0),
+                                        "tipo_tapa":           m.get("tipo_tapa","Superpuesta"),
+                                        "cant_puertas":        m.get("params",{}).get("cant_puertas",2),
+                                        "cant_cajones":        m.get("params",{}).get("cant_cajones",0),
+                                        "tiene_parante":       m.get("params",{}).get("tiene_parante",False),
+                                        "tipo_parante":        m.get("params",{}).get("tipo_parante","Corto (100mm)"),
+                                        "tiene_parante_medio": m.get("params",{}).get("tiene_parante_medio",False),
+                                        "tipo_base":           m.get("params",{}).get("tipo_base","Nada"),
+                                        "altura_base":         m.get("params",{}).get("altura_base",0.0),
+                                        "estantes_fijos":      m.get("params",{}).get("estantes_fijos",0),
+                                        "estantes_moviles":    m.get("params",{}).get("estantes_moviles",0),
+                                        "tipo_estante_manual": m.get("params",{}).get("tipo_estante_manual","Completo"),
+                                        "sin_fondo":           m.get("params",{}).get("sin_fondo",False),
+                                        "luz_entre_tapas":     m.get("params",{}).get("luz_entre_tapas",3.0),
+                                        "luz_perimetral_tapa": m.get("params",{}).get("luz_perimetral_tapa",4.0),
+                                        "alto_frentin_emb":    m.get("params",{}).get("alto_frentin_emb",0.0),
+                                        "aire_trasero":        m.get("params",{}).get("aire_trasero",30.0),
+                                        "esp_corredera":       m.get("params",{}).get("esp_corredera",13.0),
+                                        "distribucion_tapas":  m.get("params",{}).get("distribucion_tapas","Iguales"),
+                                        "tiene_cenefa":        m.get("params",{}).get("tiene_cenefa",False),
+                                        "alto_cenefa":         m.get("params",{}).get("alto_cenefa",0.0),
+                                        "dias_prod":           m.get("params",{}).get("dias_prod",0.0),
+                                        "indices_estantes_fijos": m.get("params",{}).get("indices_estantes_fijos",[]),
+                                    } for m in mods_limpios]
+                                }
+                                _total_auto = sum(m["precio"] for m in mods_limpios)
+                                guardar_presupuesto_nube(
+                                    _cli_obra,
+                                    f"Obra ({len(mods_limpios)} módulos)",
+                                    _total_auto,
+                                    parametros=_params_auto,
+                                    id_editar=_obra_id
+                                )
+
                             st.session_state.update({"idx_modulo_editar": None, "editar_presupuesto": None,
                                                      "editar_id": None, "editar_cliente": "",
+                                                     "editar_obra_id": None, "editar_obra_cliente": "",
                                                      "tipo_modulo_sel": "Bajo Mesada", "edicion_tipo_cargado": False})
-                            st.success("✅ Módulo reemplazado. Bajá al **Resumen de Obra** y apretá **Guardar obra** para confirmar los cambios.")
                         else:
                             st.session_state["obra_modulos"].append(nuevo_mod)
                         st.session_state.update({"ultimo_modulo_agregado": nombre_modulo, "ultimo_precio_agregado": precio_final})
