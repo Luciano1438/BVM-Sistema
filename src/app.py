@@ -815,9 +815,12 @@ if menu == "🪵 Cotizador":
                             else:
                                 obra_actual.append(nuevo_mod)
                             st.session_state["obra_modulos"] = [m for m in obra_actual if m is not None]
+                            # NO limpiamos editar_obra_id para que al guardar la obra
+                            # se actualice el registro existente en Supabase
                             st.session_state.update({"idx_modulo_editar": None, "editar_presupuesto": None,
                                                      "editar_id": None, "editar_cliente": "",
                                                      "tipo_modulo_sel": "Bajo Mesada", "edicion_tipo_cargado": False})
+                            st.success("✅ Módulo reemplazado. Bajá al **Resumen de Obra** y apretá **Guardar obra** para confirmar los cambios.")
                         else:
                             st.session_state["obra_modulos"].append(nuevo_mod)
                         st.session_state.update({"ultimo_modulo_agregado": nombre_modulo, "ultimo_precio_agregado": precio_final})
@@ -826,7 +829,9 @@ if menu == "🪵 Cotizador":
                         st.warning("Ingresá las medidas y calculá el módulo antes de agregar.")
 
             with col_sv:
-                if st.button("Guardar solo este módulo", use_container_width=True):
+                # Mostramos "Guardar" siempre que no estemos en modo reemplazar obra
+                _label_guardar = "💾 Guardar cambios" if st.session_state.get("editar_id") else "💾 Guardar solo este módulo"
+                if st.button(_label_guardar, use_container_width=True):
                     if cliente:
                         params = {"tipo_modulo": tipo_modulo, "ancho_m": ancho_m, "alto_m": alto_m,
                                   "prof_m": prof_m, "esp_real": esp_real, "mat_principal": mat_principal,
@@ -847,6 +852,7 @@ if menu == "🪵 Cotizador":
                         st.session_state.update({"editar_presupuesto": None, "editar_id": None,
                                                   "editar_cliente": "", "tipo_modulo_sel": "Bajo Mesada",
                                                   "edicion_tipo_cargado": False})
+                        st.rerun()
                     else:
                         st.warning("Ingresá el nombre del Cliente.")
 
