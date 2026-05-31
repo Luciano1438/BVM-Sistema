@@ -463,12 +463,16 @@ if menu == "🪵 Cotizador":
                                 "df_corte": None,
                             })
                     lista = otros[:i] + [None] + otros[i:]
+                    # Preservamos editar_obra_id para que al guardar la obra
+                    # se actualice el registro correcto en Supabase
+                    _obra_id_preservado = st.session_state.get("editar_obra_id")
                     st.session_state.update({
                         "obra_modulos":         lista,
                         "editar_presupuesto":   mod_para_editar,
                         "editar_cliente":       cliente_obra_edit,
                         "idx_modulo_editar":    i,
                         "editar_obra_modulos":  None,
+                        "editar_obra_id":       _obra_id_preservado,
                         "menu_idx":             0,
                         "edicion_tipo_cargado": False,
                     })
@@ -1061,7 +1065,7 @@ if menu == "🪵 Cotizador":
 
             # GUARDAR
             if st.button("💾 Guardar obra en historial", use_container_width=True):
-                _cli = cliente or st.session_state.get("editar_cliente","")
+                _cli = cliente or st.session_state.get("editar_obra_cliente","") or st.session_state.get("editar_cliente","")
                 if _cli:
                     params_obra = {
                         "es_obra": True,
@@ -1308,4 +1312,3 @@ elif menu == "⚙️ Precios":
         for k, v in config.items():
             actualizar_precio_nube(k, v, 'costos')
         st.success("✅ Configuración guardada.")
-        
