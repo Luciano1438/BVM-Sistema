@@ -447,6 +447,7 @@ if menu == "🪵 Cotizador":
                         "alto_cenefa":          mod.get("alto_cenefa", 0.0),
                         "nombre":               mod.get("nombre", ""),
                         "dias_prod":            mod.get("dias_prod", 0.0),
+                        "indices_estantes_fijos": mod.get("indices_estantes_fijos", []),
                     }
                     otros = []
                     for j, m in enumerate(obra_mods):
@@ -589,13 +590,16 @@ if menu == "🪵 Cotizador":
                     _fmt_opts  = ["Completo", "Medio"]
                     _fmt_idx   = _fmt_opts.index(_v("tipo_estante_manual", "Completo")) if _v("tipo_estante_manual", "Completo") in _fmt_opts else 0
                     tipo_estante_manual = st.radio("Formato de Estante", _fmt_opts, index=_fmt_idx, key="fmt_est_bm")
+                    # Recuperamos qué estantes eran fijos al editar
+                    _indices_fijos_guardados = _v("indices_estantes_fijos", [])
                     indices_fijos = []
                     if cant_total_est > 0:
                         st.write("¿Cuáles son fijos?")
                         cols_e = st.columns(int(cant_total_est))
                         for i in range(int(cant_total_est)):
                             with cols_e[i]:
-                                if st.checkbox(f"E{i+1}", key=f"check_est_bm_{i}"):
+                                _era_fijo = i in _indices_fijos_guardados
+                                if st.checkbox(f"E{i+1}", value=_era_fijo, key=f"check_est_bm_{i}"):
                                     indices_fijos.append(i)
                     estantes_fijos   = len(indices_fijos)
                     estantes_moviles = cant_total_est - estantes_fijos
@@ -612,13 +616,15 @@ if menu == "🪵 Cotizador":
                     cant_puertas = c_ala2.selectbox("Cantidad de Puertas", [2, 3, 4], index=[2,3,4].index(_puertas_ala) if _puertas_ala in [2,3,4] else 0)
                     st.markdown("---")
                     cant_total_est = st.number_input("Cantidad Total Estantes", min_value=0, value=1, step=1)
+                    _indices_fijos_guardados_ala = _v("indices_estantes_fijos", [])
                     indices_fijos = []
                     if cant_total_est > 0:
                         st.write("¿Cuáles son fijos?")
                         cols_e = st.columns(int(cant_total_est))
                         for i in range(int(cant_total_est)):
                             with cols_e[i]:
-                                if st.checkbox(f"E{i+1}", key=f"check_est_{i}"):
+                                _era_fijo_ala = i in _indices_fijos_guardados_ala
+                                if st.checkbox(f"E{i+1}", value=_era_fijo_ala, key=f"check_est_{i}"):
                                     indices_fijos.append(i)
                     estantes_fijos   = len(indices_fijos)
                     estantes_moviles = cant_total_est - estantes_fijos
@@ -806,6 +812,7 @@ if menu == "🪵 Cotizador":
                                 "esp_corredera": esp_corredera, "distribucion_tapas": distribucion_tapas,
                                 "tiene_cenefa": tiene_cenefa, "alto_cenefa": alto_cenefa,
                                 "dias_prod": dias_prod,
+                                "indices_estantes_fijos": indices_fijos,
                             }
                         }
                         if idx_mod_editar is not None:
@@ -846,7 +853,8 @@ if menu == "🪵 Cotizador":
                                   "alto_frentin_emb": alto_frentin_emb, "aire_trasero": aire_trasero,
                                   "esp_corredera": esp_corredera, "distribucion_tapas": distribucion_tapas,
                                   "tiene_cenefa": tiene_cenefa, "alto_cenefa": alto_cenefa,
-                                  "dias_prod": dias_prod}
+                                  "dias_prod": dias_prod,
+                                  "indices_estantes_fijos": indices_fijos}
                         guardar_presupuesto_nube(cliente, tipo_modulo, precio_final, parametros=params,
                                                   id_editar=st.session_state.get("editar_id"))
                         st.session_state.update({"editar_presupuesto": None, "editar_id": None,
@@ -1085,6 +1093,7 @@ if menu == "🪵 Cotizador":
                             "tiene_cenefa":        m.get("params", {}).get("tiene_cenefa", False),
                             "alto_cenefa":         m.get("params", {}).get("alto_cenefa", 0.0),
                             "dias_prod":           m.get("params", {}).get("dias_prod", 0.0),
+                            "indices_estantes_fijos": m.get("params", {}).get("indices_estantes_fijos", []),
                         } for m in st.session_state["obra_modulos"] if m is not None]
                     }
                     guardar_presupuesto_nube(_cli, f"Obra ({len(st.session_state['obra_modulos'])} módulos)",
@@ -1299,3 +1308,4 @@ elif menu == "⚙️ Precios":
         for k, v in config.items():
             actualizar_precio_nube(k, v, 'costos')
         st.success("✅ Configuración guardada.")
+        
