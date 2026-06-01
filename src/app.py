@@ -183,12 +183,47 @@ def generar_link_whatsapp_obra(cliente, modulos, dias_entrega, pct_seña, costo_
 # BASE DE DATOS
 # ===========================================================================
 
+def refrescar_sesion():
+    """Refresca el token JWT si expiró."""
+    try:
+        res = supabase.auth.refresh_session()
+        if res and res.session:
+            st.session_state["session"] = res.session
+            st.session_state["user"] = res.user
+            return True
+    except:
+        pass
+    return False
+
+def get_token():
+    """Devuelve el token vigente, refrescando si es necesario."""
+    if "session" not in st.session_state or not st.session_state["session"]:
+        return None
+    try:
+        token = st.session_state["session"].access_token
+        supabase.postgrest.auth(token)
+        return token
+    except Exception as e:
+        if "JWT" in str(e) or "expired" in str(e).lower():
+            if refrescar_sesion():
+                return st.session_state["session"].access_token
+        return None
+
 def consultar_retazos_disponibles(material):
     try:
+        token = get_token()
+        if token: supabase.postgrest.auth(token)
         res = supabase.table("retazos").select("*").eq("user_id", st.session_state["user"].id).execute()
         return res.data
     except Exception as e:
-        st.error(f"Error al consultar retazos: {e}")
+        if "JWT" in str(e) or "expired" in str(e).lower() or "PGRST303" in str(e):
+            if refrescar_sesion():
+                try:
+                    res = supabase.table("retazos").select("*").eq("user_id", st.session_state["user"].id).execute()
+                    return res.data
+                except:
+                    pass
+        st.warning("Sesión expirada. Recargá la página si el problema persiste.")
         return []
 
 def registrar_retazo(material, largo, ancho):
@@ -243,7 +278,9 @@ def gestionar_auth():
 def actualizar_precio_nube(clave, valor, categoria):
     if "session" not in st.session_state: return
     try:
-        supabase.postgrest.auth(st.session_state["session"].access_token)
+        token = get_token()
+        if not token: return
+        supabase.postgrest.auth(token)
         supabase.table("configuracion").upsert(
             {"user_id": st.session_state["user"].id, "clave": clave, "valor": float(valor), "categoria": categoria},
             on_conflict="user_id, clave"
@@ -259,7 +296,9 @@ def traer_datos():
                        'gastos_fijos_diarios': 25000.0, 'flete_capital': 15000.0, 'flete_norte': 20000.0,
                        'colocacion_dia': 45000.0, 'ganancia_taller_pct': 0.30}
     try:
-        supabase.postgrest.auth(st.session_state["session"].access_token)
+        token = get_token()
+        if not token: return maderas_default, {'Fibroplus Blanco 3mm': 34500.0, 'Sin fondo': 0.0}, config_default
+        supabase.postgrest.auth(token)
         datos_db = supabase.table("configuracion").select("*").eq("user_id", st.session_state["user"].id).execute().data
         maderas_db = {d['clave']: d['valor'] for d in datos_db if str(d.get('categoria','')).lower().strip() == 'maderas'}
         config_db  = {d['clave']: d['valor'] for d in datos_db if str(d.get('categoria','')).lower().strip() in ['costos','margen','herrajes']}
@@ -1243,7 +1282,8 @@ elif menu == "📋 Historial":
                 with col_b3:
                     if st.button("Borrar", key=f"del_{id_venta}_{idx}", use_container_width=True):
                         try:
-                            supabase.postgrest.auth(st.session_state["session"].access_token)
+                            token = get_token()
+                            if token: supabase.postgrest.auth(token)
                             supabase.table("ventas").delete().eq("id", id_venta).execute()
                             st.rerun()
                         except Exception as e:
@@ -1306,7 +1346,8 @@ elif menu == "♻️ Retazos":
                     ret_id = ret.get('id')
                     if c_d.button("✕", key=f"del_ret_{ret_id}"):
                         try:
-                            supabase.postgrest.auth(st.session_state["session"].access_token)
+                            token = get_token()
+                            if token: supabase.postgrest.auth(token)
                             supabase.table("retazos").delete().eq("id", ret_id).execute()
                             st.rerun()
                         except Exception as e:
