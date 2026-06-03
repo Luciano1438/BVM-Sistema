@@ -363,7 +363,6 @@ h2 { font-size: 17px !important; font-weight: 500 !important; }
 [data-testid="stInfo"] { background: #E1F5EE !important; border-left: 3px solid #1D9E75 !important; border-radius: 0 8px 8px 0 !important; }
 </style>""", unsafe_allow_html=True)
 
-import streamlit.components.v1 as components
 if not gestionar_auth():
     st.stop()
 # ONBOARDING
