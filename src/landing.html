@@ -1,504 +1,217 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BVM — Sistema para Carpinteros Profesionales</title>
+python3 - << 'PYEOF'
+landing = '''
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --verde: #1D9E75;
-    --verde-oscuro: #0F6E56;
-    --verde-claro: #E1F5EE;
-    --texto: #1A1A18;
-    --gris: #6B6B68;
-    --borde: #E0DED6;
-    --fondo: #F8F7F3;
-  }
+.bvm-landing * { box-sizing: border-box; margin: 0; padding: 0; }
+.bvm-landing { font-family: "DM Sans", sans-serif; color: #1A1A18; }
 
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+/* HERO */
+.bvm-hero {
+  min-height: 90vh; display: flex; align-items: center;
+  padding: 80px 48px; position: relative; overflow: hidden;
+  background: radial-gradient(ellipse 70% 60% at 70% 40%, #D4F0E5 0%, transparent 65%),
+              radial-gradient(ellipse 40% 40% at 5% 85%, #EAF7F1 0%, transparent 55%), #FAFAF8;
+}
+.bvm-hero-grid {
+  position: absolute; inset: 0; opacity: 0.04;
+  background-image: linear-gradient(#0F6E56 1px, transparent 1px), linear-gradient(90deg, #0F6E56 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+.bvm-hero-inner { position: relative; z-index: 1; max-width: 600px; }
+.bvm-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: #E1F5EE; border: 1px solid #A8DFC9; color: #0F6E56;
+  font-size: 11px; font-weight: 600; padding: 6px 14px; border-radius: 100px;
+  margin-bottom: 28px; letter-spacing: 0.08em; text-transform: uppercase;
+}
+.bvm-h1 {
+  font-family: "DM Serif Display", serif;
+  font-size: 58px; line-height: 1.05; letter-spacing: -2px;
+  color: #1A1A18; margin-bottom: 20px;
+}
+.bvm-h1 em { font-style: italic; color: #1D9E75; }
+.bvm-sub {
+  font-size: 18px; color: #6B6B68; line-height: 1.6;
+  font-weight: 300; margin-bottom: 36px; max-width: 480px;
+}
+.bvm-hero-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 20px; }
+.bvm-chip {
+  background: white; border: 1px solid #E0DED6; border-radius: 6px;
+  padding: 6px 12px; font-size: 12px; color: #6B6B68; font-weight: 500;
+}
 
-  body {
-    font-family: 'DM Sans', sans-serif;
-    background: #FAFAF8;
-    color: var(--texto);
-    overflow-x: hidden;
-  }
+/* FEATURES */
+.bvm-section { padding: 80px 48px; }
+.bvm-section-bg { background: white; }
+.bvm-section-bg2 { background: #F8F7F3; }
+.bvm-label {
+  font-size: 11px; font-weight: 600; color: #1D9E75;
+  text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px;
+}
+.bvm-h2 {
+  font-family: "DM Serif Display", serif;
+  font-size: 44px; line-height: 1.1; letter-spacing: -1.5px;
+  margin-bottom: 12px; color: #1A1A18;
+}
+.bvm-h2-sub { font-size: 16px; color: #6B6B68; max-width: 480px; line-height: 1.6; font-weight: 300; margin-bottom: 48px; }
 
-  /* NAV */
-  nav {
-    position: sticky; top: 0; left: 0; right: 0; z-index: 100;
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 18px 48px;
-    background: rgba(250,250,248,0.97);
-    backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--borde);
-  }
-  .nav-logo {
-    font-family: 'DM Serif Display', serif;
-    font-size: 22px; color: var(--verde-oscuro); letter-spacing: -0.5px;
-  }
-  .nav-logo span { color: var(--gris); font-size: 13px; font-family: 'DM Sans', sans-serif; font-weight: 400; margin-left: 8px; }
-  .nav-cta {
-    background: var(--verde); color: white;
-    padding: 10px 24px; border-radius: 8px;
-    font-size: 14px; font-weight: 500;
-    text-decoration: none; letter-spacing: -0.1px;
-    transition: background 0.15s;
-  }
-  .nav-cta:hover { background: var(--verde-oscuro); }
+.bvm-features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: #E0DED6; border-radius: 14px; overflow: hidden; }
+.bvm-feat {
+  background: white; padding: 32px 28px;
+  transition: background 0.2s;
+}
+.bvm-feat:hover { background: #E1F5EE; }
+.bvm-feat-icon {
+  width: 40px; height: 40px; border-radius: 9px;
+  background: #E1F5EE; border: 1px solid #A8DFC9;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; margin-bottom: 16px;
+}
+.bvm-feat-title { font-size: 15px; font-weight: 600; margin-bottom: 8px; letter-spacing: -0.2px; }
+.bvm-feat-desc { font-size: 13px; color: #6B6B68; line-height: 1.65; }
 
-  /* HERO */
-  .hero {
-    min-height: 85vh;
-    display: flex; align-items: center;
-    padding: 60px 48px 80px;
-    position: relative;
-    overflow: hidden;
-  }
-  .hero-bg {
-    position: absolute; inset: 0;
-    background: radial-gradient(ellipse 80% 60% at 60% 40%, #D4F0E5 0%, transparent 70%),
-                radial-gradient(ellipse 50% 40% at 10% 80%, #EAF7F1 0%, transparent 60%);
-    z-index: 0;
-  }
-  .hero-grid {
-    position: absolute; inset: 0; z-index: 0; opacity: 0.04;
-    background-image: linear-gradient(var(--verde-oscuro) 1px, transparent 1px),
-                      linear-gradient(90deg, var(--verde-oscuro) 1px, transparent 1px);
-    background-size: 40px 40px;
-  }
-  .hero-content { position: relative; z-index: 1; max-width: 640px; }
-  .hero-badge {
-    display: inline-flex; align-items: center; gap: 8px;
-    background: var(--verde-claro); border: 1px solid #A8DFC9;
-    color: var(--verde-oscuro); font-size: 12px; font-weight: 500;
-    padding: 6px 14px; border-radius: 100px; margin-bottom: 32px;
-    letter-spacing: 0.02em; text-transform: uppercase;
-  }
-  .hero-badge::before { content: '●'; font-size: 8px; }
-  .hero-title {
-    font-family: 'DM Serif Display', serif;
-    font-size: clamp(42px, 5vw, 68px);
-    line-height: 1.05; letter-spacing: -2px;
-    color: var(--texto); margin-bottom: 24px;
-  }
-  .hero-title em { font-style: italic; color: var(--verde); }
-  .hero-sub {
-    font-size: 18px; color: var(--gris); line-height: 1.65;
-    font-weight: 300; margin-bottom: 40px; max-width: 500px;
-  }
-  .hero-actions { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
-  .btn-primary {
-    background: var(--verde-oscuro); color: white;
-    padding: 14px 32px; border-radius: 10px;
-    font-size: 15px; font-weight: 500;
-    text-decoration: none; letter-spacing: -0.2px;
-    transition: all 0.15s; display: inline-block;
-    box-shadow: 0 4px 20px rgba(15,110,86,0.25);
-  }
-  .btn-primary:hover { background: var(--verde); transform: translateY(-1px); box-shadow: 0 6px 24px rgba(15,110,86,0.3); }
-  .btn-secondary {
-    color: var(--gris); font-size: 14px; font-weight: 500;
-    text-decoration: none; display: flex; align-items: center; gap: 6px;
-    transition: color 0.15s;
-  }
-  .btn-secondary:hover { color: var(--verde); }
-  .hero-stat {
-    font-size: 12px; color: var(--gris); margin-top: 24px;
-    display: flex; align-items: center; gap: 16px;
-  }
-  .hero-stat span { color: var(--verde-oscuro); font-weight: 600; }
+/* PASOS */
+.bvm-pasos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 36px; }
+.bvm-paso-num {
+  font-family: "DM Serif Display", serif;
+  font-size: 56px; color: #E0DED6; line-height: 1;
+  margin-bottom: 6px; letter-spacing: -3px;
+}
+.bvm-paso-title { font-size: 17px; font-weight: 600; margin-bottom: 8px; letter-spacing: -0.2px; }
+.bvm-paso-desc { font-size: 13px; color: #6B6B68; line-height: 1.65; }
 
-  /* SCREEN MOCKUP */
-  .hero-visual {
-    position: absolute; right: -20px; top: 50%; transform: translateY(-50%);
-    width: 52%; max-width: 720px; z-index: 1;
-  }
-  .mockup-frame {
-    background: white;
-    border-radius: 16px;
-    border: 1px solid var(--borde);
-    box-shadow: 0 40px 80px rgba(0,0,0,0.12), 0 8px 20px rgba(0,0,0,0.06);
-    overflow: hidden;
-  }
-  .mockup-bar {
-    background: #F0EFEB; padding: 10px 16px;
-    display: flex; align-items: center; gap: 6px;
-    border-bottom: 1px solid var(--borde);
-  }
-  .mockup-dot { width: 10px; height: 10px; border-radius: 50%; }
-  .mockup-dot:nth-child(1) { background: #FF5F57; }
-  .mockup-dot:nth-child(2) { background: #FEBC2E; }
-  .mockup-dot:nth-child(3) { background: #28C840; }
-  .mockup-url {
-    flex: 1; background: white; border-radius: 6px;
-    padding: 4px 12px; font-size: 11px; color: var(--gris);
-    margin: 0 8px; text-align: center;
-  }
-  .mockup-body { display: flex; }
-  .mockup-sidebar {
-    width: 180px; background: #0F6E56; padding: 16px 12px;
-    min-height: 360px; flex-shrink: 0;
-  }
-  .ms-logo { color: white; font-family: 'DM Serif Display', serif; font-size: 16px; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.1); }
-  .ms-item { color: rgba(255,255,255,0.65); font-size: 11px; padding: 7px 8px; border-radius: 6px; margin-bottom: 2px; }
-  .ms-item.active { background: rgba(255,255,255,0.15); color: white; font-weight: 500; }
-  .ms-obra { background: rgba(255,255,255,0.1); border-radius: 8px; padding: 10px; margin-top: 16px; }
-  .ms-obra-label { color: rgba(255,255,255,0.5); font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 4px; }
-  .ms-obra-val { color: white; font-size: 18px; font-weight: 600; }
-  .ms-obra-sub { color: rgba(255,255,255,0.6); font-size: 10px; margin-top: 2px; }
-  .mockup-main { flex: 1; padding: 16px; }
-  .mm-title { font-size: 13px; font-weight: 600; color: var(--texto); margin-bottom: 12px; }
-  .mm-price {
-    background: #0F6E56; border-radius: 8px; padding: 12px;
-    text-align: center; margin-bottom: 12px;
-  }
-  .mm-price-label { color: rgba(255,255,255,0.7); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; }
-  .mm-price-val { color: white; font-size: 26px; font-weight: 700; letter-spacing: -1px; }
-  .mm-price-margen { color: rgba(255,255,255,0.7); font-size: 9px; margin-top: 2px; }
-  .mm-metrics { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; margin-bottom: 12px; }
-  .mm-metric { background: #F8F8F6; border-radius: 6px; padding: 8px; border: 0.5px solid #E0DED6; }
-  .mm-metric-label { font-size: 9px; color: var(--gris); text-transform: uppercase; letter-spacing: 0.04em; }
-  .mm-metric-val { font-size: 13px; font-weight: 600; color: var(--texto); margin-top: 2px; }
-  .mm-table { border: 1px solid var(--borde); border-radius: 6px; overflow: hidden; }
-  .mm-table-head { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; background: #F0EFEB; padding: 5px 8px; }
-  .mm-table-head span { font-size: 9px; color: var(--gris); font-weight: 500; text-transform: uppercase; }
-  .mm-table-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; padding: 5px 8px; border-top: 1px solid var(--borde); }
-  .mm-table-row span { font-size: 10px; color: var(--texto); }
-  .badge { font-size: 9px; padding: 1px 5px; border-radius: 3px; }
-  .badge-c { background: #E6F1FB; color: #185FA5; }
-  .badge-f { background: #E1F5EE; color: #0F6E56; }
+/* STATS */
+.bvm-stats {
+  background: #0F6E56; padding: 64px 48px;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px;
+}
+.bvm-stat-num {
+  font-family: "DM Serif Display", serif;
+  font-size: 48px; color: white; letter-spacing: -2px;
+}
+.bvm-stat-label { font-size: 13px; color: rgba(255,255,255,0.55); margin-top: 4px; }
 
-  /* FEATURES */
-  .section { padding: 100px 48px; }
-  .section-label {
-    font-size: 11px; font-weight: 600; color: var(--verde);
-    text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 16px;
-  }
-  .section-title {
-    font-family: 'DM Serif Display', serif;
-    font-size: clamp(32px, 4vw, 52px);
-    line-height: 1.1; letter-spacing: -1.5px;
-    margin-bottom: 16px;
-  }
-  .section-sub { font-size: 17px; color: var(--gris); max-width: 500px; line-height: 1.6; font-weight: 300; }
+/* TESTIMONIAL */
+.bvm-testimonial { padding: 80px 48px; background: #F8F7F3; text-align: center; }
+.bvm-quote {
+  font-family: "DM Serif Display", serif;
+  font-size: 32px; line-height: 1.3; letter-spacing: -0.5px;
+  color: #1A1A18; margin-bottom: 20px; max-width: 680px; margin-left: auto; margin-right: auto;
+}
+.bvm-quote em { color: #1D9E75; font-style: italic; }
+.bvm-quote-author { font-size: 13px; color: #6B6B68; font-weight: 500; }
 
-  .features-grid {
-    display: grid; grid-template-columns: repeat(3, 1fr);
-    gap: 2px; margin-top: 60px;
-    border: 1px solid var(--borde); border-radius: 16px; overflow: hidden;
-  }
-  .feature-card {
-    background: white; padding: 36px 32px;
-    border-right: 1px solid var(--borde);
-    transition: background 0.2s;
-  }
-  .feature-card:last-child { border-right: none; }
-  .feature-card:hover { background: var(--verde-claro); }
-  .feature-icon {
-    width: 44px; height: 44px; border-radius: 10px;
-    background: var(--verde-claro); display: flex; align-items: center; justify-content: center;
-    font-size: 20px; margin-bottom: 20px;
-    border: 1px solid #A8DFC9;
-  }
-  .feature-title { font-size: 16px; font-weight: 600; margin-bottom: 10px; letter-spacing: -0.3px; }
-  .feature-desc { font-size: 14px; color: var(--gris); line-height: 1.65; }
+/* CTA */
+.bvm-cta {
+  padding: 100px 48px; text-align: center;
+  background: linear-gradient(150deg, #0F6E56 0%, #1D9E75 100%);
+  position: relative; overflow: hidden;
+}
+.bvm-cta::before {
+  content: ""; position: absolute; inset: 0;
+  background-image: radial-gradient(rgba(255,255,255,0.07) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+.bvm-cta-inner { position: relative; z-index: 1; }
+.bvm-cta-title {
+  font-family: "DM Serif Display", serif;
+  font-size: 52px; color: white; letter-spacing: -2px; line-height: 1.05;
+  margin-bottom: 16px;
+}
+.bvm-cta-sub { font-size: 16px; color: rgba(255,255,255,0.7); margin-bottom: 36px; font-weight: 300; }
 
-  /* PROCESO */
-  .proceso-grid {
-    display: grid; grid-template-columns: repeat(3,1fr);
-    gap: 40px; margin-top: 60px;
-  }
-  .paso-num {
-    font-family: 'DM Serif Display', serif;
-    font-size: 64px; color: var(--borde); line-height: 1;
-    margin-bottom: 8px; letter-spacing: -3px;
-  }
-  .paso-title { font-size: 18px; font-weight: 600; margin-bottom: 10px; letter-spacing: -0.3px; }
-  .paso-desc { font-size: 14px; color: var(--gris); line-height: 1.65; }
-
-  /* STATS */
-  .stats-band {
-    background: var(--verde-oscuro);
-    padding: 80px 48px;
-    display: grid; grid-template-columns: repeat(4,1fr); gap: 40px;
-  }
-  .stat-num {
-    font-family: 'DM Serif Display', serif;
-    font-size: 52px; color: white; letter-spacing: -2px;
-  }
-  .stat-label { font-size: 14px; color: rgba(255,255,255,0.6); margin-top: 4px; }
-
-  /* TESTIMONIAL */
-  .testimonial-section { padding: 100px 48px; background: var(--fondo); }
-  .testimonial-card {
-    max-width: 700px; margin: 0 auto; text-align: center;
-  }
-  .testimonial-quote {
-    font-family: 'DM Serif Display', serif;
-    font-size: clamp(22px, 3vw, 36px);
-    line-height: 1.3; letter-spacing: -0.5px;
-    color: var(--texto); margin-bottom: 28px;
-  }
-  .testimonial-quote em { color: var(--verde); font-style: italic; }
-  .testimonial-author { font-size: 13px; color: var(--gris); font-weight: 500; }
-
-  /* CTA FINAL */
-  .cta-section {
-    padding: 120px 48px;
-    text-align: center;
-    background: linear-gradient(160deg, #0F6E56 0%, #1D9E75 100%);
-    position: relative; overflow: hidden;
-  }
-  .cta-section::before {
-    content: '';
-    position: absolute; inset: 0;
-    background-image: radial-gradient(rgba(255,255,255,0.08) 1px, transparent 1px);
-    background-size: 30px 30px;
-  }
-  .cta-content { position: relative; z-index: 1; }
-  .cta-title {
-    font-family: 'DM Serif Display', serif;
-    font-size: clamp(36px, 5vw, 64px);
-    color: white; letter-spacing: -2px; line-height: 1.05;
-    margin-bottom: 20px;
-  }
-  .cta-sub { font-size: 17px; color: rgba(255,255,255,0.75); margin-bottom: 40px; font-weight: 300; }
-  .btn-cta-white {
-    background: white; color: var(--verde-oscuro);
-    padding: 16px 40px; border-radius: 10px;
-    font-size: 16px; font-weight: 600; text-decoration: none;
-    display: inline-block; transition: all 0.15s;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.15);
-    letter-spacing: -0.3px;
-  }
-  .btn-cta-white:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
-  .cta-note { color: rgba(255,255,255,0.5); font-size: 13px; margin-top: 16px; }
-
-  /* FOOTER */
-  footer {
-    background: var(--texto); color: rgba(255,255,255,0.4);
-    padding: 32px 48px; font-size: 13px;
-    display: flex; justify-content: space-between; align-items: center;
-  }
-  .footer-logo { color: white; font-family: 'DM Serif Display', serif; font-size: 18px; }
-
-  /* ANIMACIONES */
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(24px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  .hero-badge { animation: fadeUp 0.5s ease both; }
-  .hero-title { animation: fadeUp 0.5s 0.1s ease both; }
-  .hero-sub { animation: fadeUp 0.5s 0.2s ease both; }
-  .hero-actions { animation: fadeUp 0.5s 0.3s ease both; }
-  .hero-visual { animation: fadeUp 0.7s 0.4s ease both; }
-
-  @media (max-width: 1100px) {
-    .hero-visual { display: none; }
-    .hero { padding-top: 40px; }
-    .features-grid, .proceso-grid, .stats-band { grid-template-columns: 1fr 1fr; }
-    nav { padding: 16px 24px; }
-    .section { padding: 60px 24px; }
-  }
-  @media (max-width: 700px) {
-    .features-grid, .proceso-grid, .stats-band { grid-template-columns: 1fr; }
-    .hero { padding: 100px 24px 60px; }
-    .cta-section, .testimonial-section { padding: 60px 24px; }
-    footer { flex-direction: column; gap: 12px; text-align: center; }
-  }
+/* FOOTER */
+.bvm-footer {
+  background: #1A1A18; padding: 28px 48px;
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 12px; color: rgba(255,255,255,0.35);
+}
+.bvm-footer-logo {
+  font-family: "DM Serif Display", serif;
+  font-size: 17px; color: white;
+}
 </style>
-</head>
-<body>
 
-<!-- NAV -->
-<nav>
-  <div class="nav-logo">🪵 BVM <span>Sistema de Carpintería</span></div>
-  <a href="#" class="nav-cta">Ingresar al sistema →</a>
-</nav>
+<div class="bvm-landing">
 
 <!-- HERO -->
-<section class="hero">
-  <div class="hero-bg"></div>
-  <div class="hero-grid"></div>
-  <div class="hero-content">
-    <div class="hero-badge">Para carpinteros profesionales</div>
-    <h1 class="hero-title">
-      El que presupuesta<br>
-      primero y <em>con precisión</em>,<br>
-      gana la obra.
-    </h1>
-    <p class="hero-sub">
-      BVM genera la planilla de corte exacta, calcula tu precio final con margen real
-      y manda el presupuesto por WhatsApp en segundos. Sin Excel. Sin errores.
-    </p>
-    <div class="hero-actions">
-      <a href="#" class="btn-primary">Empezar gratis →</a>
-      <a href="#como-funciona" class="btn-secondary">Ver cómo funciona ↓</a>
+<div class="bvm-hero">
+  <div class="bvm-hero-grid"></div>
+  <div class="bvm-hero-inner">
+    <div class="bvm-badge">Para carpinteros profesionales</div>
+    <h1 class="bvm-h1">El que presupuesta<br>primero y <em>con precisión</em>,<br>gana la obra.</h1>
+    <p class="bvm-sub">BVM genera la planilla de corte exacta, calcula tu precio final con margen real y manda el presupuesto por WhatsApp en segundos. Sin Excel. Sin errores.</p>
+    <div class="bvm-hero-chips">
+      <span class="bvm-chip">📐 Bajo mesada</span>
+      <span class="bvm-chip">🚪 Alacena</span>
+      <span class="bvm-chip">🗃️ Cajonera</span>
+      <span class="bvm-chip">🤖 CNC / Aspire</span>
+      <span class="bvm-chip">📲 WhatsApp</span>
     </div>
-    <div class="hero-stat">
-      <span>Bajo mesada</span> · <span>Alacena</span> · <span>Cajonera</span> · y más próximamente
-    </div>
-  </div>
-
-  <div class="hero-visual">
-    <div class="mockup-frame">
-      <div class="mockup-bar">
-        <div class="mockup-dot"></div>
-        <div class="mockup-dot"></div>
-        <div class="mockup-dot"></div>
-        <div class="mockup-url">bvm-sistema.streamlit.app</div>
-      </div>
-      <div class="mockup-body">
-        <div class="mockup-sidebar">
-          <div class="ms-logo">🪵 BVM</div>
-          <div class="ms-item active">🪵 Cotizador</div>
-          <div class="ms-item">♻️ Retazos</div>
-          <div class="ms-item">📋 Historial</div>
-          <div class="ms-item">⚙️ Precios</div>
-          <div class="ms-obra">
-            <div class="ms-obra-label">Obra en curso</div>
-            <div class="ms-obra-val">$867,000</div>
-            <div class="ms-obra-sub">2 módulos · García</div>
-          </div>
-        </div>
-        <div class="mockup-main">
-          <div class="mm-title">📐 Planilla de corte</div>
-          <div class="mm-price">
-            <div class="mm-price-label">Precio final al cliente</div>
-            <div class="mm-price-val">$434,866</div>
-            <div class="mm-price-margen">✅ Margen: 30.0% — Operación rentable</div>
-          </div>
-          <div class="mm-metrics">
-            <div class="mm-metric"><div class="mm-metric-label">Costo real</div><div class="mm-metric-val">$304k</div></div>
-            <div class="mm-metric"><div class="mm-metric-label">M² placa</div><div class="mm-metric-val">2.84</div></div>
-            <div class="mm-metric"><div class="mm-metric-label">Ganancia</div><div class="mm-metric-val">$130k</div></div>
-          </div>
-          <div class="mm-table">
-            <div class="mm-table-head"><span>Pieza</span><span>Largo</span><span>Ancho</span><span>Tipo</span></div>
-            <div class="mm-table-row"><span>Base módulo</span><span>1200</span><span>550</span><span class="badge badge-c">Cuerpo</span></div>
-            <div class="mm-table-row"><span>Lateral ext.</span><span>682</span><span>550</span><span class="badge badge-c">Cuerpo</span></div>
-            <div class="mm-table-row"><span>Puerta</span><span>666</span><span>596</span><span class="badge badge-f">Frente</span></div>
-            <div class="mm-table-row"><span>Fondo mueble</span><span>610</span><span>1180</span><span class="badge badge-f">Fondo</span></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- FEATURES -->
-<section class="section" style="background: white;">
-  <div class="section-label">Por qué BVM</div>
-  <h2 class="section-title">Todo lo que necesitás,<br>nada que no necesitás.</h2>
-  <p class="section-sub">Diseñado con carpinteros reales. Sin curvas de aprendizaje innecesarias.</p>
-
-  <div class="features-grid">
-    <div class="feature-card">
-      <div class="feature-icon">📐</div>
-      <div class="feature-title">Despiece automático</div>
-      <div class="feature-desc">Ingresás las medidas y BVM genera la lista de corte completa al instante. Laterales, fondo, puertas, estantes — todo calculado con la lógica de taller.</div>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">💰</div>
-      <div class="feature-title">Precio con margen real</div>
-      <div class="feature-desc">Calcula materiales, herrajes, días de taller y margen de ganancia. Sabés exactamente cuánto te queda antes de dar el número al cliente.</div>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">🏗️</div>
-      <div class="feature-title">Obras completas</div>
-      <div class="feature-desc">Agregá módulo por módulo — bajo mesada, alacena, cajonera — y BVM arma el presupuesto total de la obra con un solo clic.</div>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">📲</div>
-      <div class="feature-title">PDF y WhatsApp</div>
-      <div class="feature-desc">Generá el presupuesto en PDF o mandalo directo por WhatsApp. El cliente lo recibe con tu nombre, el detalle del trabajo y la seña requerida.</div>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">♻️</div>
-      <div class="feature-title">Depósito de retazos</div>
-      <div class="feature-desc">Registrá los sobrantes del taller. BVM los usa automáticamente al calcular el próximo mueble y te avisa cuánto ahorrás en material.</div>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">⚙️</div>
-      <div class="feature-title">CNC directo</div>
-      <div class="feature-desc">Exportá los planos en DXF para tu router CNC o en CSV para Aspire. Cada módulo separado, con material y espesor identificado.</div>
-    </div>
-  </div>
-</section>
-
-<!-- PROCESO -->
-<section class="section" id="como-funciona" style="background: var(--fondo);">
-  <div class="section-label">Cómo funciona</div>
-  <h2 class="section-title">De la medida<br>al presupuesto en minutos.</h2>
-
-  <div class="proceso-grid">
-    <div>
-      <div class="paso-num">01</div>
-      <div class="paso-title">Ingresás las medidas</div>
-      <div class="paso-desc">Elegís el tipo de mueble, cargás ancho, alto y profundidad. Seleccionás material y tipo de frente. Eso es todo.</div>
-    </div>
-    <div>
-      <div class="paso-num">02</div>
-      <div class="paso-title">BVM calcula todo</div>
-      <div class="paso-desc">La planilla de corte aparece al instante con cada pieza, medida y cantidad. El precio final se calcula con tus costos reales.</div>
-    </div>
-    <div>
-      <div class="paso-num">03</div>
-      <div class="paso-title">Enviás y cerrás</div>
-      <div class="paso-desc">PDF o WhatsApp con un clic. El presupuesto llega al cliente con el detalle, la seña y el tiempo de entrega. Profesional desde el primer mensaje.</div>
-    </div>
-  </div>
-</section>
-
-<!-- STATS -->
-<div class="stats-band">
-  <div>
-    <div class="stat-num">3</div>
-    <div class="stat-label">Tipos de mueble soportados</div>
-  </div>
-  <div>
-    <div class="stat-num">100%</div>
-    <div class="stat-label">En la nube, desde cualquier dispositivo</div>
-  </div>
-  <div>
-    <div class="stat-num">&lt;2min</div>
-    <div class="stat-label">Para generar un presupuesto completo</div>
-  </div>
-  <div>
-    <div class="stat-num">$0</div>
-    <div class="stat-label">Para empezar a usar BVM hoy</div>
   </div>
 </div>
 
-<!-- TESTIMONIAL -->
-<section class="testimonial-section">
-  <div class="testimonial-card">
-    <div class="testimonial-quote">
-      "Antes tardaba media hora en hacer un presupuesto.
-      Ahora lo tengo en <em>dos minutos</em> y con el margen calculado."
-    </div>
-    <div class="testimonial-author">Carpintero profesional, Zona Norte GBA</div>
+<!-- FEATURES -->
+<div class="bvm-section bvm-section-bg">
+  <div class="bvm-label">Por qué BVM</div>
+  <h2 class="bvm-h2">Todo lo que necesitás,<br>nada que no necesitás.</h2>
+  <p class="bvm-h2-sub">Diseñado con carpinteros reales. Sin curvas de aprendizaje innecesarias.</p>
+  <div class="bvm-features">
+    <div class="bvm-feat"><div class="bvm-feat-icon">📐</div><div class="bvm-feat-title">Despiece automático</div><div class="bvm-feat-desc">Ingresás las medidas y BVM genera la lista de corte completa al instante. Laterales, fondo, puertas, estantes — todo calculado con la lógica de taller.</div></div>
+    <div class="bvm-feat"><div class="bvm-feat-icon">💰</div><div class="bvm-feat-title">Precio con margen real</div><div class="bvm-feat-desc">Calcula materiales, herrajes, días de taller y margen de ganancia. Sabés exactamente cuánto te queda antes de dar el número al cliente.</div></div>
+    <div class="bvm-feat"><div class="bvm-feat-icon">🏗️</div><div class="bvm-feat-title">Obras completas</div><div class="bvm-feat-desc">Agregá módulo por módulo y BVM arma el presupuesto total de la obra con un solo clic.</div></div>
+    <div class="bvm-feat"><div class="bvm-feat-icon">📲</div><div class="bvm-feat-title">PDF y WhatsApp</div><div class="bvm-feat-desc">El cliente recibe el presupuesto con tu nombre, el detalle del trabajo y la seña requerida. Profesional desde el primer mensaje.</div></div>
+    <div class="bvm-feat"><div class="bvm-feat-icon">♻️</div><div class="bvm-feat-title">Depósito de retazos</div><div class="bvm-feat-desc">Registrá los sobrantes. BVM los usa automáticamente y te avisa cuánto ahorrás en el próximo mueble.</div></div>
+    <div class="bvm-feat"><div class="bvm-feat-icon">⚙️</div><div class="bvm-feat-title">CNC directo</div><div class="bvm-feat-desc">Exportá en DXF o CSV para Aspire. Cada módulo separado, con material y espesor identificado.</div></div>
   </div>
-</section>
+</div>
 
-<!-- CTA FINAL -->
-<section class="cta-section">
-  <div class="cta-content">
-    <h2 class="cta-title">Empezá a presupuestar<br>como un profesional.</h2>
-    <p class="cta-sub">Sin instalaciones. Sin configuraciones. Entrás y ya funciona.</p>
-    <a href="#" class="btn-cta-white">Crear mi cuenta gratis →</a>
-    <div class="cta-note">Ya tenés cuenta? <a href="#" style="color:rgba(255,255,255,0.7);">Ingresá acá</a></div>
+<!-- PASOS -->
+<div class="bvm-section bvm-section-bg2">
+  <div class="bvm-label">Cómo funciona</div>
+  <h2 class="bvm-h2">De la medida al presupuesto<br>en minutos.</h2>
+  <p class="bvm-h2-sub"></p>
+  <div class="bvm-pasos">
+    <div><div class="bvm-paso-num">01</div><div class="bvm-paso-title">Ingresás las medidas</div><div class="bvm-paso-desc">Elegís el tipo de mueble, cargás ancho, alto y profundidad. Seleccionás material y tipo de frente. Eso es todo.</div></div>
+    <div><div class="bvm-paso-num">02</div><div class="bvm-paso-title">BVM calcula todo</div><div class="bvm-paso-desc">La planilla de corte aparece al instante. El precio final se calcula con tus costos reales y tu margen.</div></div>
+    <div><div class="bvm-paso-num">03</div><div class="bvm-paso-title">Enviás y cerrás</div><div class="bvm-paso-desc">PDF o WhatsApp con un clic. El presupuesto llega al cliente con el detalle, la seña y el tiempo de entrega.</div></div>
   </div>
-</section>
+</div>
+
+<!-- STATS -->
+<div class="bvm-stats">
+  <div><div class="bvm-stat-num">3</div><div class="bvm-stat-label">Tipos de mueble soportados</div></div>
+  <div><div class="bvm-stat-num">100%</div><div class="bvm-stat-label">En la nube, desde cualquier dispositivo</div></div>
+  <div><div class="bvm-stat-num">&lt;2min</div><div class="bvm-stat-label">Para generar un presupuesto completo</div></div>
+  <div><div class="bvm-stat-num">$0</div><div class="bvm-stat-label">Para empezar a usar BVM hoy</div></div>
+</div>
+
+<!-- TESTIMONIAL -->
+<div class="bvm-testimonial">
+  <div class="bvm-quote">"Antes tardaba media hora en hacer un presupuesto. Ahora lo tengo en <em>dos minutos</em> y con el margen calculado."</div>
+  <div class="bvm-quote-author">Carpintero profesional, Zona Norte GBA</div>
+</div>
+
+<!-- CTA -->
+<div class="bvm-cta">
+  <div class="bvm-cta-inner">
+    <div class="bvm-cta-title">Empezá a presupuestar<br>como un profesional.</div>
+    <div class="bvm-cta-sub">Sin instalaciones. Sin configuraciones. Entrás y ya funciona.</div>
+  </div>
+</div>
 
 <!-- FOOTER -->
-<footer>
-  <div class="footer-logo">🪵 BVM</div>
+<div class="bvm-footer">
+  <div class="bvm-footer-logo">🪵 BVM</div>
   <div>Sistema de gestión para carpinteros profesionales · Argentina</div>
   <div>© 2025 BVM · Todos los derechos reservados</div>
-</footer>
+</div>
 
-</body>
-</html>
+</div>
+'''
+
+# Guardamos el string limpio para inyectarlo en app.py
+open('/mnt/user-data/outputs/landing_inline.py', 'w').write(f'LANDING_HTML = """{landing}"""')
+print("OK - landing_inline.py generado")
+print(f"Tamaño: {len(landing)} caracteres")
+PYEOF
