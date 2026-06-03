@@ -27,10 +27,10 @@
 
   /* NAV */
   nav {
-    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    position: sticky; top: 0; left: 0; right: 0; z-index: 100;
     display: flex; align-items: center; justify-content: space-between;
     padding: 18px 48px;
-    background: rgba(250,250,248,0.92);
+    background: rgba(250,250,248,0.97);
     backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--borde);
   }
@@ -50,9 +50,9 @@
 
   /* HERO */
   .hero {
-    min-height: 100vh;
+    min-height: 85vh;
     display: flex; align-items: center;
-    padding: 120px 48px 80px;
+    padding: 60px 48px 80px;
     position: relative;
     overflow: hidden;
   }
@@ -297,7 +297,7 @@
 
   @media (max-width: 1100px) {
     .hero-visual { display: none; }
-    .hero { padding-top: 100px; }
+    .hero { padding-top: 40px; }
     .features-grid, .proceso-grid, .stats-band { grid-template-columns: 1fr 1fr; }
     nav { padding: 16px 24px; }
     .section { padding: 60px 24px; }
