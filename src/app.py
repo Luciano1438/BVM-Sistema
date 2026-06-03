@@ -364,7 +364,8 @@ h2 { font-size: 17px !important; font-weight: 500 !important; }
 </style>""", unsafe_allow_html=True)
 
 import streamlit.components.v1 as components
-
+if not gestionar_auth():
+    st.stop()
 # ONBOARDING
 if "onboarding_visto" not in st.session_state:
     st.session_state["onboarding_visto"] = False
