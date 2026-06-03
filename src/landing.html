@@ -1,5 +1,5 @@
-python3 - << 'PYEOF'
-landing = '''
+
+
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 .bvm-landing * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -210,8 +210,3 @@ landing = '''
 </div>
 '''
 
-# Guardamos el string limpio para inyectarlo en app.py
-open('/mnt/user-data/outputs/landing_inline.py', 'w').write(f'LANDING_HTML = """{landing}"""')
-print("OK - landing_inline.py generado")
-print(f"Tamaño: {len(landing)} caracteres")
-PYEOF
