@@ -365,24 +365,6 @@ h2 { font-size: 17px !important; font-weight: 500 !important; }
 
 import streamlit.components.v1 as components
 
-# LANDING PAGE PÚBLICA — se muestra si el usuario no está autenticado
-if "ver_landing" not in st.session_state:
-    st.session_state["ver_landing"] = True
-
-if st.session_state.get("ver_landing") and not st.session_state.get("autenticado"):
-    landing_html = open(Path(__file__).parent / "landing.html", encoding="utf-8").read() if (Path(__file__).parent / "landing.html").exists() else ""
-    if landing_html:
-        components.html(landing_html, height=4200, scrolling=True)
-    _, col_mid, _ = st.columns([1, 2, 1])
-    with col_mid:
-        if st.button("✅ Ingresar / Crear cuenta", type="primary", use_container_width=True):
-            st.session_state["ver_landing"] = False
-            st.rerun()
-    st.stop()
-
-if not gestionar_auth():
-    st.stop()
-
 # ONBOARDING
 if "onboarding_visto" not in st.session_state:
     st.session_state["onboarding_visto"] = False
