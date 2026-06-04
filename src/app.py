@@ -1172,7 +1172,7 @@ if menu == "🪵 Cotizador":
                                         "indices_estantes_fijos": m.get("params",{}).get("indices_estantes_fijos",[]),
                                         "herrajes_extra": m.get("params",{}).get("herrajes_extra",{})
                                     } for m in mods_limpios]
-                                }ds_limpios)
+                                }ds_limpios
                                 guardar_presupuesto_nube(
                                     _cli_obra,
                                     f"Obra ({len(mods_limpios)} módulos)",
