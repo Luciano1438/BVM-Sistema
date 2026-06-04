@@ -948,7 +948,31 @@ if menu == "🪵 Cotizador":
                 tipo_base   = "Nada"
                 altura_base = 0.0
                 costo_base  = 0
-
+            # --- NUEVO: Selección de Herrajes Extra ---
+            st.markdown("---")
+            st.markdown("#### 🔩 Accesorios y Herrajes Extra")
+            claves_base = ['bisagra_cazoleta', 'telescopica_45', 'telescopica_soft']
+            # Traemos la lista de herrajes custom desde la DB
+            herrajes_disponibles = {k: v for k, v in config.items() if k not in ['gastos_fijos_diarios', 'flete_capital', 'flete_norte', 'colocacion_dia', 'ganancia_taller_pct'] + claves_base}
+            
+            herrajes_extra_sel = {}
+            if herrajes_disponibles:
+                # Recuperamos los herrajes que ya estaban seleccionados si estamos editando
+                _herrajes_guardados = _v("herrajes_extra", {})
+                
+                # Multiselect para elegir qué herrajes van en este mueble
+                opciones_herrajes = list(herrajes_disponibles.keys())
+                seleccionados = st.multiselect("Seleccionar extras", opciones_herrajes, default=list(_herrajes_guardados.keys()))
+                
+                if seleccionados:
+                    c_herr1, c_herr2 = st.columns(2)
+                    for idx, h_sel in enumerate(seleccionados):
+                        # Ponemos la cantidad al lado de cada herraje
+                        col = c_herr1 if idx % 2 == 0 else c_herr2
+                        cant_h = col.number_input(f"Cant. {h_sel}", min_value=1, value=int(_herrajes_guardados.get(h_sel, 1)), step=1, key=f"cant_{h_sel}")
+                        herrajes_extra_sel[h_sel] = cant_h
+            else:
+                st.caption("No hay accesorios extra cargados. Agregalos desde ⚙️ Precios.")
             with st.expander("🔨 Días de taller (este módulo)", expanded=False):
                 dias_prod = st.number_input("Días de trabajo en taller", value=float(_v("dias_prod", 0.0)), step=0.5,
                                              help="Los días de taller afectan el costo operativo de este módulo")
@@ -1006,10 +1030,20 @@ if menu == "🪵 Cotizador":
                     df_fondo_only = df_corte[df_corte['Tipo'].isin(['Fondo','Piso'])]
                     m2_fondo     = (df_fondo_only['L'] * df_fondo_only['A'] * df_fondo_only['Cant']).sum() / 1_000_000 if not df_fondo_only.empty else 0.0
                     costo_fondo  = 0.0 if sin_fondo else m2_fondo * (fondos.get(mat_fondo_sel, 0.0) / 5.03)
+                    # Cálculo base de herrajes (bisagras o guías)
                     if tipo_modulo in ["Bajo Mesada","Alacena"]:
-                        costo_herrajes = cant_puertas * 2 * config.get('bisagra_cazoleta', 0)
+                        costo_herrajes_base = cant_puertas * 2 * config.get('bisagra_cazoleta', 0)
                     else:
-                        costo_herrajes = cant_cajones * config.get('telescopica_45', 0)
+                        costo_herrajes_base = cant_cajones * config.get('telescopica_45', 0)
+                        
+                    # --- NUEVO: Sumamos el costo de los herrajes extra ---
+                    costo_herrajes_extra = 0.0
+                    for h_nombre, h_cant in herrajes_extra_sel.items():
+                        costo_unitario = config.get(h_nombre, 0.0)
+                        costo_herrajes_extra += (costo_unitario * h_cant)
+                        
+                    costo_herrajes = costo_herrajes_base + costo_herrajes_extra
+                    
                     costo_operativo = dias_prod * config.get('gastos_fijos_diarios', 0)
                     total_costo = costo_madera + costo_fondo + costo_herrajes + costo_operativo + costo_base
                 else:
@@ -1084,6 +1118,8 @@ if menu == "🪵 Cotizador":
                                 "tiene_cenefa": tiene_cenefa, "alto_cenefa": alto_cenefa,
                                 "dias_prod": dias_prod,
                                 "indices_estantes_fijos": indices_fijos,
+                                "herrajes_extra": herrajes_extra_sel,
+                            }
                             }
                         }
                         if idx_mod_editar is not None:
@@ -1130,6 +1166,8 @@ if menu == "🪵 Cotizador":
                                         "alto_cenefa":         m.get("params",{}).get("alto_cenefa",0.0),
                                         "dias_prod":           m.get("params",{}).get("dias_prod",0.0),
                                         "indices_estantes_fijos": m.get("params",{}).get("indices_estantes_fijos",[]),
+                                        "herrajes_extra":      m.get("params",{}).get("herrajes_extra",{}),
+                                        }
                                     } for m in mods_limpios]
                                 }
                                 _total_auto = sum(m["precio"] for m in mods_limpios)
@@ -1170,8 +1208,10 @@ if menu == "🪵 Cotizador":
                                   "alto_frentin_emb": alto_frentin_emb, "aire_trasero": aire_trasero,
                                   "esp_corredera": esp_corredera, "distribucion_tapas": distribucion_tapas,
                                   "tiene_cenefa": tiene_cenefa, "alto_cenefa": alto_cenefa,
-                                  "dias_prod": dias_prod,
-                                  "indices_estantes_fijos": indices_fijos}
+                                "dias_prod": dias_prod,
+                                "indices_estantes_fijos": indices_fijos,
+                                "herrajes_extra": herrajes_extra_sel,
+                            }
                         guardar_presupuesto_nube(cliente, tipo_modulo, precio_final, parametros=params,
                                                   id_editar=st.session_state.get("editar_id"))
                         st.session_state.update({"editar_presupuesto": None, "editar_id": None,
