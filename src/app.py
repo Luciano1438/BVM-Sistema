@@ -357,27 +357,42 @@ def eliminar_precio_nube(clave, categoria):
     except Exception as e:
         st.error(f"Error al eliminar {clave}: {e}")
 
-def traer_datos():
+ddef traer_datos():
+    # 1. Si no hay sesión, devolvemos los valores default
     if "session" not in st.session_state or not st.session_state["session"]:
-        return {}, {}, {}
-    maderas_default = {"Melamina Blanca 18mm": 60000.0, "Melamina Color 18mm": 85000.0, "Enchapado Roble 18mm": 120000.0}
-    config_default  = {'bisagra_cazoleta': 1200.0, 'telescopica_45': 5000.0, 'telescopica_soft': 12000.0,
-                       'gastos_fijos_diarios': 25000.0, 'flete_capital': 15000.0, 'flete_norte': 20000.0,
-                       'colocacion_dia': 45000.0, 'ganancia_taller_pct': 0.30}
+        maderas_default = {"Melamina Blanca 18mm": 60000.0, "Melamina Color 18mm": 85000.0, "Enchapado Roble 18mm": 120000.0}
+        config_default  = {'bisagra_cazoleta': 1200.0, 'telescopica_45': 5000.0, 'telescopica_soft': 12000.0,
+                           'gastos_fijos_diarios': 25000.0, 'flete_capital': 15000.0, 'flete_norte': 20000.0,
+                           'colocacion_dia': 45000.0, 'ganancia_taller_pct': 0.30}
+        return maderas_default, {'Fibroplus Blanco 3mm': 34500.0, 'Sin fondo': 0.0}, config_default
+
+    # 2. Intentamos traer los datos usando el token vigente
     try:
-        token = get_token()
-        if not token: return maderas_default, {'Fibroplus Blanco 3mm': 34500.0, 'Sin fondo': 0.0}, config_default
+        token = get_token() # get_token ya intenta refrescar si el JWT está expirado
+        if not token: raise Exception("No token")
+        
         supabase.postgrest.auth(token)
         datos_db = supabase.table("configuracion").select("*").eq("user_id", st.session_state["user"].id).execute().data
+        
+        # Procesamiento de datos...
         maderas_db = {d['clave']: d['valor'] for d in datos_db if str(d.get('categoria','')).lower().strip() == 'maderas'}
         config_db  = {d['clave']: d['valor'] for d in datos_db if str(d.get('categoria','')).lower().strip() in ['costos','margen','herrajes']}
+        
+        maderas_default = {"Melamina Blanca 18mm": 60000.0, "Melamina Color 18mm": 85000.0, "Enchapado Roble 18mm": 120000.0}
+        config_default  = {'bisagra_cazoleta': 1200.0, 'telescopica_45': 5000.0, 'telescopica_soft': 12000.0,
+                           'gastos_fijos_diarios': 25000.0, 'flete_capital': 15000.0, 'flete_norte': 20000.0,
+                           'colocacion_dia': 45000.0, 'ganancia_taller_pct': 0.30}
+                           
         maderas = {**maderas_default, **maderas_db}
         config  = {**config_default,  **config_db}
         fondos  = {'Fibroplus Blanco 3mm': 34500.0, 'Faplac Fondo 5.5mm': 45000.0, 'Sin fondo': 0.0}
+        
         return maderas, fondos, config
+
     except Exception as e:
-        st.error(f"Error cargando configuración: {e}")
-        return maderas_default, {'Fibroplus Blanco 3mm': 34500.0, 'Sin fondo': 0.0}, config_default
+        # Si falla el intento, recargamos la página para forzar el re-login o refresco
+        st.warning("La sesión se actualizó. Por favor, recargá la página.")
+        st.stop()
 
 def guardar_presupuesto_nube(cliente, mueble, total, parametros=None, id_editar=None):
     try:
