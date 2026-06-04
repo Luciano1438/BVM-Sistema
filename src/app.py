@@ -1079,17 +1079,11 @@ if menu == "🪵 Cotizador":
                     m2_fondo     = (df_fondo_only['L'] * df_fondo_only['A'] * df_fondo_only['Cant']).sum() / 1_000_000 if not df_fondo_only.empty else 0.0
                     costo_fondo  = 0.0 if sin_fondo else m2_fondo * (fondos.get(mat_fondo_sel, 0.0) / 5.03)
                     
-                    if tipo_modulo in ["Bajo Mesada","Alacena"]:
-                        costo_herrajes_base = cant_puertas * 2 * config.get('bisagra_cazoleta', 0)
-                    else:
-                        costo_herrajes_base = cant_cajones * config.get('telescopica_45', 0)
-                        
-                    costo_herrajes_extra = 0.0
-                    for h_nombre, h_cant in herrajes_extra_sel.items():
-                        costo_unitario = config.get(h_nombre, 0.0)
-                        costo_herrajes_extra += (costo_unitario * h_cant)
-                        
-                    costo_herrajes = costo_herrajes_base + costo_herrajes_extra
+                    # --- NUEVO: El costo de herrajes se calcula 100% desde la selección unificada ---
+                    costo_herrajes = 0.0
+                    for clave_db, h_cant in herrajes_extra_sel.items():
+                        costo_unitario = config.get(clave_db, 0.0)
+                        costo_herrajes += (costo_unitario * h_cant)
                     costo_operativo = dias_prod * config.get('gastos_fijos_diarios', 0)
                     total_costo = costo_madera + costo_fondo + costo_herrajes + costo_operativo + costo_base
             else:
