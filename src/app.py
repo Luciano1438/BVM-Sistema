@@ -1272,6 +1272,7 @@ if menu == "🪵 Cotizador":
                         pdf.cell(45, 14, f"${precio:,.0f} ", align="R", fill=True)
                         pdf.ln(20)
                         
+                        # TÉRMINOS
                         pdf.set_text_color(0, 0, 0)
                         pdf.set_font("Arial", "B", 10)
                         pdf.cell(0, 6, "TÉRMINOS Y CONDICIONES", ln=True)
@@ -1282,19 +1283,15 @@ if menu == "🪵 Cotizador":
                         pdf.cell(0, 5, f"2. Tiempo estimado de entrega: {dias} días hábiles.", ln=True)
                         pdf.cell(0, 5, "3. Validez de esta cotización: 48 horas.", ln=True)
                         
-                        pdf.ln(25)
-                        pdf.set_draw_color(150, 150, 150)
-                        pdf.line(20, pdf.get_y(), 80, pdf.get_y())
-                        pdf.line(130, pdf.get_y(), 190, pdf.get_y())
-                        pdf.ln(2)
-                        pdf.set_font("Arial", "B", 9)
+                        # CLÁUSULA DE ACEPTACIÓN DIGITAL
+                        pdf.ln(15)
+                        pdf.set_fill_color(245, 245, 245)
                         pdf.set_text_color(100, 100, 100)
-                        pdf.cell(90, 5, "Firma del Cliente", align="C")
-                        pdf.cell(20, 5, "")
-                        pdf.cell(80, 5, "Aprobación del Taller", align="C")
+                        pdf.set_font("Arial", "I", 8)
+                        texto_legal = "DOCUMENTO DIGITAL. La confirmación de esta propuesta vía correo electrónico o WhatsApp, acompañada del comprobante de transferencia del anticipo, constituye la aceptación formal de las medidas, materiales y términos detallados en el presente documento."
+                        pdf.multi_cell(0, 5, texto_legal, fill=True, align="J")
                         
                         return bytes(pdf.output())
-
                     pdf_mod = _pdf_mod(cliente, nombre_modulo, tipo_modulo, int(ancho_m), int(alto_m), int(prof_m), mat_principal, precio_final_con_log, dias_entrega, pct_seña)
                     
                     lineas_wa = [f"*PROPUESTA COMERCIAL — {nombre_modulo.upper()}*", f"Cliente: {cliente}", "",
