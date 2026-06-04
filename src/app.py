@@ -687,7 +687,6 @@ if menu == "🪵 Cotizador":
                 col_info, col_sel = st.columns([4, 1])
                 col_info.write(f"**{i+1}. {mod['nombre']}** — {mod['ancho_m']}x{mod['alto_m']}x{mod['prof_m']} mm — {mod['mat_principal']} — ${mod['precio']:,.0f}")
                 if col_sel.button("Editar este", key=f"sel_mod_obra_{i}"):
-                    # Mapeamos los campos del JSON guardado al formato que espera _v()
                     # Extraemos los parámetros de forma segura, blindando contra JSONs viejos y nuevos
                     p = mod.get("params", {})
                     mod_para_editar = {
@@ -721,7 +720,7 @@ if menu == "🪵 Cotizador":
                         "nombre":               mod.get("nombre", ""),
                         "dias_prod":            p.get("dias_prod", mod.get("dias_prod", 0.0)),
                         "indices_estantes_fijos": p.get("indices_estantes_fijos", mod.get("indices_estantes_fijos", [])),
-                        "herrajes_extra":       p.get("herrajes_extra", mod.get("herrajes_extra", {})),
+                        "herrajes_extra":       p.get("herrajes_extra", mod.get("herrajes_extra", {})), # <--- AQUÍ EXTRAE LAS CORREDERAS
                     }
                     otros = []
                     for j, m in enumerate(obra_mods):
@@ -759,7 +758,13 @@ if menu == "🪵 Cotizador":
         if ep:
             st.info(f"**Editando módulo** — Cliente: {st.session_state.get('editar_cliente', '')}. Modificá lo que necesitás y guardá.")
             if st.button("Cancelar edición"):
-                st.session_state.update({"editar_presupuesto": None, "editar_id": None, "editar_cliente": ""})
+                st.session_state.update({
+                    "editar_presupuesto": None, 
+                    "editar_id": None, 
+                    "editar_cliente": "",
+                    "idx_modulo_editar": None,     # <--- ESTO DESTRABA EL BOTÓN
+                    "edicion_tipo_cargado": False
+                })
                 st.rerun()
 
         def _v(key, default):
