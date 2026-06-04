@@ -1203,11 +1203,20 @@ if menu == "🪵 Cotizador":
                         costo_flete_mod = config.get('flete_capital',0) if flete_sel_mod=="Capital" else config.get('flete_norte',0) if flete_sel_mod=="Zona Norte" else 0.0
                         costo_col_mod   = dias_col_mod * config.get('colocacion_dia', 0)
                         costo_log_mod   = costo_flete_mod + costo_col_mod
-                        if costo_log_mod > 0:
-                            precio_final_con_log = precio_final + costo_log_mod
-                            st.info(f"Con logística: **${precio_final_con_log:,.0f}** (logística: ${costo_log_mod:,.0f})")
-                        else:
-                            precio_final_con_log = precio_final
+                        # Aseguramos que el cálculo de logística es un flotante puro antes de sumar
+                    costo_log_mod = float(costo_flete_mod) + float(costo_col_mod)
+                    
+                    if costo_log_mod > 0:
+                        precio_final_con_log = float(precio_final) + costo_log_mod
+                        # Usamos HTML limpio para el estilo en lugar de Markdown que se rompe con los números
+                        st.markdown(f"""
+                        <div style="background-color: #E6F3FE; color: #004D99; padding: 12px 16px; border-radius: 8px; border-left: 4px solid #0066CC; font-size: 14px; margin-bottom: 12px;">
+                            <strong>Con logística: ${precio_final_con_log:,.0f}</strong> 
+                            <span style="opacity: 0.8; font-size: 12px; margin-left: 8px;">(Incluye logística: ${costo_log_mod:,.0f})</span>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    else:
+                        precio_final_con_log = float(precio_final)
                     
                     # Garantizamos que precio_final_con_log siempre esté definido
                     if 'precio_final_con_log' not in dir():
