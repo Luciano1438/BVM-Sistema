@@ -332,8 +332,8 @@ def traer_datos_historial():
     except:
         return pd.DataFrame()
 
-def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_puertas, cant_cajones, estantes_fijos, estantes_moviles, tiene_parante, sin_fondo):
-    """Genera un SVG esquemático del mueble con proporciones reales y estilos de tapa."""
+def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_puertas, cant_cajones, estantes_fijos, estantes_moviles, tiene_parante, sin_fondo, distribucion_tapas="Iguales"):
+    """Genera un SVG esquemático del mueble con proporciones reales, cobertura de cantos y escalas proporcionales."""
     try:
         ancho_m = float(ancho_m)
         alto_m = float(alto_m)
@@ -343,12 +343,12 @@ def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_pue
     if ancho_m <= 0 or alto_m <= 0:
         return ""
 
-    # Canvas fijo, proporciones reales
+    # Canvas fijo, proporciones relativas
     W = 300
     H = int(W * (alto_m / ancho_m))
     H = max(150, min(H, 400))
     pad = 16
-    esp = 10 # espesor visual placa
+    esp = 10 # Representación de los 18mm
 
     # Lógica de estilos
     es_embutida = "Embutida" in tipo_tapa
@@ -363,22 +363,32 @@ def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_pue
     c_estante    = "#9B7D55"
     c_manija     = "#D4AF7A"
     c_texto      = "#4A3728"
-    c_gola       = "#2A2A2A" # Aluminio oscuro/negro
+    c_gola       = "#2A2A2A" 
 
-    # Coordenadas interiores
-    iw = W - pad*2 - esp*2
-    ih = H - pad*2 - esp*2
+    # Coordenadas de la estructura interior
     ix = pad + esp
     iy = pad + esp
+    iw = W - pad*2 - esp*2
+    ih = H - pad*2 - esp*2
 
     lines = [f'<svg viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:320px;border-radius:8px;">']
 
-    # Estructura del mueble (Caja)
+    # Estructura del mueble (Caja Base)
     lines.append(f'<rect x="{pad}" y="{pad}" width="{W-pad*2}" height="{H-pad*2}" rx="3" fill="{c_fondo_int}" stroke="{c_estructura}" stroke-width="2"/>')
     lines.append(f'<rect x="{pad}" y="{pad}" width="{esp}" height="{H-pad*2}" fill="{c_estructura}"/>')
     lines.append(f'<rect x="{W-pad-esp}" y="{pad}" width="{esp}" height="{H-pad*2}" fill="{c_estructura}"/>')
     lines.append(f'<rect x="{pad}" y="{pad}" width="{W-pad*2}" height="{esp}" fill="{c_estructura}"/>')
     lines.append(f'<rect x="{pad}" y="{H-pad-esp}" width="{W-pad*2}" height="{esp}" fill="{c_estructura}"/>')
+
+    # Lógica Universal de Cobertura (Embutida vs Superpuesta)
+    if es_embutida:
+        # Por dentro de los 18mm
+        px_start = pad + esp + 2
+        pw_total = W - pad*2 - esp*2 - 4
+    else: 
+        # Superpuesta o Gola: tapan los laterales
+        px_start = pad + 1
+        pw_total = W - pad*2 - 2
 
     # --- LÓGICA DE MÓDULOS ---
     if tipo_modulo == "Bajo Mesada":
@@ -388,13 +398,9 @@ def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_pue
         if es_embutida:
             py = iy + frenin_h + 2
             ph = ih - frenin_h - 4
-            px_start = ix + 2
-            pw_total = iw - 4
-        else: # Superpuesta o Gola
-            py = pad + frenin_h + 2
-            ph = H - pad*2 - frenin_h - 4
-            px_start = pad + 2
-            pw_total = W - pad*2 - 4
+        else:
+            py = iy + frenin_h + 1
+            ph = H - pad - py - 1
 
         if es_gola:
             gola_h = 10
@@ -408,7 +414,7 @@ def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_pue
         for p in range(cant_p):
             px = px_start + p * (pw + 2)
             lines.append(f'<rect x="{px}" y="{py}" width="{pw}" height="{ph}" rx="2" fill="{c_puerta}" opacity="0.85" stroke="{c_estructura}" stroke-width="1"/>')
-            if not (es_gola or es_unero): # Sin manija si es Gola/Uñero
+            if not (es_gola or es_unero): 
                 mx = px + pw - 12 if p == 0 else px + 6
                 lines.append(f'<rect x="{mx}" y="{py + 10}" width="6" height="24" rx="2" fill="{c_manija}"/>')
 
@@ -416,51 +422,50 @@ def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_pue
         if es_embutida:
             cy_start = iy + 2
             ch_total = ih - 4
-            cx_start = ix + 2
-            cw_total = iw - 4
         else:
-            cy_start = pad + 2
-            ch_total = H - pad*2 - 4
-            cx_start = pad + 2
-            cw_total = W - pad*2 - 4
+            cy_start = pad + 1
+            ch_total = H - pad*2 - 2
 
-        if cant_cajones > 0:
-            caj_h = (ch_total - (int(cant_cajones)-1)*3) // int(cant_cajones)
+        cajones = int(cant_cajones)
+        if cajones > 0:
+            ch_útil = ch_total - (cajones - 1) * 3
+            if es_gola:
+                ch_útil -= (cajones * 8 + 2) 
+
+            # Matriz de proporciones
+            props = [1.0 / cajones] * cajones
+            if "Proporcional" in distribucion_tapas:
+                if cajones == 2: props = [0.40, 0.60]
+                elif cajones == 3: props = [0.20, 0.35, 0.45]
+                elif cajones == 4: props = [0.15, 0.20, 0.30, 0.35]
+
             cy_actual = cy_start
-
-            for c in range(int(cant_cajones)):
-                caj_h_mod = caj_h
+            for c in range(cajones):
+                caj_h_mod = ch_útil * props[c]
                 
                 if es_gola:
                     gola_h = 10 if c == 0 else 8
-                    lines.append(f'<rect x="{cx_start}" y="{cy_actual}" width="{cw_total}" height="{gola_h}" fill="{c_gola}"/>')
+                    lines.append(f'<rect x="{px_start}" y="{cy_actual}" width="{pw_total}" height="{gola_h}" fill="{c_gola}"/>')
                     cy_actual += gola_h + 2
-                    caj_h_mod -= gola_h + 2
 
-                lines.append(f'<rect x="{cx_start}" y="{cy_actual}" width="{cw_total}" height="{caj_h_mod}" rx="2" fill="{c_cajon}" opacity="0.85" stroke="{c_estructura}" stroke-width="1"/>')
+                lines.append(f'<rect x="{px_start}" y="{cy_actual}" width="{pw_total}" height="{caj_h_mod}" rx="2" fill="{c_cajon}" opacity="0.85" stroke="{c_estructura}" stroke-width="1"/>')
                 
                 if not (es_gola or es_unero):
-                    lines.append(f'<rect x="{cx_start + cw_total//2 - 20}" y="{cy_actual + caj_h_mod//2 - 3}" width="40" height="6" rx="3" fill="{c_manija}"/>')
+                    lines.append(f'<rect x="{px_start + pw_total//2 - 20}" y="{cy_actual + caj_h_mod//2 - 3}" width="40" height="6" rx="3" fill="{c_manija}"/>')
                 
                 cy_actual += caj_h_mod + 3
 
     elif tipo_modulo == "Alacena":
-        frenin_h = int(ih * 0.08)
-        lines.append(f'<rect x="{ix}" y="{iy}" width="{iw}" height="{frenin_h}" fill="{c_estructura}" opacity="0.5"/>')
-
         if es_embutida:
+            frenin_h = int(ih * 0.08)
+            lines.append(f'<rect x="{ix}" y="{iy}" width="{iw}" height="{frenin_h}" fill="{c_estructura}" opacity="0.5"/>')
             py = iy + 2
             ph = ih - 4
-            px_start = ix + 2
-            pw_total = iw - 4
         else:
-            py = pad + 2
-            ph = H - pad*2 - 4
-            px_start = pad + 2
-            pw_total = W - pad*2 - 4
+            py = pad + 1
+            ph = H - pad*2 - 2
 
         if es_unero:
-            # Simulamos el corte 45 descontando altura abajo
             unero_h = 8
             ph -= unero_h
 
@@ -879,15 +884,14 @@ if menu == "🪵 Cotizador":
                 dias_prod = st.number_input("Días de trabajo en taller", value=float(_v("dias_prod", 0.0)), step=0.5,
                                              help="Los días de taller afectan el costo operativo de este módulo")
 
-        # COLUMNA DERECHA
-       # COLUMNA DERECHA
+     
         with col_out:
             # --- NUEVO: PREVIEW VISUAL SVG ---
             if ancho_m > 0 and alto_m > 0:
                 svg_preview = generar_svg_mueble(
                     tipo_modulo, ancho_m, alto_m, prof_m,
                     tipo_tapa, cant_puertas, cant_cajones,
-                    estantes_fijos, estantes_moviles, tiene_parante, sin_fondo
+                    estantes_fijos, estantes_moviles, tiene_parante, sin_fondo, distribucion_tapas
                 )
                 if svg_preview:
                     st.markdown(f'<div style="text-align:center; padding: 16px; background: white; border: 1px solid #E0DED6; border-radius: 10px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">{svg_preview}</div>', unsafe_allow_html=True)
