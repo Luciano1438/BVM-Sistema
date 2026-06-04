@@ -357,7 +357,7 @@ def eliminar_precio_nube(clave, categoria):
     except Exception as e:
         st.error(f"Error al eliminar {clave}: {e}")
 
-ddef traer_datos():
+def traer_datos():
     # 1. Si no hay sesión, devolvemos los valores default
     if "session" not in st.session_state or not st.session_state["session"]:
         maderas_default = {"Melamina Blanca 18mm": 60000.0, "Melamina Color 18mm": 85000.0, "Enchapado Roble 18mm": 120000.0}
