@@ -840,6 +840,10 @@ if menu == "🪵 Cotizador":
                 sin_fondo = mat_fondo_sel == "Sin fondo"
 
             with st.expander("🏗️ Configuración del módulo", expanded=False):
+                
+                # INICIALIZACIÓN POR DEFECTO: Previene el NameError en módulos sin estantes
+                indices_fijos = [] 
+                
                 if tipo_modulo == "Bajo Mesada":
                     _bm_opts = ["Superpuesta", "Gola BVM", "Embutida"]
                     _bm_idx  = _bm_opts.index(_v("tipo_tapa", "Superpuesta")) if _v("tipo_tapa", "Superpuesta") in _bm_opts else 0
