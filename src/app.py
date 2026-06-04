@@ -967,34 +967,42 @@ if menu == "🪵 Cotizador":
             st.markdown("---")
             st.markdown("#### 🔩 Accesorios y Herrajes Extra")
             claves_base = ['bisagra_cazoleta', 'telescopica_45', 'telescopica_soft']
-            # Traemos la lista de herrajes custom desde la DB
             herrajes_disponibles = {k: v for k, v in config.items() if k not in ['gastos_fijos_diarios', 'flete_capital', 'flete_norte', 'colocacion_dia', 'ganancia_taller_pct'] + claves_base}
             
             herrajes_extra_sel = {}
             if herrajes_disponibles:
-                # Recuperamos los herrajes que ya estaban seleccionados si estamos editando
                 _herrajes_guardados = _v("herrajes_extra", {})
-                
-                # Multiselect para elegir qué herrajes van en este mueble
                 opciones_herrajes = list(herrajes_disponibles.keys())
                 seleccionados = st.multiselect("Seleccionar extras", opciones_herrajes, default=list(_herrajes_guardados.keys()))
                 
                 if seleccionados:
                     c_herr1, c_herr2 = st.columns(2)
                     for idx, h_sel in enumerate(seleccionados):
-                        # Ponemos la cantidad al lado de cada herraje
                         col = c_herr1 if idx % 2 == 0 else c_herr2
                         cant_h = col.number_input(f"Cant. {h_sel}", min_value=1, value=int(_herrajes_guardados.get(h_sel, 1)), step=1, key=f"cant_{h_sel}")
                         herrajes_extra_sel[h_sel] = cant_h
             else:
                 st.caption("No hay accesorios extra cargados. Agregalos desde ⚙️ Precios.")
+                
             with st.expander("🔨 Días de taller (este módulo)", expanded=False):
                 dias_prod = st.number_input("Días de trabajo en taller", value=float(_v("dias_prod", 0.0)), step=0.5,
                                              help="Los días de taller afectan el costo operativo de este módulo")
 
-     
+            # --- NUEVO: LOGÍSTICA MOVIDA A LA IZQUIERDA ---
+            with st.expander("🚛 Logística y colocación (Módulo Individual)", expanded=False):
+                st.caption("Llená esto SOLO si vas a vender este mueble suelto.")
+                col_fl_m, col_col_m, col_dias_m = st.columns(3)
+                flete_sel_mod  = col_fl_m.selectbox("Flete", ["Ninguno","Capital","Zona Norte"], key="flete_mod")
+                nec_col_mod    = col_col_m.checkbox("¿Requiere colocación?", key="col_mod")
+                dias_col_mod   = col_dias_m.number_input("Días de colocación", value=0, min_value=0, key="dias_col_mod") if nec_col_mod else 0
+                
+                costo_flete_mod = float(config.get('flete_capital',0)) if flete_sel_mod=="Capital" else float(config.get('flete_norte',0)) if flete_sel_mod=="Zona Norte" else 0.0
+                costo_col_mod   = float(dias_col_mod) * float(config.get('colocacion_dia', 0))
+                costo_log_mod   = costo_flete_mod + costo_col_mod
+
+
         with col_out:
-            # --- NUEVO: PREVIEW VISUAL SVG ---
+            # --- PREVIEW VISUAL SVG ---
             if ancho_m > 0 and alto_m > 0:
                 svg_preview = generar_svg_mueble(
                     tipo_modulo, ancho_m, alto_m, prof_m,
@@ -1003,7 +1011,6 @@ if menu == "🪵 Cotizador":
                 )
                 if svg_preview:
                     st.markdown(f'<div style="text-align:center; padding: 16px; background: white; border: 1px solid #E0DED6; border-radius: 10px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">{svg_preview}</div>', unsafe_allow_html=True)
-            # ---------------------------------
 
             st.subheader("📐 Planilla de corte")
 
@@ -1045,43 +1052,47 @@ if menu == "🪵 Cotizador":
                     df_fondo_only = df_corte[df_corte['Tipo'].isin(['Fondo','Piso'])]
                     m2_fondo     = (df_fondo_only['L'] * df_fondo_only['A'] * df_fondo_only['Cant']).sum() / 1_000_000 if not df_fondo_only.empty else 0.0
                     costo_fondo  = 0.0 if sin_fondo else m2_fondo * (fondos.get(mat_fondo_sel, 0.0) / 5.03)
-                    # Cálculo base de herrajes (bisagras o guías)
+                    
                     if tipo_modulo in ["Bajo Mesada","Alacena"]:
                         costo_herrajes_base = cant_puertas * 2 * config.get('bisagra_cazoleta', 0)
                     else:
                         costo_herrajes_base = cant_cajones * config.get('telescopica_45', 0)
                         
-                    # --- NUEVO: Sumamos el costo de los herrajes extra ---
                     costo_herrajes_extra = 0.0
                     for h_nombre, h_cant in herrajes_extra_sel.items():
                         costo_unitario = config.get(h_nombre, 0.0)
                         costo_herrajes_extra += (costo_unitario * h_cant)
                         
                     costo_herrajes = costo_herrajes_base + costo_herrajes_extra
-                    
                     costo_operativo = dias_prod * config.get('gastos_fijos_diarios', 0)
                     total_costo = costo_madera + costo_fondo + costo_herrajes + costo_operativo + costo_base
-                else:
-                    st.warning("Esperando medidas para calcular...")
+            else:
+                st.warning("Esperando medidas para calcular...")
 
             st.write("---")
             retazos_en_stock = consultar_retazos_disponibles(mat_principal)
             ahorro_madera, matches = calcular_ahorro_retazos(df_corte, retazos_en_stock, maderas.get(mat_principal, 0.0))
+            
+            # --- CÁLCULO FINANCIERO FINAL ---
             total_costo_real = total_costo - ahorro_madera
             utilidad  = total_costo_real * config.get('ganancia_taller_pct', 0.30)
-            precio_final = total_costo_real + utilidad
-            pct_utilidad_real = (utilidad / precio_final * 100) if precio_final > 0 else 0.0
+            precio_final_puro = total_costo_real + utilidad
+            
+            # Cartel verde = Mueble + Extras + Logística
+            precio_final_total = precio_final_puro + costo_log_mod
+            pct_utilidad_real = (utilidad / precio_final_total * 100) if precio_final_total > 0 else 0.0
 
-            if precio_final > 0:
+            if precio_final_total > 0:
                 color_margen = "#0F6E56" if pct_utilidad_real >= 12 else "#A32D2D"
-                precio_str   = f"${precio_final:,.0f}"
-                margen_str   = f"{pct_utilidad_real:.1f}%"
                 alerta       = "Operación rentable" if pct_utilidad_real >= 12 else "Margen bajo — revisá los costos"
                 icono_m      = "✅" if pct_utilidad_real >= 12 else "⚠️"
+                
                 st.markdown(f"""<div style="background:{color_margen};border-radius:10px;padding:20px 24px;margin:8px 0 16px 0;text-align:center;">
-                <div style="color:white;font-size:12px;letter-spacing:0.1em;opacity:0.8;margin-bottom:6px;">VALOR DEL MUEBLE (SIN LOGÍSTICA)</div>
-                <div style="color:white;font-size:40px;font-weight:700;letter-spacing:-1px;">{precio_str}</div>
-                <div style="color:white;font-size:12px;opacity:0.8;margin-top:8px;">{icono_m} Margen: {margen_str} — {alerta}</div></div>""", unsafe_allow_html=True)
+                <div style="color:white;font-size:12px;letter-spacing:0.1em;opacity:0.8;margin-bottom:6px;">PRECIO FINAL AL CLIENTE (INCLUYE TODO)</div>
+                <div style="color:white;font-size:44px;font-weight:700;letter-spacing:-1px;">${precio_final_total:,.0f}</div>
+                <div style="color:white;font-size:12px;opacity:0.8;margin-top:8px;">{icono_m} Margen del mueble: {pct_utilidad_real:.1f}% — {alerta}</div>
+                <div style="color:white;font-size:11.5px;opacity:0.75;margin-top:4px;">Valor de producción: ${precio_final_puro:,.0f} | Logística: ${costo_log_mod:,.0f}</div>
+                </div>""", unsafe_allow_html=True)
 
             c1, c2, c3 = st.columns(3)
             c1.metric("Costo real",    f"${total_costo_real:,.0f}")
@@ -1094,9 +1105,9 @@ if menu == "🪵 Cotizador":
                     for m in matches:
                         st.write(f"• **{m['pieza']}** → Retazo ID-{m['retazo_id']} — ${m['ahorro']:,.0f}")
 
-            if precio_final > 0:
+            if precio_final_total > 0:
                 with st.expander("📊 Ver desglose de costos"):
-                    datos_g = {"Categoría": ["Madera/Fondo","Herrajes","Operativo/Taller","Ganancia Neta"],
+                    datos_g = {"Categoría": ["Madera/Fondo","Herrajes/Extras","Operativo/Taller","Ganancia Neta"],
                                "Monto": [costo_madera+costo_fondo, costo_herrajes, costo_operativo+costo_base, utilidad]}
                     st.bar_chart(pd.DataFrame(datos_g), x="Categoría", y="Monto", color="#2e7d32")
 
@@ -1110,13 +1121,12 @@ if menu == "🪵 Cotizador":
             col_ag, col_sv = st.columns(2)
             with col_ag:
                 if st.button(label_boton, use_container_width=True, type="primary"):
-                    if ancho_m > 0 and alto_m > 0 and precio_final > 0:
+                    if ancho_m > 0 and alto_m > 0 and precio_final_puro > 0:
                         nuevo_mod = {
                             "nombre": nombre_modulo, "tipo": tipo_modulo, "ancho": int(ancho_m),
                             "alto": int(alto_m), "prof": int(prof_m), "material": mat_principal,
-                            "precio": precio_final, "df_corte": df_corte.copy() if not df_corte.empty else None,
+                            "precio": precio_final_puro, "df_corte": df_corte.copy() if not df_corte.empty else None,
                             "tipo_tapa": tipo_tapa,
-                            # Guardamos todos los params para poder editar después
                             "params": {
                                 "tipo_modulo": tipo_modulo, "ancho_m": ancho_m, "alto_m": alto_m,
                                 "prof_m": prof_m, "esp_real": esp_real, "mat_principal": mat_principal,
@@ -1135,7 +1145,6 @@ if menu == "🪵 Cotizador":
                                 "indices_estantes_fijos": indices_fijos,
                                 "herrajes_extra": herrajes_extra_sel,
                             }
-                            
                         }
                         if idx_mod_editar is not None:
                             obra_actual = st.session_state["obra_modulos"]
@@ -1146,21 +1155,15 @@ if menu == "🪵 Cotizador":
                             mods_limpios = [m for m in obra_actual if m is not None]
                             st.session_state["obra_modulos"] = mods_limpios
 
-                            # Guardamos automáticamente en Supabase si venimos de editar una obra
                             _obra_id = st.session_state.get("editar_obra_id")
                             _cli_obra = st.session_state.get("editar_obra_cliente","") or cliente
                             if _obra_id and _cli_obra:
-                                import json as _json2
                                 _params_auto = {
                                     "es_obra": True,
                                     "modulos": [{
-                                        "nombre": m["nombre"], 
-                                        "tipo_modulo": m["tipo"],
-                                        "ancho_m": m["ancho"], 
-                                        "alto_m": m["alto"], 
-                                        "prof_m": m["prof"],
-                                        "mat_principal": m["material"], 
-                                        "precio": m["precio"],
+                                        "nombre": m["nombre"], "tipo_modulo": m["tipo"],
+                                        "ancho_m": m["ancho"], "alto_m": m["alto"], "prof_m": m["prof"],
+                                        "mat_principal": m["material"], "precio": m["precio"],
                                         "mat_fondo_sel": m.get("params",{}).get("mat_fondo_sel","Fibroplus Blanco 3mm"),
                                         "esp_real": m.get("params",{}).get("esp_real",18.0),
                                         "tipo_tapa": m.get("tipo_tapa","Superpuesta"),
@@ -1188,14 +1191,8 @@ if menu == "🪵 Cotizador":
                                         "herrajes_extra": m.get("params",{}).get("herrajes_extra",{})
                                     } for m in mods_limpios]
                                 }
-                                ds_limpios
-                                guardar_presupuesto_nube(
-                                    _cli_obra,
-                                    f"Obra ({len(mods_limpios)} módulos)",
-                                    _total_auto,
-                                    parametros=_params_auto,
-                                    id_editar=_obra_id
-                                )
+                                _total_auto = sum(m["precio"] for m in mods_limpios)
+                                guardar_presupuesto_nube(_cli_obra, f"Obra ({len(mods_limpios)} módulos)", _total_auto, parametros=_params_auto, id_editar=_obra_id)
 
                             st.session_state.update({"idx_modulo_editar": None, "editar_presupuesto": None,
                                                      "editar_id": None, "editar_cliente": "",
@@ -1203,13 +1200,12 @@ if menu == "🪵 Cotizador":
                                                      "tipo_modulo_sel": "Bajo Mesada", "edicion_tipo_cargado": False})
                         else:
                             st.session_state["obra_modulos"].append(nuevo_mod)
-                        st.session_state.update({"ultimo_modulo_agregado": nombre_modulo, "ultimo_precio_agregado": precio_final})
+                        st.session_state.update({"ultimo_modulo_agregado": nombre_modulo, "ultimo_precio_agregado": precio_final_puro})
                         st.rerun()
                     else:
                         st.warning("Ingresá las medidas y calculá el módulo antes de agregar.")
 
             with col_sv:
-                # Mostramos "Guardar" siempre que no estemos en modo reemplazar obra
                 _label_guardar = "💾 Guardar cambios" if st.session_state.get("editar_id") else "💾 Guardar solo este módulo"
                 if st.button(_label_guardar, use_container_width=True):
                     if cliente:
@@ -1226,11 +1222,11 @@ if menu == "🪵 Cotizador":
                                   "alto_frentin_emb": alto_frentin_emb, "aire_trasero": aire_trasero,
                                   "esp_corredera": esp_corredera, "distribucion_tapas": distribucion_tapas,
                                   "tiene_cenefa": tiene_cenefa, "alto_cenefa": alto_cenefa,
-                                "dias_prod": dias_prod,
-                                "indices_estantes_fijos": indices_fijos,
-                                "herrajes_extra": herrajes_extra_sel,
-                            }
-                        guardar_presupuesto_nube(cliente, tipo_modulo, precio_final, parametros=params,
+                                  "dias_prod": dias_prod,
+                                  "indices_estantes_fijos": indices_fijos,
+                                  "herrajes_extra": herrajes_extra_sel,
+                        }
+                        guardar_presupuesto_nube(cliente, tipo_modulo, precio_final_total, parametros=params,
                                                   id_editar=st.session_state.get("editar_id"))
                         st.session_state.update({"editar_presupuesto": None, "editar_id": None,
                                                   "editar_cliente": "", "tipo_modulo_sel": "Bajo Mesada",
@@ -1250,36 +1246,6 @@ if menu == "🪵 Cotizador":
                 st.write("---")
                 if not st.session_state["obra_modulos"]:
                     st.subheader("Propuesta para este módulo")
-
-                    # Logística para módulo individual
-                    with st.expander("🚛 Logística y colocación", expanded=False):
-                        st.caption("Estos costos se suman al precio final de este módulo.")
-                        col_fl_m, col_col_m, col_dias_m = st.columns(3)
-                        flete_sel_mod  = col_fl_m.selectbox("Flete", ["Ninguno","Capital","Zona Norte"], key="flete_mod")
-                        nec_col_mod    = col_col_m.checkbox("¿Requiere colocación?", key="col_mod")
-                        dias_col_mod   = col_dias_m.number_input("Días de colocación", value=0, min_value=0, key="dias_col_mod") if nec_col_mod else 0
-                        costo_flete_mod = config.get('flete_capital',0) if flete_sel_mod=="Capital" else config.get('flete_norte',0) if flete_sel_mod=="Zona Norte" else 0.0
-                        costo_col_mod   = dias_col_mod * config.get('colocacion_dia', 0)
-                        costo_log_mod   = costo_flete_mod + costo_col_mod
-                        # Aseguramos que el cálculo de logística es un flotante puro antes de sumar
-                    costo_log_mod = float(costo_flete_mod) + float(costo_col_mod)
-                    
-                    if costo_log_mod > 0:
-                        precio_final_con_log = float(precio_final) + costo_log_mod
-                        # Usamos HTML limpio para el estilo en lugar de Markdown que se rompe con los números
-                        st.markdown(f"""
-                        <div style="background-color: #E6F3FE; color: #004D99; padding: 12px 16px; border-radius: 8px; border-left: 4px solid #0066CC; font-size: 14px; margin-bottom: 12px;">
-                            <strong>Con logística: ${precio_final_con_log:,.0f}</strong> 
-                            <span style="opacity: 0.8; font-size: 12px; margin-left: 8px;">(Incluye logística: ${costo_log_mod:,.0f})</span>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    else:
-                        precio_final_con_log = float(precio_final)
-                    
-                    # Garantizamos que precio_final_con_log siempre esté definido
-                    if 'precio_final_con_log' not in dir():
-                        precio_final_con_log = precio_final
-                        costo_log_mod = 0
 
                     col_ent, col_sena = st.columns(2)
                     dias_entrega = col_ent.number_input("Días de entrega", value=15, step=1, key="dias_mod")
@@ -1359,14 +1325,15 @@ if menu == "🪵 Cotizador":
                         pdf.multi_cell(0, 5, texto_legal, fill=True, align="J")
                         
                         return bytes(pdf.output())
-                    pdf_mod = _pdf_mod(cliente, nombre_modulo, tipo_modulo, int(ancho_m), int(alto_m), int(prof_m), mat_principal, precio_final_con_log, dias_entrega, pct_seña)
+
+                    pdf_mod = _pdf_mod(cliente, nombre_modulo, tipo_modulo, int(ancho_m), int(alto_m), int(prof_m), mat_principal, precio_final_total, dias_entrega, pct_seña)
                     
                     lineas_wa = [f"*PROPUESTA COMERCIAL — {nombre_modulo.upper()}*", f"Cliente: {cliente}", "",
                                  f"• {tipo_modulo}: {int(ancho_m)}x{int(alto_m)}x{int(prof_m)} mm", f"• Material: {mat_principal}", ""]
                     if costo_log_mod > 0:
                         lineas_wa.append(f"• Logística: ${costo_log_mod:,.0f}")
                     lineas_wa += [f"",
-                                 f"*TOTAL: ${precio_final_con_log:,.0f}*", f"Seña ({pct_seña}%): ${precio_final_con_log*(pct_seña/100):,.0f}",
+                                 f"*TOTAL: ${precio_final_total:,.0f}*", f"Seña ({pct_seña}%): ${precio_final_total*(pct_seña/100):,.0f}",
                                  f"Entrega: {dias_entrega} días hábiles", "", "Precios válidos 48hs."]
                     wa_mod = f"https://wa.me/?text={urllib.parse.quote(chr(10).join(lineas_wa))}"
 
