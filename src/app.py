@@ -1218,11 +1218,10 @@ if menu == "🪵 Cotizador":
                     dias_entrega = col_ent.number_input("Días de entrega", value=15, step=1, key="dias_mod")
                     pct_seña     = col_sena.slider("% de Seña", 0, 100, 50, 5, key="sena_mod")
 
-                 def _pdf_mod(cli, nom, tip, aw, ah, ap, mat, precio, dias, pct):
+                    def _pdf_mod(cli, nom, tip, aw, ah, ap, mat, precio, dias, pct):
                         pdf = FPDF()
                         pdf.add_page()
                         
-                        # Gris plomo oscuro - Estética de Arquitectura
                         r_main, g_main, b_main = 50, 50, 50 
                         
                         pdf.set_font("Arial", "B", 20)
@@ -1246,7 +1245,6 @@ if menu == "🪵 Cotizador":
                         pdf.cell(100, 6, cli.upper(), ln=True)
                         pdf.ln(8)
                         
-                        # ENCABEZADO DE TABLA
                         pdf.set_fill_color(r_main, g_main, b_main)
                         pdf.set_text_color(255, 255, 255)
                         pdf.set_font("Arial", "B", 9)
@@ -1255,7 +1253,6 @@ if menu == "🪵 Cotizador":
                         pdf.cell(45, 8, "SUBTOTAL", border=0, fill=True, align="R")
                         pdf.ln(8)
                         
-                        # FILA DEL MÓDULO
                         pdf.set_text_color(40, 40, 40)
                         pdf.set_font("Arial", "", 10)
                         pdf.set_fill_color(248, 248, 248)
@@ -1268,7 +1265,6 @@ if menu == "🪵 Cotizador":
                         pdf.cell(45, 10, f"${precio:,.0f} ", fill=True, align="R")
                         pdf.ln(15)
                         
-                        # TOTAL
                         pdf.set_font("Arial", "B", 14)
                         pdf.set_fill_color(r_main, g_main, b_main)
                         pdf.set_text_color(255, 255, 255)
@@ -1276,7 +1272,6 @@ if menu == "🪵 Cotizador":
                         pdf.cell(45, 14, f"${precio:,.0f} ", align="R", fill=True)
                         pdf.ln(20)
                         
-                        # TÉRMINOS
                         pdf.set_text_color(0, 0, 0)
                         pdf.set_font("Arial", "B", 10)
                         pdf.cell(0, 6, "TÉRMINOS Y CONDICIONES", ln=True)
@@ -1287,7 +1282,6 @@ if menu == "🪵 Cotizador":
                         pdf.cell(0, 5, f"2. Tiempo estimado de entrega: {dias} días hábiles.", ln=True)
                         pdf.cell(0, 5, "3. Validez de esta cotización: 48 horas.", ln=True)
                         
-                        # FIRMAS
                         pdf.ln(25)
                         pdf.set_draw_color(150, 150, 150)
                         pdf.line(20, pdf.get_y(), 80, pdf.get_y())
@@ -1303,7 +1297,6 @@ if menu == "🪵 Cotizador":
 
                     pdf_mod = _pdf_mod(cliente, nombre_modulo, tipo_modulo, int(ancho_m), int(alto_m), int(prof_m), mat_principal, precio_final_con_log, dias_entrega, pct_seña)
                     
-                    # Whatsapp limpio sin la marca "BVM"
                     lineas_wa = [f"*PROPUESTA COMERCIAL — {nombre_modulo.upper()}*", f"Cliente: {cliente}", "",
                                  f"• {tipo_modulo}: {int(ancho_m)}x{int(alto_m)}x{int(prof_m)} mm", f"• Material: {mat_principal}", ""]
                     if costo_log_mod > 0:
