@@ -1218,29 +1218,93 @@ if menu == "🪵 Cotizador":
                     dias_entrega = col_ent.number_input("Días de entrega", value=15, step=1, key="dias_mod")
                     pct_seña     = col_sena.slider("% de Seña", 0, 100, 50, 5, key="sena_mod")
 
-                    def _pdf_mod(cli, nom, tip, aw, ah, ap, mat, precio, dias, pct):
-                        pdf = FPDF(); pdf.add_page()
-                        pdf.set_font("Arial","B",20); pdf.set_text_color(46,125,50)
-                        pdf.cell(200,20,"PRESUPUESTO - BVM",ln=True,align="C")
-                        pdf.set_text_color(0,0,0); pdf.set_font("Arial","",10)
-                        fecha = datetime.now(timezone(timedelta(hours=-3))).strftime("%d/%m/%Y")
-                        pdf.cell(200,8,f"Fecha: {fecha}    Cliente: {cli}",ln=True,align="R"); pdf.ln(6)
-                        pdf.set_font("Arial","B",12); pdf.set_fill_color(230,245,238)
-                        pdf.cell(0,11,f"  {nom}",ln=True,fill=True)
-                        pdf.set_font("Arial","",11)
-                        pdf.cell(95,8,f"  Tipo: {tip}",ln=False); pdf.cell(95,8,f"  Material: {mat}",ln=True)
-                        pdf.cell(95,8,f"  Ancho: {aw} mm",ln=False); pdf.cell(95,8,f"  Alto: {ah} mm",ln=True)
-                        pdf.cell(95,8,f"  Profundidad: {ap} mm",ln=True); pdf.ln(4)
-                        monto = precio*(pct/100)
-                        pdf.set_font("Arial","B",14); pdf.set_fill_color(240,240,240)
-                        pdf.cell(0,14,f"TOTAL: ${precio:,.0f}",ln=True,align="C",fill=True)
-                        pdf.set_font("Arial","",11)
-                        pdf.cell(0,8,f"Seña ({pct}%): ${monto:,.0f}",ln=True,align="C")
-                        pdf.cell(0,8,f"Entrega: {dias} días hábiles",ln=True,align="C")
+                   def _pdf_mod(cli, nom, tip, aw, ah, ap, mat, precio, dias, pct):
+                        pdf = FPDF()
+                        pdf.add_page()
+                        
+                        # Gris plomo oscuro - Estética de Arquitectura
+                        r_main, g_main, b_main = 50, 50, 50 
+                        
+                        pdf.set_font("Arial", "B", 20)
+                        pdf.set_text_color(r_main, g_main, b_main)
+                        pdf.cell(100, 10, "PROPUESTA COMERCIAL", ln=False, align="L")
+                        
+                        pdf.set_font("Arial", "B", 10)
+                        pdf.set_text_color(120, 120, 120)
+                        fecha_hoy = datetime.now(timezone(timedelta(hours=-3))).strftime("%d/%m/%Y")
+                        pdf.cell(90, 10, f"FECHA: {fecha_hoy}", ln=True, align="R")
+                        
+                        pdf.set_draw_color(220, 220, 220)
+                        pdf.line(10, 22, 200, 22)
+                        pdf.ln(8)
+                        
+                        pdf.set_font("Arial", "B", 9)
+                        pdf.set_text_color(150, 150, 150)
+                        pdf.cell(100, 5, "PREPARADO PARA:", ln=True)
+                        pdf.set_font("Arial", "B", 13)
+                        pdf.set_text_color(0, 0, 0)
+                        pdf.cell(100, 6, cli.upper(), ln=True)
+                        pdf.ln(8)
+                        
+                        # ENCABEZADO DE TABLA
+                        pdf.set_fill_color(r_main, g_main, b_main)
+                        pdf.set_text_color(255, 255, 255)
+                        pdf.set_font("Arial", "B", 9)
+                        pdf.cell(100, 8, "DESCRIPCIÓN", border=0, fill=True)
+                        pdf.cell(45, 8, "MEDIDAS (mm)", border=0, fill=True, align="C")
+                        pdf.cell(45, 8, "SUBTOTAL", border=0, fill=True, align="R")
+                        pdf.ln(8)
+                        
+                        # FILA DEL MÓDULO
+                        pdf.set_text_color(40, 40, 40)
+                        pdf.set_font("Arial", "", 10)
+                        pdf.set_fill_color(248, 248, 248)
+                        
+                        desc = f"{nom} | {tip} en {mat}"
+                        desc_corta = desc[:50] + "..." if len(desc) > 50 else desc
+                        pdf.cell(100, 10, desc_corta, fill=True)
+                        pdf.cell(45, 10, f"{aw} x {ah} x {ap}", fill=True, align="C")
+                        pdf.set_font("Arial", "B", 10)
+                        pdf.cell(45, 10, f"${precio:,.0f} ", fill=True, align="R")
+                        pdf.ln(15)
+                        
+                        # TOTAL
+                        pdf.set_font("Arial", "B", 14)
+                        pdf.set_fill_color(r_main, g_main, b_main)
+                        pdf.set_text_color(255, 255, 255)
+                        pdf.cell(145, 14, "INVERSIÓN TOTAL", align="R", fill=True)
+                        pdf.cell(45, 14, f"${precio:,.0f} ", align="R", fill=True)
+                        pdf.ln(20)
+                        
+                        # TÉRMINOS
+                        pdf.set_text_color(0, 0, 0)
+                        pdf.set_font("Arial", "B", 10)
+                        pdf.cell(0, 6, "TÉRMINOS Y CONDICIONES", ln=True)
+                        pdf.set_font("Arial", "", 9)
+                        pdf.set_text_color(80, 80, 80)
+                        monto_seña = precio * (pct / 100)
+                        pdf.cell(0, 5, f"1. Anticipo por acopio de materiales ({pct}%): ${monto_seña:,.0f}", ln=True)
+                        pdf.cell(0, 5, f"2. Tiempo estimado de entrega: {dias} días hábiles.", ln=True)
+                        pdf.cell(0, 5, "3. Validez de esta cotización: 48 horas.", ln=True)
+                        
+                        # FIRMAS
+                        pdf.ln(25)
+                        pdf.set_draw_color(150, 150, 150)
+                        pdf.line(20, pdf.get_y(), 80, pdf.get_y())
+                        pdf.line(130, pdf.get_y(), 190, pdf.get_y())
+                        pdf.ln(2)
+                        pdf.set_font("Arial", "B", 9)
+                        pdf.set_text_color(100, 100, 100)
+                        pdf.cell(90, 5, "Firma del Cliente", align="C")
+                        pdf.cell(20, 5, "")
+                        pdf.cell(80, 5, "Aprobación del Taller", align="C")
+                        
                         return bytes(pdf.output())
 
                     pdf_mod = _pdf_mod(cliente, nombre_modulo, tipo_modulo, int(ancho_m), int(alto_m), int(prof_m), mat_principal, precio_final_con_log, dias_entrega, pct_seña)
-                    lineas_wa = [f"*PRESUPUESTO BVM — {nombre_modulo.upper()}*", f"Cliente: {cliente}", "",
+                    
+                    # Whatsapp limpio sin la marca "BVM"
+                    lineas_wa = [f"*PROPUESTA COMERCIAL — {nombre_modulo.upper()}*", f"Cliente: {cliente}", "",
                                  f"• {tipo_modulo}: {int(ancho_m)}x{int(alto_m)}x{int(prof_m)} mm", f"• Material: {mat_principal}", ""]
                     if costo_log_mod > 0:
                         lineas_wa.append(f"• Logística: ${costo_log_mod:,.0f}")
