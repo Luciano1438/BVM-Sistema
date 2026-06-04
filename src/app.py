@@ -1030,7 +1030,7 @@ if menu == "🪵 Cotizador":
                 alerta       = "Operación rentable" if pct_utilidad_real >= 12 else "Margen bajo — revisá los costos"
                 icono_m      = "✅" if pct_utilidad_real >= 12 else "⚠️"
                 st.markdown(f"""<div style="background:{color_margen};border-radius:10px;padding:20px 24px;margin:8px 0 16px 0;text-align:center;">
-                <div style="color:white;font-size:12px;letter-spacing:0.1em;opacity:0.8;margin-bottom:6px;">PRECIO FINAL AL CLIENTE</div>
+                <div style="color:white;font-size:12px;letter-spacing:0.1em;opacity:0.8;margin-bottom:6px;">VALOR DEL MUEBLE (SIN LOGÍSTICA)</div>
                 <div style="color:white;font-size:40px;font-weight:700;letter-spacing:-1px;">{precio_str}</div>
                 <div style="color:white;font-size:12px;opacity:0.8;margin-top:8px;">{icono_m} Margen: {margen_str} — {alerta}</div></div>""", unsafe_allow_html=True)
 
