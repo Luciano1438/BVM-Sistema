@@ -1168,7 +1168,7 @@ if menu == "🪵 Cotizador":
                                         "indices_estantes_fijos": m.get("params",{}).get("indices_estantes_fijos",[]),
                                         "herrajes_extra":      m.get("params",{}).get("herrajes_extra",{}),
                                         }
-                                    } for m in mods_limpios]
+                                     for m in mods_limpios}]
                                 }
                                 _total_auto = sum(m["precio"] for m in mods_limpios)
                                 guardar_presupuesto_nube(
