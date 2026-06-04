@@ -1256,27 +1256,7 @@ if menu == "🪵 Cotizador":
                     else:
                         st.warning("Ingresá las medidas y calculá el módulo antes de agregar.")
 
-            with col_sv:
-                _label_guardar = "💾 Guardar cambios" if st.session_state.get("editar_id") else "💾 Guardar solo este módulo"
-                if st.button(_label_guardar, use_container_width=True):
-                    if cliente:
-                        params = {"tipo_modulo": tipo_modulo, "ancho_m": ancho_m, "alto_m": alto_m,
-                                  "prof_m": prof_m, "esp_real": esp_real, "mat_principal": mat_principal,
-                                  "mat_fondo_sel": mat_fondo_sel, "tipo_tapa": tipo_tapa,
-                                  "cant_puertas": cant_puertas, "cant_cajones": cant_cajones,
-                                  "tiene_parante": tiene_parante, "tipo_parante": tipo_parante,
-                                  "tiene_parante_medio": tiene_parante_medio,
-                                  "tipo_base": tipo_base, "altura_base": altura_base,
-                                  "estantes_fijos": estantes_fijos, "estantes_moviles": estantes_moviles,
-                                  "tipo_estante_manual": tipo_estante_manual, "sin_fondo": sin_fondo,
-                                  "luz_entre_tapas": luz_entre_tapas, "luz_perimetral_tapa": luz_perimetral_tapa,
-                                  "alto_frentin_emb": alto_frentin_emb, "aire_trasero": aire_trasero,
-                                  "esp_corredera": esp_corredera, "distribucion_tapas": distribucion_tapas,
-                                  "tiene_cenefa": tiene_cenefa, "alto_cenefa": alto_cenefa,
-                                  "dias_prod": dias_prod,
-                                  "indices_estantes_fijos": indices_fijos,
-                                  "herrajes_extra": herrajes_extra_sel,
-                        }
+            
                         guardar_presupuesto_nube(cliente, tipo_modulo, precio_final_total, parametros=params,
                                                   id_editar=st.session_state.get("editar_id"))
                         st.session_state.update({"editar_presupuesto": None, "editar_id": None,
