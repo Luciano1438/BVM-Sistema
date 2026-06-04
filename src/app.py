@@ -1085,26 +1085,25 @@ if menu == "🪵 Cotizador":
             retazos_en_stock = consultar_retazos_disponibles(mat_principal)
             ahorro_madera, matches = calcular_ahorro_retazos(df_corte, retazos_en_stock, maderas.get(mat_principal, 0.0))
             
-            # --- CÁLCULO FINANCIERO FINAL ---
+            # --- CÁLCULO FINANCIERO PURO DEL MUEBLE ---
             total_costo_real = total_costo - ahorro_madera
             utilidad  = total_costo_real * config.get('ganancia_taller_pct', 0.30)
-            precio_final_puro = total_costo_real + utilidad 
+            precio_final = total_costo_real + utilidad
             
-            # El precio del módulo no incluye logística. Se suma en la Obra.
-            precio_final_total = precio_final_puro
-            pct_utilidad_real = (utilidad / precio_final_total * 100) if precio_final_total > 0 else 0.0
+            pct_utilidad_real = (utilidad / precio_final * 100) if precio_final > 0 else 0.0
 
-            if precio_final_total > 0:
+            if precio_final > 0:
                 color_margen = "#0F6E56" if pct_utilidad_real >= 12 else "#A32D2D"
                 alerta       = "Operación rentable" if pct_utilidad_real >= 12 else "Margen bajo — revisá los costos"
                 icono_m      = "✅" if pct_utilidad_real >= 12 else "⚠️"
                 
                 st.markdown(f"""<div style="background:{color_margen};border-radius:10px;padding:20px 24px;margin:8px 0 16px 0;text-align:center;">
                 <div style="color:white;font-size:12px;letter-spacing:0.1em;opacity:0.8;margin-bottom:6px;">VALOR DEL MUEBLE (PRODUCCIÓN + EXTRAS)</div>
-                <div style="color:white;font-size:44px;font-weight:700;letter-spacing:-1px;">${precio_final_total:,.0f}</div>
+                <div style="color:white;font-size:44px;font-weight:700;letter-spacing:-1px;">${precio_final:,.0f}</div>
                 <div style="color:white;font-size:12px;opacity:0.8;margin-top:8px;">{icono_m} Margen del mueble: {pct_utilidad_real:.1f}% — {alerta}</div>
                 <div style="color:white;font-size:11.5px;opacity:0.75;margin-top:4px;">⚠️ El flete y la instalación se calculan al final en el Resumen de Obra.</div>
                 </div>""", unsafe_allow_html=True)
+
             c1, c2, c3 = st.columns(3)
             c1.metric("Costo real",    f"${total_costo_real:,.0f}")
             c2.metric("M² de placa",   f"{m2_18mm:.2f}")
@@ -1116,7 +1115,7 @@ if menu == "🪵 Cotizador":
                     for m in matches:
                         st.write(f"• **{m['pieza']}** → Retazo ID-{m['retazo_id']} — ${m['ahorro']:,.0f}")
 
-            if precio_final_total > 0:
+            if precio_final > 0:
                 with st.expander("📊 Ver desglose de costos"):
                     datos_g = {"Categoría": ["Madera/Fondo","Herrajes/Extras","Operativo/Taller","Ganancia Neta"],
                                "Monto": [costo_madera+costo_fondo, costo_herrajes, costo_operativo+costo_base, utilidad]}
@@ -1251,6 +1250,33 @@ if menu == "🪵 Cotizador":
                 n = len(st.session_state["obra_modulos"])
                 st.info(f"**✅ Módulo agregado: {st.session_state['ultimo_modulo_agregado']}** — ${st.session_state['ultimo_precio_agregado']:,.0f}\n\n📋 Tenés **{n} módulo(s)** — Total: **${total_actual:,.0f}**\n\n👉 Configurá el siguiente módulo arriba o bajá al **Resumen de Obra**.")
                 st.session_state.update({"ultimo_modulo_agregado": None, "ultimo_precio_agregado": 0})
+
+            # --- Terminal CNC Individual (Exportar corte) ---
+            if not df_corte.empty:
+                st.write("---")
+                with st.expander("⚙️ Terminal CNC — Este módulo"):
+                    import io as _io
+                    import ezdxf as _ezdxf
+                    doc = _ezdxf.new('R2010'); msp = doc.modelspace()
+                    x_off = 0
+                    for _, row in df_corte.iterrows():
+                        for _ in range(int(row['Cant'])):
+                            pts = [(x_off,0),(x_off+float(row['L']),0),(x_off+float(row['L']),float(row['A'])),(x_off,float(row['A'])),(x_off,0)]
+                            msp.add_lwpolyline(pts, close=True)
+                            msp.add_text(f"{row['Pieza']}\n{int(row['L'])}x{int(row['A'])} | {mat_principal}", height=10).set_placement((x_off+5,5))
+                            x_off += float(row['L']) + 50
+                    out_dxf = _io.StringIO(); doc.write(out_dxf)
+                    dxf_bytes = out_dxf.getvalue().encode('utf-8')
+
+                    df_aspire = df_corte.copy().rename(columns={"Pieza":"Name","L":"Length","A":"Width","Cant":"Quantity"})
+                    df_aspire["Thickness"] = esp_real; df_aspire["Material"] = mat_principal
+                    csv_bytes = df_aspire[["Name","Length","Width","Thickness","Quantity","Material"]].to_csv(index=False).encode('utf-8')
+
+                    col_cnc1, col_cnc2 = st.columns(2)
+                    with col_cnc1:
+                        st.download_button("📐 DXF (Vectores)", data=dxf_bytes, file_name=f"Vectores_{nombre_modulo}.dxf", mime="application/dxf", use_container_width=True)
+                    with col_cnc2:
+                        st.download_button("🤖 CSV (Aspire)", data=csv_bytes, file_name=f"CNC_{nombre_modulo}.csv", mime="text/csv", use_container_width=True)
 
 
         # ===========================================================
