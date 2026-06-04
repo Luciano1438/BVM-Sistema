@@ -109,57 +109,117 @@ def exportar_csv_obra(modulos_con_df, esp_real):
 def generar_pdf_obra(cliente, modulos, dias_entrega, pct_seña, costo_logistica=0, dias_colocacion=0, costo_colocacion_dia=0):
     pdf = FPDF()
     pdf.add_page()
-    pdf.set_font("Arial", "B", 20)
-    pdf.set_text_color(46, 125, 50)
-    pdf.cell(200, 20, "PRESUPUESTO DE OBRA - BVM", ln=True, align="C")
-    pdf.set_text_color(0, 0, 0)
-    pdf.set_font("Arial", "", 10)
+    
+    # Colores Corporativos BVM
+    r_main, g_main, b_main = 15, 110, 86  # Verde BVM (#0F6E56)
+    
+    # --- HEADER ---
+    # pdf.image('logo_taller.png', 10, 8, 30) # Descomentar cuando agregues logos
+    pdf.set_font("Arial", "B", 22)
+    pdf.set_text_color(r_main, g_main, b_main)
+    pdf.cell(100, 10, "PROPUESTA DE DISEÑO", ln=False, align="L")
+    
+    pdf.set_font("Arial", "B", 10)
+    pdf.set_text_color(120, 120, 120)
     tz_arg = timezone(timedelta(hours=-3))
     fecha_hoy = datetime.now(tz_arg).strftime("%d/%m/%Y")
-    pdf.cell(200, 8, f"Fecha: {fecha_hoy}    Cliente: {cliente}", ln=True, align="R")
-    pdf.ln(4)
-
+    pdf.cell(90, 10, f"FECHA: {fecha_hoy}", ln=True, align="R")
+    
+    pdf.set_draw_color(220, 220, 220)
+    pdf.line(10, 22, 200, 22)
+    pdf.ln(8)
+    
+    # --- DATOS DEL CLIENTE ---
+    pdf.set_font("Arial", "B", 9)
+    pdf.set_text_color(150, 150, 150)
+    pdf.cell(100, 5, "PREPARADO PARA:", ln=True)
+    pdf.set_font("Arial", "B", 13)
+    pdf.set_text_color(0, 0, 0)
+    pdf.cell(100, 6, cliente.upper(), ln=True)
+    pdf.ln(8)
+    
+    # --- ENCABEZADO DE TABLA ---
+    pdf.set_fill_color(r_main, g_main, b_main)
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font("Arial", "B", 9)
+    pdf.cell(10, 8, "#", border=0, fill=True, align="C")
+    pdf.cell(90, 8, "DESCRIPCIÓN DEL MÓDULO", border=0, fill=True)
+    pdf.cell(45, 8, "MEDIDAS (mm)", border=0, fill=True, align="C")
+    pdf.cell(45, 8, "SUBTOTAL", border=0, fill=True, align="R")
+    pdf.ln(8)
+    
+    # --- ÍTEMS ---
+    pdf.set_text_color(40, 40, 40)
+    pdf.set_font("Arial", "", 10)
+    fill = False
+    pdf.set_fill_color(245, 248, 247) # Verde extremadamente claro para filas alternas
+    
     subtotal_modulos = sum(m["precio"] for m in modulos)
     costo_col = dias_colocacion * costo_colocacion_dia
     total_obra = subtotal_modulos + costo_logistica + costo_col
-
+    
     for i, mod in enumerate(modulos):
-        pdf.set_font("Arial", "B", 12)
-        pdf.set_fill_color(230, 245, 238)
-        pdf.cell(0, 11, f"  {i+1}. {mod['nombre']}", ln=True, fill=True)
-        pdf.set_font("Arial", "", 10)
-        pdf.cell(95, 7, f"  Tipo: {mod['tipo']}", border="L", ln=False)
-        pdf.cell(95, 7, f"  Material: {mod['material']}", border="R", ln=True)
-        pdf.cell(95, 7, f"  Ancho: {mod['ancho']} mm", border="L", ln=False)
-        pdf.cell(95, 7, f"  Alto: {mod['alto']} mm", border="R", ln=True)
-        pdf.cell(95, 7, f"  Profundidad: {mod['prof']} mm", border="LB", ln=False)
-        pdf.cell(95, 7, f"  Terminacion: {mod.get('tipo_tapa', 'Estandar')}", border="RB", ln=True)
+        pdf.cell(10, 10, str(i+1), fill=fill, align="C")
+        
+        # Formateo de descripción
+        desc = f"{mod['nombre']} | {mod['material']}"
+        # Si el texto es muy largo, lo cortamos para que no rompa la tabla
+        desc_corta = desc[:48] + "..." if len(desc) > 48 else desc
+        pdf.cell(90, 10, desc_corta, fill=fill)
+        
+        medidas = f"{int(mod['ancho'])} x {int(mod['alto'])} x {int(mod['prof'])}"
+        pdf.cell(45, 10, medidas, fill=fill, align="C")
         pdf.set_font("Arial", "B", 10)
-        pdf.cell(0, 8, f"  Subtotal: ${mod['precio']:,.0f}", ln=True, align="R")
-        pdf.ln(3)
-
-    # Logística y colocación al final
-    if costo_logistica > 0 or costo_col > 0:
-        pdf.set_font("Arial", "B", 11)
-        pdf.set_fill_color(245, 245, 245)
-        pdf.cell(0, 9, "  Costos adicionales de obra", ln=True, fill=True)
+        pdf.cell(45, 10, f"${mod['precio']:,.0f} ", fill=fill, align="R")
         pdf.set_font("Arial", "", 10)
-        if costo_logistica > 0:
-            pdf.cell(0, 7, f"  Flete / Logistica: ${costo_logistica:,.0f}", ln=True)
-        if costo_col > 0:
-            pdf.cell(0, 7, f"  Colocacion ({dias_colocacion} dias): ${costo_col:,.0f}", ln=True)
+        pdf.ln(10)
+        fill = not fill
+        
+    # --- ADICIONALES DE LOGÍSTICA ---
+    if costo_logistica > 0 or costo_col > 0:
         pdf.ln(2)
-
+        pdf.set_font("Arial", "", 10)
+        pdf.set_text_color(100, 100, 100)
+        adicional = costo_logistica + costo_col
+        pdf.cell(145, 8, "Costos de Flete e Instalación:", align="R")
+        pdf.set_text_color(40, 40, 40)
+        pdf.cell(45, 8, f"${adicional:,.0f} ", align="R")
+        pdf.ln(8)
+        
+    # --- BLOQUE DE TOTAL ---
+    pdf.ln(4)
     pdf.set_font("Arial", "B", 14)
-    pdf.set_fill_color(240, 240, 240)
-    pdf.cell(0, 12, f"TOTAL OBRA: ${total_obra:,.0f}", ln=True, align="C", fill=True)
+    pdf.set_fill_color(r_main, g_main, b_main)
+    pdf.set_text_color(255, 255, 255)
+    pdf.cell(145, 14, "INVERSIÓN TOTAL DE OBRA", align="R", fill=True)
+    pdf.cell(45, 14, f"${total_obra:,.0f} ", align="R", fill=True)
+    pdf.ln(20)
+    
+    # --- TÉRMINOS Y CONDICIONES (EL CIERRE B2B) ---
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_font("Arial", "B", 10)
+    pdf.cell(0, 6, "TÉRMINOS Y CONDICIONES DEL PROYECTO", ln=True)
+    pdf.set_font("Arial", "", 9)
+    pdf.set_text_color(80, 80, 80)
+    
     monto_seña = total_obra * (pct_seña / 100)
-    pdf.set_font("Arial", "", 11)
-    pdf.cell(0, 8, f"Seña requerida ({pct_seña}%): ${monto_seña:,.0f}", ln=True, align="C")
-    pdf.cell(0, 8, f"Tiempo estimado de entrega: {dias_entrega} dias habiles", ln=True, align="C")
-    pdf.ln(6)
-    pdf.set_font("Arial", "I", 9)
-    pdf.multi_cell(0, 5, "Los precios se mantienen 48hs. Una vez abonada la seña se congelan los materiales.")
+    pdf.cell(0, 5, f"1. Anticipo requerido para acopio de materiales y congelamiento de precios ({pct_seña}%): ${monto_seña:,.0f}", ln=True)
+    pdf.cell(0, 5, f"2. Tiempo estimado de entrega: {dias_entrega} días hábiles desde la acreditación del anticipo.", ln=True)
+    pdf.cell(0, 5, "3. Validez de esta cotización: 48 horas.", ln=True)
+    pdf.cell(0, 5, "4. Saldo restante a cancelar contra entrega e instalación de la obra.", ln=True)
+    
+    # --- FIRMAS ---
+    pdf.ln(25)
+    pdf.set_draw_color(150, 150, 150)
+    pdf.line(20, pdf.get_y(), 80, pdf.get_y())
+    pdf.line(130, pdf.get_y(), 190, pdf.get_y())
+    pdf.ln(2)
+    pdf.set_font("Arial", "B", 9)
+    pdf.set_text_color(100, 100, 100)
+    pdf.cell(90, 5, "Firma y Aclaración del Cliente", align="C")
+    pdf.cell(20, 5, "")
+    pdf.cell(80, 5, "Aprobación del Taller", align="C")
+    
     return bytes(pdf.output())
 
 
