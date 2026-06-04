@@ -1218,7 +1218,7 @@ if menu == "🪵 Cotizador":
                     dias_entrega = col_ent.number_input("Días de entrega", value=15, step=1, key="dias_mod")
                     pct_seña     = col_sena.slider("% de Seña", 0, 100, 50, 5, key="sena_mod")
 
-                   def _pdf_mod(cli, nom, tip, aw, ah, ap, mat, precio, dias, pct):
+                 def _pdf_mod(cli, nom, tip, aw, ah, ap, mat, precio, dias, pct):
                         pdf = FPDF()
                         pdf.add_page()
                         
