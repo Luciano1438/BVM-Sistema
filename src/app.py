@@ -333,7 +333,7 @@ def traer_datos_historial():
         return pd.DataFrame()
 
 def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_puertas, cant_cajones, estantes_fijos, estantes_moviles, tiene_parante, sin_fondo):
-    """Genera un SVG esquemático del mueble con proporciones reales."""
+    """Genera un SVG esquemático del mueble con proporciones reales y estilos de tapa."""
     try:
         ancho_m = float(ancho_m)
         alto_m = float(alto_m)
@@ -348,7 +348,12 @@ def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_pue
     H = int(W * (alto_m / ancho_m))
     H = max(150, min(H, 400))
     pad = 16
-    esp = 10
+    esp = 10 # espesor visual placa
+
+    # Lógica de estilos
+    es_embutida = "Embutida" in tipo_tapa
+    es_gola = "Gola" in tipo_tapa
+    es_unero = "Uñero" in tipo_tapa
 
     # Colores BVM
     c_estructura = "#5D4E37"
@@ -358,7 +363,9 @@ def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_pue
     c_estante    = "#9B7D55"
     c_manija     = "#D4AF7A"
     c_texto      = "#4A3728"
+    c_gola       = "#2A2A2A" # Aluminio oscuro/negro
 
+    # Coordenadas interiores
     iw = W - pad*2 - esp*2
     ih = H - pad*2 - esp*2
     ix = pad + esp
@@ -366,54 +373,106 @@ def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_pue
 
     lines = [f'<svg viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:320px;border-radius:8px;">']
 
+    # Estructura del mueble (Caja)
     lines.append(f'<rect x="{pad}" y="{pad}" width="{W-pad*2}" height="{H-pad*2}" rx="3" fill="{c_fondo_int}" stroke="{c_estructura}" stroke-width="2"/>')
     lines.append(f'<rect x="{pad}" y="{pad}" width="{esp}" height="{H-pad*2}" fill="{c_estructura}"/>')
     lines.append(f'<rect x="{W-pad-esp}" y="{pad}" width="{esp}" height="{H-pad*2}" fill="{c_estructura}"/>')
     lines.append(f'<rect x="{pad}" y="{pad}" width="{W-pad*2}" height="{esp}" fill="{c_estructura}"/>')
     lines.append(f'<rect x="{pad}" y="{H-pad-esp}" width="{W-pad*2}" height="{esp}" fill="{c_estructura}"/>')
 
+    # --- LÓGICA DE MÓDULOS ---
     if tipo_modulo == "Bajo Mesada":
         frenin_h = int(ih * 0.12)
         lines.append(f'<rect x="{ix}" y="{iy}" width="{iw}" height="{frenin_h}" fill="{c_estructura}" opacity="0.6"/>')
-        puerta_y = iy + frenin_h + 2
-        puerta_h = ih - frenin_h - 2
 
-        if tiene_parante or cant_puertas == 3:
-            pw = (iw - 4) // 3
-            for p in range(3):
-                px = ix + p * (pw + 2)
-                lines.append(f'<rect x="{px+2}" y="{puerta_y+2}" width="{pw-4}" height="{puerta_h-4}" rx="2" fill="{c_puerta}" opacity="0.7" stroke="{c_estructura}" stroke-width="1"/>')
-                lines.append(f'<rect x="{px + pw//2 - 3}" y="{puerta_y + puerta_h//2 - 6}" width="6" height="12" rx="2" fill="{c_manija}"/>')
-        else:
-            cant_p = max(1, int(cant_puertas))
-            pw = (iw - (cant_p-1)*2) // cant_p
-            for p in range(cant_p):
-                px = ix + p * (pw + 2)
-                lines.append(f'<rect x="{px+2}" y="{puerta_y+2}" width="{pw-4}" height="{puerta_h-4}" rx="2" fill="{c_puerta}" opacity="0.7" stroke="{c_estructura}" stroke-width="1"/>')
-                mx = px + pw - 10 if p == 0 else px + 4
-                lines.append(f'<rect x="{mx}" y="{puerta_y + puerta_h//2 - 6}" width="6" height="12" rx="2" fill="{c_manija}"/>')
+        if es_embutida:
+            py = iy + frenin_h + 2
+            ph = ih - frenin_h - 4
+            px_start = ix + 2
+            pw_total = iw - 4
+        else: # Superpuesta o Gola
+            py = pad + frenin_h + 2
+            ph = H - pad*2 - frenin_h - 4
+            px_start = pad + 2
+            pw_total = W - pad*2 - 4
+
+        if es_gola:
+            gola_h = 10
+            lines.append(f'<rect x="{px_start}" y="{py}" width="{pw_total}" height="{gola_h}" fill="{c_gola}"/>')
+            py += gola_h + 2
+            ph -= gola_h + 2
+
+        cant_p = max(1, int(cant_puertas))
+        pw = (pw_total - (cant_p-1)*2) // cant_p
+
+        for p in range(cant_p):
+            px = px_start + p * (pw + 2)
+            lines.append(f'<rect x="{px}" y="{py}" width="{pw}" height="{ph}" rx="2" fill="{c_puerta}" opacity="0.85" stroke="{c_estructura}" stroke-width="1"/>')
+            if not (es_gola or es_unero): # Sin manija si es Gola/Uñero
+                mx = px + pw - 12 if p == 0 else px + 6
+                lines.append(f'<rect x="{mx}" y="{py + 10}" width="6" height="24" rx="2" fill="{c_manija}"/>')
 
     elif tipo_modulo == "Cajonera":
+        if es_embutida:
+            cy_start = iy + 2
+            ch_total = ih - 4
+            cx_start = ix + 2
+            cw_total = iw - 4
+        else:
+            cy_start = pad + 2
+            ch_total = H - pad*2 - 4
+            cx_start = pad + 2
+            cw_total = W - pad*2 - 4
+
         if cant_cajones > 0:
-            caj_h = ih // int(cant_cajones)
+            caj_h = (ch_total - (int(cant_cajones)-1)*3) // int(cant_cajones)
+            cy_actual = cy_start
+
             for c in range(int(cant_cajones)):
-                cy = iy + c * caj_h
-                lines.append(f'<rect x="{ix+3}" y="{cy+3}" width="{iw-6}" height="{caj_h-6}" rx="2" fill="{c_cajon}" opacity="0.75" stroke="{c_estructura}" stroke-width="1"/>')
-                lines.append(f'<rect x="{ix + iw//2 - 15}" y="{cy + caj_h//2 - 3}" width="30" height="6" rx="3" fill="{c_manija}"/>')
+                caj_h_mod = caj_h
+                
+                if es_gola:
+                    gola_h = 10 if c == 0 else 8
+                    lines.append(f'<rect x="{cx_start}" y="{cy_actual}" width="{cw_total}" height="{gola_h}" fill="{c_gola}"/>')
+                    cy_actual += gola_h + 2
+                    caj_h_mod -= gola_h + 2
+
+                lines.append(f'<rect x="{cx_start}" y="{cy_actual}" width="{cw_total}" height="{caj_h_mod}" rx="2" fill="{c_cajon}" opacity="0.85" stroke="{c_estructura}" stroke-width="1"/>')
+                
+                if not (es_gola or es_unero):
+                    lines.append(f'<rect x="{cx_start + cw_total//2 - 20}" y="{cy_actual + caj_h_mod//2 - 3}" width="40" height="6" rx="3" fill="{c_manija}"/>')
+                
+                cy_actual += caj_h_mod + 3
 
     elif tipo_modulo == "Alacena":
         frenin_h = int(ih * 0.08)
         lines.append(f'<rect x="{ix}" y="{iy}" width="{iw}" height="{frenin_h}" fill="{c_estructura}" opacity="0.5"/>')
-        puerta_y = iy + frenin_h + 2
-        puerta_h = ih - frenin_h - 2
+
+        if es_embutida:
+            py = iy + 2
+            ph = ih - 4
+            px_start = ix + 2
+            pw_total = iw - 4
+        else:
+            py = pad + 2
+            ph = H - pad*2 - 4
+            px_start = pad + 2
+            pw_total = W - pad*2 - 4
+
+        if es_unero:
+            # Simulamos el corte 45 descontando altura abajo
+            unero_h = 8
+            ph -= unero_h
+
         cant_p = max(1, int(cant_puertas))
-        pw = (iw - (cant_p - 1) * 2) // cant_p
+        pw = (pw_total - (cant_p - 1)*2) // cant_p
         
         for p in range(cant_p):
-            px = ix + p * (pw + 2)
-            lines.append(f'<rect x="{px+2}" y="{puerta_y+2}" width="{pw-4}" height="{puerta_h-4}" rx="2" fill="{c_puerta}" opacity="0.65" stroke="{c_estructura}" stroke-width="1"/>')
-            mx = px + pw - 10 if p % 2 == 0 else px + 4
-            lines.append(f'<rect x="{mx}" y="{puerta_y + puerta_h//2 - 8}" width="6" height="16" rx="2" fill="{c_manija}"/>')
+            px = px_start + p * (pw + 2)
+            lines.append(f'<rect x="{px}" y="{py}" width="{pw}" height="{ph}" rx="2" fill="{c_puerta}" opacity="0.85" stroke="{c_estructura}" stroke-width="1"/>')
+            if not (es_gola or es_unero):
+                mx = px + pw - 12 if p % 2 == 0 else px + 6
+                lines.append(f'<rect x="{mx}" y="{py + ph - 30}" width="6" height="24" rx="2" fill="{c_manija}"/>')
 
     lines.append(f'<text x="{W//2}" y="{H-3}" text-anchor="middle" font-size="9" fill="{c_texto}" opacity="0.5">{int(ancho_m)}×{int(alto_m)} mm</text>')
     lines.append('</svg>')
