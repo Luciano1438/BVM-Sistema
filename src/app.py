@@ -287,6 +287,15 @@ def actualizar_precio_nube(clave, valor, categoria):
         ).execute()
     except Exception as e:
         st.error(f"Error guardando {clave}: {e}")
+def eliminar_precio_nube(clave, categoria):
+    if "session" not in st.session_state: return
+    try:
+        token = get_token()
+        if not token: return
+        supabase.postgrest.auth(token)
+        supabase.table("configuracion").delete().eq("user_id", st.session_state["user"].id).eq("clave", clave).eq("categoria", categoria).execute()
+    except Exception as e:
+        st.error(f"Error al eliminar {clave}: {e}")
 
 def traer_datos():
     if "session" not in st.session_state or not st.session_state["session"]:
@@ -1513,48 +1522,82 @@ elif menu == "♻️ Retazos":
                             st.error(f"Error: {e}")
 
 
-# ===========================================================================
-# PRECIOS
-# ===========================================================================
 elif menu == "⚙️ Precios":
     st.title("⚙️ Configuración de precios")
 
-    with st.expander("🪵 Precios de Placas (18mm)"):
+    # --- 1. SECCIÓN MADERAS ---
+    with st.expander("🪵 Precios de Placas (18mm)", expanded=True):
         for madera, precio in list(maderas.items()):
-            maderas[madera] = st.number_input(f"{madera}", value=float(precio), step=1000.0, key=f"precio_{madera}")
+            col_name, col_price, col_del = st.columns([5, 3, 1])
+            col_name.markdown(f"<div style='padding-top: 8px; font-weight: 500;'>{madera}</div>", unsafe_allow_html=True)
+            maderas[madera] = col_price.number_input("Precio", value=float(precio), step=1000.0, key=f"p_{madera}", label_visibility="collapsed")
+            if col_del.button("🗑️", key=f"del_{madera}", help=f"Eliminar {madera}"):
+                eliminar_precio_nube(madera, 'maderas')
+                st.rerun()
 
-    st.write("---")
-    st.subheader("➕ Agregar nuevo material")
-    col_nm, col_np = st.columns([2,1])
-    nuevo_mat_nombre = col_nm.text_input("Nombre del material (ej: Enchapado Nogal 18mm)")
-    nuevo_mat_precio = col_np.number_input("Precio por placa", min_value=0.0, step=1000.0)
-    if st.button("Agregar material", type="primary"):
-        if nuevo_mat_nombre and nuevo_mat_precio > 0:
-            actualizar_precio_nube(nuevo_mat_nombre, nuevo_mat_precio, 'maderas')
-            st.success(f"✅ {nuevo_mat_nombre} agregado. Recargá la página para verlo.")
+        st.write("---")
+        st.markdown("**➕ Agregar nueva placa**")
+        c_nm, c_np, c_nb = st.columns([5, 3, 1])
+        nueva_mad_n = c_nm.text_input("Nombre", key="new_mad_n", label_visibility="collapsed", placeholder="Ej: Enchapado Nogal 18mm")
+        nueva_mad_p = c_np.number_input("Precio", min_value=0.0, step=1000.0, key="new_mad_p", label_visibility="collapsed")
+        if c_nb.button("Agregar", key="add_mad", use_container_width=True):
+            if nueva_mad_n and nueva_mad_p > 0:
+                actualizar_precio_nube(nueva_mad_n, nueva_mad_p, 'maderas')
+                st.rerun()
+
+    # --- 2. SECCIÓN HERRAJES Y CERRADURAS ---
+    # Filtramos los herrajes base del sistema y separamos los personalizados
+    claves_base = ['bisagra_cazoleta', 'telescopica_45', 'telescopica_soft']
+    herrajes_custom = {k: v for k, v in config.items() if k not in ['gastos_fijos_diarios', 'flete_capital', 'flete_norte', 'colocacion_dia', 'ganancia_taller_pct'] + claves_base}
+
+    with st.expander("🔩 Herrajes, Cerraduras y Extras", expanded=False):
+        st.caption("Herrajes base del cotizador automático:")
+        c1, c2, c3 = st.columns(3)
+        config['bisagra_cazoleta'] = c1.number_input("Bisagra Cazoleta", value=float(config.get('bisagra_cazoleta', 1200)), step=100.0)
+        config['telescopica_45']   = c2.number_input("Guía 45cm", value=float(config.get('telescopica_45', 5000)), step=100.0)
+        config['telescopica_soft'] = c3.number_input("Guía Cierre Suave", value=float(config.get('telescopica_soft', 12000)), step=100.0)
+
+        st.write("---")
+        st.caption("Tus accesorios y cerraduras personalizadas:")
+        if not herrajes_custom:
+            st.info("No hay accesorios extra guardados. Agregá uno abajo.")
         else:
-            st.warning("Completá el nombre y el precio.")
+            for h_nom, h_pre in herrajes_custom.items():
+                ch_n, ch_p, ch_d = st.columns([5, 3, 1])
+                ch_n.markdown(f"<div style='padding-top: 8px; font-weight: 500;'>{h_nom}</div>", unsafe_allow_html=True)
+                config[h_nom] = ch_p.number_input("Precio", value=float(h_pre), step=100.0, key=f"p_{h_nom}", label_visibility="collapsed")
+                if ch_d.button("🗑️", key=f"del_{h_nom}", help=f"Eliminar {h_nom}"):
+                    eliminar_precio_nube(h_nom, 'herrajes')
+                    st.rerun()
 
-    with st.expander("🛠️ Herrajes y Accesorios"):
-        c1,c2 = st.columns(2)
-        config['bisagra_cazoleta']  = c1.number_input("Bisagra Cazoleta",        value=float(config['bisagra_cazoleta']),  step=100.0)
-        config['telescopica_45']    = c2.number_input("Guía Telescópica 45cm",   value=float(config['telescopica_45']),    step=100.0)
-        config['telescopica_soft']  = c1.number_input("Guía Cierre Suave",       value=float(config['telescopica_soft']),  step=100.0)
+        st.write("---")
+        st.markdown("**➕ Agregar nuevo accesorio**")
+        ch_nm, ch_np, ch_nb = st.columns([5, 3, 1])
+        nuevo_herr_n = ch_nm.text_input("Nombre", key="new_herr_n", label_visibility="collapsed", placeholder="Ej: Cerradura cajón Hafele")
+        nuevo_herr_p = ch_np.number_input("Precio", min_value=0.0, step=100.0, key="new_herr_p", label_visibility="collapsed")
+        if ch_nb.button("Agregar", key="add_herr", use_container_width=True):
+            if nuevo_herr_n and nuevo_herr_p > 0:
+                actualizar_precio_nube(nuevo_herr_n, nuevo_herr_p, 'herrajes')
+                st.rerun()
 
-    with st.expander("🚛 Gastos Fijos y Logística"):
-        f1,f2 = st.columns(2)
-        config['gastos_fijos_diarios'] = f1.number_input("Gasto Diario Taller",    value=float(config['gastos_fijos_diarios']), step=5000.0)
-        config['flete_capital']        = f2.number_input("Flete Capital",           value=float(config['flete_capital']),        step=1000.0)
-        config['flete_norte']          = f1.number_input("Flete Zona Norte",        value=float(config['flete_norte']),          step=1000.0)
-        config['colocacion_dia']       = f2.number_input("Costo Día de Colocación", value=float(config['colocacion_dia']),       step=5000.0)
+    # --- 3. SECCIÓN GASTOS Y LOGÍSTICA ---
+    with st.expander("🚛 Gastos Fijos y Logística", expanded=False):
+        f1, f2 = st.columns(2)
+        config['gastos_fijos_diarios'] = f1.number_input("Gasto Diario Taller", value=float(config.get('gastos_fijos_diarios', 25000)), step=5000.0)
+        config['flete_capital']        = f2.number_input("Flete Capital", value=float(config.get('flete_capital', 15000)), step=1000.0)
+        config['flete_norte']          = f1.number_input("Flete Zona Norte", value=float(config.get('flete_norte', 20000)), step=1000.0)
+        config['colocacion_dia']       = f2.number_input("Costo Día de Colocación", value=float(config.get('colocacion_dia', 45000)), step=5000.0)
 
-    with st.expander("💰 Margen de Ganancia"):
-        config['ganancia_taller_pct'] = st.slider("Porcentaje de Utilidad", 0.0, 1.0, float(config['ganancia_taller_pct']), 0.05)
-        st.write(f"Margen actual: {config['ganancia_taller_pct']*100:.0f}%")
+    # --- 4. SECCIÓN MARGEN ---
+    with st.expander("💰 Margen de Ganancia", expanded=False):
+        config['ganancia_taller_pct'] = st.slider("Porcentaje de Utilidad", 0.0, 1.0, float(config.get('ganancia_taller_pct', 0.3)), 0.05)
+        st.write(f"Margen actual: {config.get('ganancia_taller_pct', 0.3)*100:.0f}%")
 
-    if st.button("💾 Guardar Configuración", type="primary"):
+    if st.button("💾 Guardar Configuración", type="primary", use_container_width=True):
         for madera, precio in maderas.items():
             actualizar_precio_nube(madera, precio, 'maderas')
         for k, v in config.items():
-            actualizar_precio_nube(k, v, 'costos')
-        st.success("✅ Configuración guardada.")
+            # El sistema clasifica automáticamente si es un costo fijo o un herraje
+            cat = 'costos' if k in ['gastos_fijos_diarios', 'flete_capital', 'flete_norte', 'colocacion_dia', 'ganancia_taller_pct'] else 'herrajes'
+            actualizar_precio_nube(k, v, cat)
+        st.success("✅ Configuración guardada")
