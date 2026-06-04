@@ -1120,7 +1120,7 @@ if menu == "🪵 Cotizador":
                                 "indices_estantes_fijos": indices_fijos,
                                 "herrajes_extra": herrajes_extra_sel,
                             }
-                            }
+                            
                         }
                         if idx_mod_editar is not None:
                             obra_actual = st.session_state["obra_modulos"]
