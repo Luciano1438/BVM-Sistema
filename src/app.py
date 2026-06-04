@@ -879,7 +879,6 @@ if menu == "🪵 Cotizador":
                     estantes_fijos   = len(indices_fijos)
                     estantes_moviles = cant_total_est - estantes_fijos
                     st.caption(f"{estantes_fijos} fijo(s) / {estantes_moviles} móvil(es)")
-                    tipo_bisagra = st.selectbox("Tipo de Bisagra", ["Cazoleta C0 Cierre Suave", "Especial"])
                     cant_cajones = 0
 
                 elif tipo_modulo == "Alacena":
@@ -910,11 +909,9 @@ if menu == "🪵 Cotizador":
                         tiene_cenefa = st.checkbox("¿Lleva Cenefa inferior?", value=True)
                         if tiene_cenefa:
                             alto_cenefa = st.number_input("Altura de Cenefa (mm)", value=50.0, step=5.0)
-                    tipo_bisagra = st.selectbox("Tipo de Bisagra", ["Cazoleta C0 Cierre Suave", "C0 Estándar"])
                     cant_cajones = 0
 
                 else:  # CAJONERA — sin bisagras
-                    tipo_corredera = st.radio("Tipo de Corredera", ["Telescópica 45cm", "Cierre Suave Pesada"])
                     c_caj, _ = st.columns(2)
                     cant_cajones = c_caj.number_input("Cant. Cajones", value=int(_v("cant_cajones", 0)), min_value=0)
                     opciones_estilo = ["Superpuesta", "Embutida"]
@@ -963,26 +960,55 @@ if menu == "🪵 Cotizador":
                 tipo_base   = "Nada"
                 altura_base = 0.0
                 costo_base  = 0
-            # --- NUEVO: Selección de Herrajes Extra ---
+            # --- SECCIÓN UNIFICADA DE HERRAJES ---
             st.markdown("---")
-            st.markdown("#### 🔩 Accesorios y Herrajes Extra")
-            claves_base = ['bisagra_cazoleta', 'telescopica_45', 'telescopica_soft']
-            herrajes_disponibles = {k: v for k, v in config.items() if k not in ['gastos_fijos_diarios', 'flete_capital', 'flete_norte', 'colocacion_dia', 'ganancia_taller_pct'] + claves_base}
+            st.markdown("#### 🔩 Herrajes y Accesorios")
+            
+            # 1. Sugerencia inteligente basada en el módulo
+            if tipo_modulo in ["Bajo Mesada", "Alacena"] and cant_puertas > 0:
+                st.info(f"💡 Sugerencia: Este módulo lleva {cant_puertas * 2} bisagras.")
+            elif tipo_modulo == "Cajonera" and cant_cajones > 0:
+                st.info(f"💡 Sugerencia: Este módulo lleva {cant_cajones} pares de correderas.")
+
+            # 2. Consolidamos TODOS los herrajes (Base + Custom)
+            # Filtramos solo lo que NO son costos fijos o fletes
+            herrajes_disponibles = {k: v for k, v in config.items() if k not in ['gastos_fijos_diarios', 'flete_capital', 'flete_norte', 'colocacion_dia', 'ganancia_taller_pct']}
             
             herrajes_extra_sel = {}
             if herrajes_disponibles:
                 _herrajes_guardados = _v("herrajes_extra", {})
-                opciones_herrajes = list(herrajes_disponibles.keys())
-                seleccionados = st.multiselect("Seleccionar extras", opciones_herrajes, default=list(_herrajes_guardados.keys()))
+                
+                # Nombres más limpios para los herrajes base
+                opciones_limpias = []
+                mapa_nombres = {}
+                for k in herrajes_disponibles.keys():
+                    if k == 'bisagra_cazoleta': nombre_mostrar = "Bisagra Cazoleta Estándar"
+                    elif k == 'telescopica_45': nombre_mostrar = "Guía Telescópica 45cm"
+                    elif k == 'telescopica_soft': nombre_mostrar = "Guía Telescópica Cierre Suave"
+                    else: nombre_mostrar = k # Mantiene el nombre custom
+                    
+                    opciones_limpias.append(nombre_mostrar)
+                    mapa_nombres[nombre_mostrar] = k # Mapa inverso para recuperar la clave de la BD
+                
+                # Seleccionamos las opciones guardadas (traduciendo de vuelta si es necesario)
+                def_sel = []
+                for k in _herrajes_guardados.keys():
+                     if k == 'bisagra_cazoleta': def_sel.append("Bisagra Cazoleta Estándar")
+                     elif k == 'telescopica_45': def_sel.append("Guía Telescópica 45cm")
+                     elif k == 'telescopica_soft': def_sel.append("Guía Telescópica Cierre Suave")
+                     elif k in opciones_limpias: def_sel.append(k)
+
+                seleccionados = st.multiselect("Seleccioná los herrajes para este módulo", opciones_limpias, default=def_sel)
                 
                 if seleccionados:
                     c_herr1, c_herr2 = st.columns(2)
-                    for idx, h_sel in enumerate(seleccionados):
+                    for idx, nombre_mostrar in enumerate(seleccionados):
+                        clave_db = mapa_nombres[nombre_mostrar] # Recuperamos la clave real ('telescopica_45', etc)
                         col = c_herr1 if idx % 2 == 0 else c_herr2
-                        cant_h = col.number_input(f"Cant. {h_sel}", min_value=1, value=int(_herrajes_guardados.get(h_sel, 1)), step=1, key=f"cant_{h_sel}")
-                        herrajes_extra_sel[h_sel] = cant_h
+                        cant_h = col.number_input(f"Cant. {nombre_mostrar}", min_value=1, value=int(_herrajes_guardados.get(clave_db, 1)), step=1, key=f"cant_{clave_db}")
+                        herrajes_extra_sel[clave_db] = cant_h
             else:
-                st.caption("No hay accesorios extra cargados. Agregalos desde ⚙️ Precios.")
+                st.caption("No hay herrajes cargados. Revisá la configuración de Precios.")
                 
             with st.expander("🔨 Días de taller (este módulo)", expanded=False):
                 dias_prod = st.number_input("Días de trabajo en taller", value=float(_v("dias_prod", 0.0)), step=0.5,
