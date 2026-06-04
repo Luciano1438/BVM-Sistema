@@ -1018,18 +1018,6 @@ if menu == "🪵 Cotizador":
                 dias_prod = st.number_input("Días de trabajo en taller", value=float(_v("dias_prod", 0.0)), step=0.5,
                                              help="Los días de taller afectan el costo operativo de este módulo")
 
-            # --- NUEVO: LOGÍSTICA MOVIDA A LA IZQUIERDA ---
-            with st.expander("🚛 Logística y colocación (Módulo Individual)", expanded=False):
-                st.caption("Llená esto SOLO si vas a vender este mueble suelto.")
-                col_fl_m, col_col_m, col_dias_m = st.columns(3)
-                flete_sel_mod  = col_fl_m.selectbox("Flete", ["Ninguno","Capital","Zona Norte"], key="flete_mod")
-                nec_col_mod    = col_col_m.checkbox("¿Requiere colocación?", key="col_mod")
-                dias_col_mod   = col_dias_m.number_input("Días de colocación", value=0, min_value=0, key="dias_col_mod") if nec_col_mod else 0
-                
-                costo_flete_mod = float(config.get('flete_capital',0)) if flete_sel_mod=="Capital" else float(config.get('flete_norte',0)) if flete_sel_mod=="Zona Norte" else 0.0
-                costo_col_mod   = float(dias_col_mod) * float(config.get('colocacion_dia', 0))
-                costo_log_mod   = costo_flete_mod + costo_col_mod
-
 
         with col_out:
             # --- PREVIEW VISUAL SVG ---
@@ -1100,10 +1088,10 @@ if menu == "🪵 Cotizador":
             # --- CÁLCULO FINANCIERO FINAL ---
             total_costo_real = total_costo - ahorro_madera
             utilidad  = total_costo_real * config.get('ganancia_taller_pct', 0.30)
-            precio_final_puro = total_costo_real + utilidad
+            precio_final_puro = total_costo_real + utilidad 
             
-            # Cartel verde = Mueble + Extras + Logística
-            precio_final_total = precio_final_puro + costo_log_mod
+            # El precio del módulo no incluye logística. Se suma en la Obra.
+            precio_final_total = precio_final_puro
             pct_utilidad_real = (utilidad / precio_final_total * 100) if precio_final_total > 0 else 0.0
 
             if precio_final_total > 0:
@@ -1112,12 +1100,11 @@ if menu == "🪵 Cotizador":
                 icono_m      = "✅" if pct_utilidad_real >= 12 else "⚠️"
                 
                 st.markdown(f"""<div style="background:{color_margen};border-radius:10px;padding:20px 24px;margin:8px 0 16px 0;text-align:center;">
-                <div style="color:white;font-size:12px;letter-spacing:0.1em;opacity:0.8;margin-bottom:6px;">PRECIO FINAL AL CLIENTE (INCLUYE TODO)</div>
+                <div style="color:white;font-size:12px;letter-spacing:0.1em;opacity:0.8;margin-bottom:6px;">VALOR DEL MUEBLE (PRODUCCIÓN + EXTRAS)</div>
                 <div style="color:white;font-size:44px;font-weight:700;letter-spacing:-1px;">${precio_final_total:,.0f}</div>
                 <div style="color:white;font-size:12px;opacity:0.8;margin-top:8px;">{icono_m} Margen del mueble: {pct_utilidad_real:.1f}% — {alerta}</div>
-                <div style="color:white;font-size:11.5px;opacity:0.75;margin-top:4px;">Valor de producción: ${precio_final_puro:,.0f} | Logística: ${costo_log_mod:,.0f}</div>
+                <div style="color:white;font-size:11.5px;opacity:0.75;margin-top:4px;">⚠️ El flete y la instalación se calculan al final en el Resumen de Obra.</div>
                 </div>""", unsafe_allow_html=True)
-
             c1, c2, c3 = st.columns(3)
             c1.metric("Costo real",    f"${total_costo_real:,.0f}")
             c2.metric("M² de placa",   f"{m2_18mm:.2f}")
@@ -1265,133 +1252,6 @@ if menu == "🪵 Cotizador":
                 st.info(f"**✅ Módulo agregado: {st.session_state['ultimo_modulo_agregado']}** — ${st.session_state['ultimo_precio_agregado']:,.0f}\n\n📋 Tenés **{n} módulo(s)** — Total: **${total_actual:,.0f}**\n\n👉 Configurá el siguiente módulo arriba o bajá al **Resumen de Obra**.")
                 st.session_state.update({"ultimo_modulo_agregado": None, "ultimo_precio_agregado": 0})
 
-            # PDF y WA por módulo individual
-            if not df_corte.empty:
-                st.write("---")
-                if not st.session_state["obra_modulos"]:
-                    st.subheader("Propuesta para este módulo")
-
-                    col_ent, col_sena = st.columns(2)
-                    dias_entrega = col_ent.number_input("Días de entrega", value=15, step=1, key="dias_mod")
-                    pct_seña     = col_sena.slider("% de Seña", 0, 100, 50, 5, key="sena_mod")
-
-                    def _pdf_mod(cli, nom, tip, aw, ah, ap, mat, precio, dias, pct):
-                        pdf = FPDF()
-                        pdf.add_page()
-                        
-                        r_main, g_main, b_main = 50, 50, 50 
-                        
-                        pdf.set_font("Arial", "B", 20)
-                        pdf.set_text_color(r_main, g_main, b_main)
-                        pdf.cell(100, 10, "PROPUESTA COMERCIAL", ln=False, align="L")
-                        
-                        pdf.set_font("Arial", "B", 10)
-                        pdf.set_text_color(120, 120, 120)
-                        fecha_hoy = datetime.now(timezone(timedelta(hours=-3))).strftime("%d/%m/%Y")
-                        pdf.cell(90, 10, f"FECHA: {fecha_hoy}", ln=True, align="R")
-                        
-                        pdf.set_draw_color(220, 220, 220)
-                        pdf.line(10, 22, 200, 22)
-                        pdf.ln(8)
-                        
-                        pdf.set_font("Arial", "B", 9)
-                        pdf.set_text_color(150, 150, 150)
-                        pdf.cell(100, 5, "PREPARADO PARA:", ln=True)
-                        pdf.set_font("Arial", "B", 13)
-                        pdf.set_text_color(0, 0, 0)
-                        pdf.cell(100, 6, cli.upper(), ln=True)
-                        pdf.ln(8)
-                        
-                        pdf.set_fill_color(r_main, g_main, b_main)
-                        pdf.set_text_color(255, 255, 255)
-                        pdf.set_font("Arial", "B", 9)
-                        pdf.cell(100, 8, "DESCRIPCIÓN", border=0, fill=True)
-                        pdf.cell(45, 8, "MEDIDAS (mm)", border=0, fill=True, align="C")
-                        pdf.cell(45, 8, "SUBTOTAL", border=0, fill=True, align="R")
-                        pdf.ln(8)
-                        
-                        pdf.set_text_color(40, 40, 40)
-                        pdf.set_font("Arial", "", 10)
-                        pdf.set_fill_color(248, 248, 248)
-                        
-                        desc = f"{nom} | {tip} en {mat}"
-                        desc_corta = desc[:50] + "..." if len(desc) > 50 else desc
-                        pdf.cell(100, 10, desc_corta, fill=True)
-                        pdf.cell(45, 10, f"{aw} x {ah} x {ap}", fill=True, align="C")
-                        pdf.set_font("Arial", "B", 10)
-                        pdf.cell(45, 10, f"${precio:,.0f} ", fill=True, align="R")
-                        pdf.ln(15)
-                        
-                        pdf.set_font("Arial", "B", 14)
-                        pdf.set_fill_color(r_main, g_main, b_main)
-                        pdf.set_text_color(255, 255, 255)
-                        pdf.cell(145, 14, "INVERSIÓN TOTAL", align="R", fill=True)
-                        pdf.cell(45, 14, f"${precio:,.0f} ", align="R", fill=True)
-                        pdf.ln(20)
-                        
-                        # TÉRMINOS
-                        pdf.set_text_color(0, 0, 0)
-                        pdf.set_font("Arial", "B", 10)
-                        pdf.cell(0, 6, "TÉRMINOS Y CONDICIONES", ln=True)
-                        pdf.set_font("Arial", "", 9)
-                        pdf.set_text_color(80, 80, 80)
-                        monto_seña = precio * (pct / 100)
-                        pdf.cell(0, 5, f"1. Anticipo por acopio de materiales ({pct}%): ${monto_seña:,.0f}", ln=True)
-                        pdf.cell(0, 5, f"2. Tiempo estimado de entrega: {dias} días hábiles.", ln=True)
-                        pdf.cell(0, 5, "3. Validez de esta cotización: 48 horas.", ln=True)
-                        
-                        # CLÁUSULA DE ACEPTACIÓN DIGITAL
-                        pdf.ln(15)
-                        pdf.set_fill_color(245, 245, 245)
-                        pdf.set_text_color(100, 100, 100)
-                        pdf.set_font("Arial", "I", 8)
-                        texto_legal = "DOCUMENTO DIGITAL. La confirmación de esta propuesta vía correo electrónico o WhatsApp, acompañada del comprobante de transferencia del anticipo, constituye la aceptación formal de las medidas, materiales y términos detallados en el presente documento."
-                        pdf.multi_cell(0, 5, texto_legal, fill=True, align="J")
-                        
-                        return bytes(pdf.output())
-
-                    pdf_mod = _pdf_mod(cliente, nombre_modulo, tipo_modulo, int(ancho_m), int(alto_m), int(prof_m), mat_principal, precio_final_total, dias_entrega, pct_seña)
-                    
-                    lineas_wa = [f"*PROPUESTA COMERCIAL — {nombre_modulo.upper()}*", f"Cliente: {cliente}", "",
-                                 f"• {tipo_modulo}: {int(ancho_m)}x{int(alto_m)}x{int(prof_m)} mm", f"• Material: {mat_principal}", ""]
-                    if costo_log_mod > 0:
-                        lineas_wa.append(f"• Logística: ${costo_log_mod:,.0f}")
-                    lineas_wa += [f"",
-                                 f"*TOTAL: ${precio_final_total:,.0f}*", f"Seña ({pct_seña}%): ${precio_final_total*(pct_seña/100):,.0f}",
-                                 f"Entrega: {dias_entrega} días hábiles", "", "Precios válidos 48hs."]
-                    wa_mod = f"https://wa.me/?text={urllib.parse.quote(chr(10).join(lineas_wa))}"
-
-                    col_p1, col_p2 = st.columns(2)
-                    with col_p1:
-                        st.download_button("📥 PDF este módulo", data=pdf_mod, file_name=f"Presupuesto_{nombre_modulo}.pdf", mime="application/pdf", use_container_width=True)
-                    with col_p2:
-                        st.link_button("🟢 WhatsApp este módulo", wa_mod, use_container_width=True)
-                else:
-                    st.info("📄 Cuando termines todos los módulos, generá el PDF en el **Resumen de Obra** de abajo.")
-
-                with st.expander("⚙️ Terminal CNC — Este módulo"):
-                    import io as _io
-                    import ezdxf as _ezdxf
-                    doc = _ezdxf.new('R2010'); msp = doc.modelspace()
-                    x_off = 0
-                    for _, row in df_corte.iterrows():
-                        for _ in range(int(row['Cant'])):
-                            pts = [(x_off,0),(x_off+float(row['L']),0),(x_off+float(row['L']),float(row['A'])),(x_off,float(row['A'])),(x_off,0)]
-                            msp.add_lwpolyline(pts, close=True)
-                            msp.add_text(f"{row['Pieza']}\n{int(row['L'])}x{int(row['A'])} | {mat_principal}", height=10).set_placement((x_off+5,5))
-                            x_off += float(row['L']) + 50
-                    out_dxf = _io.StringIO(); doc.write(out_dxf)
-                    dxf_bytes = out_dxf.getvalue().encode('utf-8')
-
-                    df_aspire = df_corte.copy().rename(columns={"Pieza":"Name","L":"Length","A":"Width","Cant":"Quantity"})
-                    df_aspire["Thickness"] = esp_real; df_aspire["Material"] = mat_principal
-                    csv_bytes = df_aspire[["Name","Length","Width","Thickness","Quantity","Material"]].to_csv(index=False).encode('utf-8')
-
-                    col_cnc1, col_cnc2 = st.columns(2)
-                    with col_cnc1:
-                        st.download_button("📐 DXF (Vectores)", data=dxf_bytes, file_name=f"Vectores_{nombre_modulo}.dxf", mime="application/dxf", use_container_width=True)
-                    with col_cnc2:
-                        st.download_button("🤖 CSV (Aspire)", data=csv_bytes, file_name=f"CNC_{nombre_modulo}.csv", mime="text/csv", use_container_width=True)
 
         # ===========================================================
         # RESUMEN DE OBRA
