@@ -332,7 +332,92 @@ def traer_datos_historial():
     except:
         return pd.DataFrame()
 
+def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_puertas, cant_cajones, estantes_fijos, estantes_moviles, tiene_parante, sin_fondo):
+    """Genera un SVG esquemático del mueble con proporciones reales."""
+    try:
+        ancho_m = float(ancho_m)
+        alto_m = float(alto_m)
+    except:
+        return ""
+        
+    if ancho_m <= 0 or alto_m <= 0:
+        return ""
 
+    # Canvas fijo, proporciones reales
+    W = 300
+    H = int(W * (alto_m / ancho_m))
+    H = max(150, min(H, 400))
+    pad = 16
+    esp = 10
+
+    # Colores BVM
+    c_estructura = "#5D4E37"
+    c_fondo_int  = "#F5F0E8" if not sin_fondo else "#EAEAEA"
+    c_puerta     = "#8B6F47"
+    c_cajon      = "#7A6040"
+    c_estante    = "#9B7D55"
+    c_manija     = "#D4AF7A"
+    c_texto      = "#4A3728"
+
+    iw = W - pad*2 - esp*2
+    ih = H - pad*2 - esp*2
+    ix = pad + esp
+    iy = pad + esp
+
+    lines = [f'<svg viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:320px;border-radius:8px;">']
+
+    lines.append(f'<rect x="{pad}" y="{pad}" width="{W-pad*2}" height="{H-pad*2}" rx="3" fill="{c_fondo_int}" stroke="{c_estructura}" stroke-width="2"/>')
+    lines.append(f'<rect x="{pad}" y="{pad}" width="{esp}" height="{H-pad*2}" fill="{c_estructura}"/>')
+    lines.append(f'<rect x="{W-pad-esp}" y="{pad}" width="{esp}" height="{H-pad*2}" fill="{c_estructura}"/>')
+    lines.append(f'<rect x="{pad}" y="{pad}" width="{W-pad*2}" height="{esp}" fill="{c_estructura}"/>')
+    lines.append(f'<rect x="{pad}" y="{H-pad-esp}" width="{W-pad*2}" height="{esp}" fill="{c_estructura}"/>')
+
+    if tipo_modulo == "Bajo Mesada":
+        frenin_h = int(ih * 0.12)
+        lines.append(f'<rect x="{ix}" y="{iy}" width="{iw}" height="{frenin_h}" fill="{c_estructura}" opacity="0.6"/>')
+        puerta_y = iy + frenin_h + 2
+        puerta_h = ih - frenin_h - 2
+
+        if tiene_parante or cant_puertas == 3:
+            pw = (iw - 4) // 3
+            for p in range(3):
+                px = ix + p * (pw + 2)
+                lines.append(f'<rect x="{px+2}" y="{puerta_y+2}" width="{pw-4}" height="{puerta_h-4}" rx="2" fill="{c_puerta}" opacity="0.7" stroke="{c_estructura}" stroke-width="1"/>')
+                lines.append(f'<rect x="{px + pw//2 - 3}" y="{puerta_y + puerta_h//2 - 6}" width="6" height="12" rx="2" fill="{c_manija}"/>')
+        else:
+            cant_p = max(1, int(cant_puertas))
+            pw = (iw - (cant_p-1)*2) // cant_p
+            for p in range(cant_p):
+                px = ix + p * (pw + 2)
+                lines.append(f'<rect x="{px+2}" y="{puerta_y+2}" width="{pw-4}" height="{puerta_h-4}" rx="2" fill="{c_puerta}" opacity="0.7" stroke="{c_estructura}" stroke-width="1"/>')
+                mx = px + pw - 10 if p == 0 else px + 4
+                lines.append(f'<rect x="{mx}" y="{puerta_y + puerta_h//2 - 6}" width="6" height="12" rx="2" fill="{c_manija}"/>')
+
+    elif tipo_modulo == "Cajonera":
+        if cant_cajones > 0:
+            caj_h = ih // int(cant_cajones)
+            for c in range(int(cant_cajones)):
+                cy = iy + c * caj_h
+                lines.append(f'<rect x="{ix+3}" y="{cy+3}" width="{iw-6}" height="{caj_h-6}" rx="2" fill="{c_cajon}" opacity="0.75" stroke="{c_estructura}" stroke-width="1"/>')
+                lines.append(f'<rect x="{ix + iw//2 - 15}" y="{cy + caj_h//2 - 3}" width="30" height="6" rx="3" fill="{c_manija}"/>')
+
+    elif tipo_modulo == "Alacena":
+        frenin_h = int(ih * 0.08)
+        lines.append(f'<rect x="{ix}" y="{iy}" width="{iw}" height="{frenin_h}" fill="{c_estructura}" opacity="0.5"/>')
+        puerta_y = iy + frenin_h + 2
+        puerta_h = ih - frenin_h - 2
+        cant_p = max(1, int(cant_puertas))
+        pw = (iw - (cant_p - 1) * 2) // cant_p
+        
+        for p in range(cant_p):
+            px = ix + p * (pw + 2)
+            lines.append(f'<rect x="{px+2}" y="{puerta_y+2}" width="{pw-4}" height="{puerta_h-4}" rx="2" fill="{c_puerta}" opacity="0.65" stroke="{c_estructura}" stroke-width="1"/>')
+            mx = px + pw - 10 if p % 2 == 0 else px + 4
+            lines.append(f'<rect x="{mx}" y="{puerta_y + puerta_h//2 - 8}" width="6" height="16" rx="2" fill="{c_manija}"/>')
+
+    lines.append(f'<text x="{W//2}" y="{H-3}" text-anchor="middle" font-size="9" fill="{c_texto}" opacity="0.5">{int(ancho_m)}×{int(alto_m)} mm</text>')
+    lines.append('</svg>')
+    return '\n'.join(lines)
 # ===========================================================================
 # INTERFAZ
 # ===========================================================================
@@ -736,7 +821,19 @@ if menu == "🪵 Cotizador":
                                              help="Los días de taller afectan el costo operativo de este módulo")
 
         # COLUMNA DERECHA
+       # COLUMNA DERECHA
         with col_out:
+            # --- NUEVO: PREVIEW VISUAL SVG ---
+            if ancho_m > 0 and alto_m > 0:
+                svg_preview = generar_svg_mueble(
+                    tipo_modulo, ancho_m, alto_m, prof_m,
+                    tipo_tapa, cant_puertas, cant_cajones,
+                    estantes_fijos, estantes_moviles, tiene_parante, sin_fondo
+                )
+                if svg_preview:
+                    st.markdown(f'<div style="text-align:center; padding: 16px; background: white; border: 1px solid #E0DED6; border-radius: 10px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">{svg_preview}</div>', unsafe_allow_html=True)
+            # ---------------------------------
+
             st.subheader("📐 Planilla de corte")
 
             if not cliente:
