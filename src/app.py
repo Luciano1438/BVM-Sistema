@@ -1129,21 +1129,54 @@ if menu == "🪵 Cotizador":
                                "Monto": [costo_madera+costo_fondo, costo_herrajes, costo_operativo+costo_base, utilidad]}
                     st.bar_chart(pd.DataFrame(datos_g), x="Categoría", y="Monto", color="#2e7d32")
 
-            # GESTIÓN DE OBRA
+            # --- ENVIAR AL CARRITO / OBRA ---
             st.write("---")
-            st.subheader("🏠 Gestión de obra")
+            st.subheader("🛒 Enviar al Carrito (Resumen de Obra)")
+            st.markdown("<span style='color:#666; font-size:14px;'>Para sumar flete, instalación y generar el PDF, enviá este mueble al Resumen de Obra de abajo.</span>", unsafe_allow_html=True)
+            
             nombre_modulo   = st.text_input("Nombre del módulo", value=f"{tipo_modulo} {ancho_m:.0f}mm")
             idx_mod_editar  = st.session_state.get("idx_modulo_editar")
-            label_boton     = "✏️ Reemplazar módulo en la obra" if idx_mod_editar is not None else "+ Agregar módulo a la obra"
-
-            col_ag, col_sv = st.columns(2)
-            with col_ag:
+            estoy_editando_legacy = st.session_state.get("editar_id") is not None
+            
+            if estoy_editando_legacy:
+                # Botón exclusivo para cuando editan un presupuesto viejo y suelto desde la pestaña "Historial"
+                if st.button("💾 Guardar cambios en el Historial", use_container_width=True, type="primary"):
+                    if cliente:
+                        params = {"tipo_modulo": tipo_modulo, "ancho_m": ancho_m, "alto_m": alto_m,
+                                  "prof_m": prof_m, "esp_real": esp_real, "mat_principal": mat_principal,
+                                  "mat_fondo_sel": mat_fondo_sel, "tipo_tapa": tipo_tapa,
+                                  "cant_puertas": cant_puertas, "cant_cajones": cant_cajones,
+                                  "tiene_parante": tiene_parante, "tipo_parante": tipo_parante,
+                                  "tiene_parante_medio": tiene_parante_medio,
+                                  "tipo_base": tipo_base, "altura_base": altura_base,
+                                  "estantes_fijos": estantes_fijos, "estantes_moviles": estantes_moviles,
+                                  "tipo_estante_manual": tipo_estante_manual, "sin_fondo": sin_fondo,
+                                  "luz_entre_tapas": luz_entre_tapas, "luz_perimetral_tapa": luz_perimetral_tapa,
+                                  "alto_frentin_emb": alto_frentin_emb, "aire_trasero": aire_trasero,
+                                  "esp_corredera": esp_corredera, "distribucion_tapas": distribucion_tapas,
+                                  "tiene_cenefa": tiene_cenefa, "alto_cenefa": alto_cenefa,
+                                  "dias_prod": dias_prod,
+                                  "indices_estantes_fijos": indices_fijos,
+                                  "herrajes_extra": herrajes_extra_sel,
+                        }
+                        guardar_presupuesto_nube(cliente, tipo_modulo, precio_final_total, parametros=params,
+                                                  id_editar=st.session_state.get("editar_id"))
+                        st.session_state.update({"editar_presupuesto": None, "editar_id": None,
+                                                  "editar_cliente": "", "tipo_modulo_sel": "Bajo Mesada",
+                                                  "edicion_tipo_cargado": False})
+                        st.rerun()
+                    else:
+                        st.warning("Ingresá el nombre del Cliente.")
+            else:
+                # El flujo normal de BVM: Todo mueble va directo a la Obra
+                label_boton = "✅ Confirmar edición y volver a la Obra" if idx_mod_editar is not None else "👇 Agregar mueble al Resumen de Obra"
+                
                 if st.button(label_boton, use_container_width=True, type="primary"):
-                    if ancho_m > 0 and alto_m > 0 and precio_final > 0:
+                    if ancho_m > 0 and alto_m > 0 and precio_final_puro > 0:
                         nuevo_mod = {
                             "nombre": nombre_modulo, "tipo": tipo_modulo, "ancho": int(ancho_m),
                             "alto": int(alto_m), "prof": int(prof_m), "material": mat_principal,
-                            "precio": precio_final, "df_corte": df_corte.copy() if not df_corte.empty else None,
+                            "precio": precio_final_puro, "df_corte": df_corte.copy() if not df_corte.empty else None,
                             "tipo_tapa": tipo_tapa,
                             "params": {
                                 "tipo_modulo": tipo_modulo, "ancho_m": ancho_m, "alto_m": alto_m,
@@ -1218,7 +1251,7 @@ if menu == "🪵 Cotizador":
                                                      "tipo_modulo_sel": "Bajo Mesada", "edicion_tipo_cargado": False})
                         else:
                             st.session_state["obra_modulos"].append(nuevo_mod)
-                        st.session_state.update({"ultimo_modulo_agregado": nombre_modulo, "ultimo_precio_agregado": precio_final})
+                        st.session_state.update({"ultimo_modulo_agregado": nombre_modulo, "ultimo_precio_agregado": precio_final_puro})
                         st.rerun()
                     else:
                         st.warning("Ingresá las medidas y calculá el módulo antes de agregar.")
