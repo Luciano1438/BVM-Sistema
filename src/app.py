@@ -1172,11 +1172,11 @@ if menu == "🪵 Cotizador":
                 label_boton = "✅ Confirmar edición y volver a la Obra" if idx_mod_editar is not None else "👇 Agregar mueble al Resumen de Obra"
                 
                 if st.button(label_boton, use_container_width=True, type="primary"):
-                    if ancho_m > 0 and alto_m > 0 and precio_final_puro > 0:
+                    if ancho_m > 0 and alto_m > 0 and precio_final > 0:
                         nuevo_mod = {
                             "nombre": nombre_modulo, "tipo": tipo_modulo, "ancho": int(ancho_m),
                             "alto": int(alto_m), "prof": int(prof_m), "material": mat_principal,
-                            "precio": precio_final_puro, "df_corte": df_corte.copy() if not df_corte.empty else None,
+                            "precio": precio_final, "df_corte": df_corte.copy() if not df_corte.empty else None,
                             "tipo_tapa": tipo_tapa,
                             "params": {
                                 "tipo_modulo": tipo_modulo, "ancho_m": ancho_m, "alto_m": alto_m,
@@ -1251,7 +1251,7 @@ if menu == "🪵 Cotizador":
                                                      "tipo_modulo_sel": "Bajo Mesada", "edicion_tipo_cargado": False})
                         else:
                             st.session_state["obra_modulos"].append(nuevo_mod)
-                        st.session_state.update({"ultimo_modulo_agregado": nombre_modulo, "ultimo_precio_agregado": precio_final_puro})
+                        st.session_state.update({"ultimo_modulo_agregado": nombre_modulo, "ultimo_precio_agregado": precio_final})
                         st.rerun()
                     else:
                         st.warning("Ingresá las medidas y calculá el módulo antes de agregar.")
