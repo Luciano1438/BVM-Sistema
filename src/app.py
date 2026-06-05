@@ -1033,6 +1033,7 @@ if menu == "🪵 Cotizador":
           st.markdown('''<div style="background:#FFF8E6;border-left:3px solid #EF9F27;border-radius:0 8px 8px 0;padding:12px 16px;">
           <b style="color:#854F0B;">👆 Ingresá el nombre del cliente primero</b></div>''', unsafe_allow_html=True)
 
+      nombre_modulo = _v("nombre", f"{tipo_modulo} {ancho_m:.0f}mm")
       if alto_m > 0 and ancho_m > 0 and cliente:
           piezas = generar_despiece_bvm(
               tipo=tipo_modulo, ancho_m=ancho_m, alto_m=alto_m, prof_m=prof_m,
@@ -1140,7 +1141,6 @@ if menu == "🪵 Cotizador":
       st.write("---")
 
       # nombre_modulo tiene default aquí para que el Terminal CNC siempre lo tenga
-      nombre_modulo = _v("nombre", f"{tipo_modulo} {ancho_m:.0f}mm")
 
       def _build_params_dict():
           return {
