@@ -671,14 +671,8 @@ if st.sidebar.button("Cerrar sesión"):
 # HELPERS DE SERIALIZACIÓN
 # ===========================================================================
 def _params_desde_mod(m):
-    """Extrae el dict de params de un módulo (Lee formato anidado en vivo y formato plano de Supabase)."""
-    if not isinstance(m, dict): 
-        return {}
-        
-    p = m.get("params")
-    if not isinstance(p, dict):
-        p = m  # EL FIX MAESTRO: Si Supabase aplanó los datos, usamos la raíz como fuente principal
-        
+    """Extrae el dict de params de un módulo (compatible con formato viejo y nuevo)."""
+    p = m.get("params") or {}
     return {
         "tipo_modulo":          m.get("tipo_modulo", m.get("tipo", p.get("tipo_modulo", ""))),
         "ancho_m":              m.get("ancho_m", m.get("ancho", p.get("ancho_m", 0))),
@@ -686,7 +680,7 @@ def _params_desde_mod(m):
         "prof_m":               m.get("prof_m",  m.get("prof",  p.get("prof_m",  0))),
         "mat_principal":        m.get("mat_principal", m.get("material", p.get("mat_principal", ""))),
         "precio_guardado":      m.get("precio", p.get("precio_guardado", 0)),
-        "nombre":               m.get("nombre", p.get("nombre", "")),
+        "nombre":               m.get("nombre") or p.get("nombre") or "",
         "mat_fondo_sel":        p.get("mat_fondo_sel", "Fibroplus Blanco 3mm"),
         "esp_real":             p.get("esp_real", 18.0),
         "tipo_tapa":            p.get("tipo_tapa", m.get("tipo_tapa", "Superpuesta")),
@@ -714,9 +708,10 @@ def _params_desde_mod(m):
         "herrajes_extra":       p.get("herrajes_extra", {}),
         "distancia_parante":    p.get("distancia_parante", 0.0),
     }
+
 def _serializar_obra_para_nube(mods):
     """Convierte lista de módulos al formato que se guarda en Supabase."""
-    return [dict(_params_desde_mod(m), precio=m["precio"], nombre=m["nombre"]) for m in mods]
+    return [dict(_params_desde_mod(m), precio=m.get("precio", 0), nombre=m.get("nombre","")) for m in mods if m is not None]
 
 def _limpiar_edicion():
     st.session_state["edit_ctx"] = None
@@ -724,6 +719,7 @@ def _limpiar_edicion():
     st.session_state.pop("_tipo_modulo_sel", None)
 
 def _guardar_obra_nube(mods, cliente, obra_id=None):
+    mods  = [m for m in mods if m is not None]
     total = sum(m["precio"] for m in mods)
     params = {"es_obra": True, "modulos": _serializar_obra_para_nube(mods)}
     guardar_presupuesto_nube(cliente, f"Obra ({len(mods)} módulos)", total,
@@ -744,27 +740,24 @@ if menu == "🪵 Cotizador":
     # BANNER de edición activa
     # ───────────────────────────────────────────────────────────────────────
     if modo == "editar_modulo_obra":
-        st.info(f"✏️ **Editando módulo** de la obra de **{ctx['obra_cliente']}** — Cambiá lo que necesitás y confirmá.")
+        st.info(f"✏️ **Editando módulo** de la obra de **{ctx.get('obra_cliente','')}** — Cambiá lo que necesitás y confirmá.")
         if st.button("✕ Cancelar edición", key="btn_cancel_edit"):
             _limpiar_edicion()
             st.rerun()
 
     elif modo == "editar_legacy":
-        st.info(f"✏️ **Editando presupuesto** de **{ctx['cliente']}** — Modificá y guardá.")
+        st.info(f"✏️ **Editando presupuesto** de **{ctx.get('cliente','')}** — Modificá y guardá.")
         if st.button("✕ Cancelar edición", key="btn_cancel_edit"):
             _limpiar_edicion()
             st.rerun()
 
+    # ───────────────────────────────────────────────────────────────────────
     # Carga de params desde contexto de edición
     # ───────────────────────────────────────────────────────────────────────
-    # Si ctx existe y es un diccionario, extraemos params. Si no, usamos un diccionario vacío.
-    ep = ctx.get("params", {}) if isinstance(ctx, dict) else {}
+    ep = ctx.get("params") if ctx else None
 
     def _v(key, default):
-        # Aseguramos que ep sea siempre un diccionario antes de buscar claves
-        if isinstance(ep, dict) and key in ep:
-            return ep[key]
-        return default
+        return ep[key] if ep and key in ep else default
 
     # ───────────────────────────────────────────────────────────────────────
     # Tipo de módulo: se persiste en session_state para que los botones
@@ -1030,8 +1023,12 @@ if menu == "🪵 Cotizador":
           st.warning("Esperando medidas para calcular...")
 
       st.write("---")
+      esp_real = esp_real if "esp_real" in dir() else 18.0  # guard por si no se calculó
       retazos_stock = consultar_retazos_disponibles(mat_principal)
-      ahorro_madera, matches = calcular_ahorro_retazos(df_corte, retazos_stock, maderas.get(mat_principal, 0.0))
+      if not df_corte.empty:
+          ahorro_madera, matches = calcular_ahorro_retazos(df_corte, retazos_stock, maderas.get(mat_principal, 0.0))
+      else:
+          ahorro_madera, matches = 0.0, []
       total_costo_real = total_costo - ahorro_madera
       utilidad     = total_costo_real * config.get("ganancia_taller_pct", 0.30)
       precio_final = total_costo_real + utilidad
@@ -1074,6 +1071,9 @@ if menu == "🪵 Cotizador":
       # SECCIÓN: botones de acción
       # ─────────────────────────────────────────────────────────────────────
       st.write("---")
+
+      # nombre_modulo tiene default aquí para que el Terminal CNC siempre lo tenga
+      nombre_modulo = _v("nombre", f"{tipo_modulo} {ancho_m:.0f}mm")
 
       def _build_params_dict():
           return {
@@ -1167,7 +1167,7 @@ if menu == "🪵 Cotizador":
       if st.session_state.get("ultimo_agregado"):
           ua = st.session_state["ultimo_agregado"]
           n  = len(st.session_state["obra_modulos"])
-          tot = sum(m["precio"] for m in st.session_state["obra_modulos"])
+          tot = sum(m["precio"] for m in st.session_state["obra_modulos"] if m is not None)
           st.info(f"**✅ {ua['nombre']}** agregado — ${ua['precio']:,.0f}\n\n📋 Tenés **{n} módulo(s)** — Total: **${tot:,.0f}**\n\n👉 Configurá el siguiente módulo arriba o bajá al Resumen de Obra.")
           st.session_state["ultimo_agregado"] = None
 
