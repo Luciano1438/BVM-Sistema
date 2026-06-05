@@ -671,8 +671,14 @@ if st.sidebar.button("Cerrar sesión"):
 # HELPERS DE SERIALIZACIÓN
 # ===========================================================================
 def _params_desde_mod(m):
-    """Extrae el dict de params de un módulo (compatible con formato viejo y nuevo)."""
-    p = m.get("params", {})
+    """Extrae el dict de params de un módulo (Lee formato anidado en vivo y formato plano de Supabase)."""
+    if not isinstance(m, dict): 
+        return {}
+        
+    p = m.get("params")
+    if not isinstance(p, dict):
+        p = m  # EL FIX MAESTRO: Si Supabase aplanó los datos, usamos la raíz como fuente principal
+        
     return {
         "tipo_modulo":          m.get("tipo_modulo", m.get("tipo", p.get("tipo_modulo", ""))),
         "ancho_m":              m.get("ancho_m", m.get("ancho", p.get("ancho_m", 0))),
@@ -708,7 +714,6 @@ def _params_desde_mod(m):
         "herrajes_extra":       p.get("herrajes_extra", {}),
         "distancia_parante":    p.get("distancia_parante", 0.0),
     }
-
 def _serializar_obra_para_nube(mods):
     """Convierte lista de módulos al formato que se guarda en Supabase."""
     return [dict(_params_desde_mod(m), precio=m["precio"], nombre=m["nombre"]) for m in mods]
