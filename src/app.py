@@ -114,7 +114,6 @@ def generar_pdf_obra(cliente, modulos, dias_entrega, pct_seña, costo_logistica=
     r_main, g_main, b_main = 15, 110, 86  # Verde BVM (#0F6E56)
     
     # --- HEADER ---
-    # pdf.image('logo_taller.png', 10, 8, 30) # Descomentar cuando agregues logos
     pdf.set_font("Arial", "B", 22)
     pdf.set_text_color(r_main, g_main, b_main)
     pdf.cell(100, 10, "PROPUESTA DE DISEÑO", ln=False, align="L")
@@ -152,7 +151,7 @@ def generar_pdf_obra(cliente, modulos, dias_entrega, pct_seña, costo_logistica=
     pdf.set_text_color(40, 40, 40)
     pdf.set_font("Arial", "", 10)
     fill = False
-    pdf.set_fill_color(245, 248, 247) # Verde extremadamente claro para filas alternas
+    pdf.set_fill_color(245, 248, 247)
     
     subtotal_modulos = sum(m["precio"] for m in modulos)
     costo_col = dias_colocacion * costo_colocacion_dia
@@ -160,13 +159,9 @@ def generar_pdf_obra(cliente, modulos, dias_entrega, pct_seña, costo_logistica=
     
     for i, mod in enumerate(modulos):
         pdf.cell(10, 10, str(i+1), fill=fill, align="C")
-        
-        # Formateo de descripción
         desc = f"{mod['nombre']} | {mod['material']}"
-        # Si el texto es muy largo, lo cortamos para que no rompa la tabla
         desc_corta = desc[:48] + "..." if len(desc) > 48 else desc
         pdf.cell(90, 10, desc_corta, fill=fill)
-        
         medidas = f"{int(mod['ancho'])} x {int(mod['alto'])} x {int(mod['prof'])}"
         pdf.cell(45, 10, medidas, fill=fill, align="C")
         pdf.set_font("Arial", "B", 10)
@@ -195,7 +190,7 @@ def generar_pdf_obra(cliente, modulos, dias_entrega, pct_seña, costo_logistica=
     pdf.cell(45, 14, f"${total_obra:,.0f} ", align="R", fill=True)
     pdf.ln(20)
     
-    # --- TÉRMINOS Y CONDICIONES (EL CIERRE B2B) ---
+    # --- TÉRMINOS Y CONDICIONES ---
     pdf.set_text_color(0, 0, 0)
     pdf.set_font("Arial", "B", 10)
     pdf.cell(0, 6, "TÉRMINOS Y CONDICIONES DEL PROYECTO", ln=True)
@@ -347,6 +342,7 @@ def actualizar_precio_nube(clave, valor, categoria):
         ).execute()
     except Exception as e:
         st.error(f"Error guardando {clave}: {e}")
+
 def eliminar_precio_nube(clave, categoria):
     if "session" not in st.session_state: return
     try:
@@ -358,7 +354,6 @@ def eliminar_precio_nube(clave, categoria):
         st.error(f"Error al eliminar {clave}: {e}")
 
 def traer_datos():
-    # 1. Si no hay sesión, devolvemos los valores default
     if "session" not in st.session_state or not st.session_state["session"]:
         maderas_default = {"Melamina Blanca 18mm": 60000.0, "Melamina Color 18mm": 85000.0, "Enchapado Roble 18mm": 120000.0}
         config_default  = {'bisagra_cazoleta': 1200.0, 'telescopica_45': 5000.0, 'telescopica_soft': 12000.0,
@@ -366,15 +361,13 @@ def traer_datos():
                            'colocacion_dia': 45000.0, 'ganancia_taller_pct': 0.30}
         return maderas_default, {'Fibroplus Blanco 3mm': 34500.0, 'Sin fondo': 0.0}, config_default
 
-    # 2. Intentamos traer los datos usando el token vigente
     try:
-        token = get_token() # get_token ya intenta refrescar si el JWT está expirado
+        token = get_token()
         if not token: raise Exception("No token")
         
         supabase.postgrest.auth(token)
         datos_db = supabase.table("configuracion").select("*").eq("user_id", st.session_state["user"].id).execute().data
         
-        # Procesamiento de datos...
         maderas_db = {d['clave']: d['valor'] for d in datos_db if str(d.get('categoria','')).lower().strip() == 'maderas'}
         config_db  = {d['clave']: d['valor'] for d in datos_db if str(d.get('categoria','')).lower().strip() in ['costos','margen','herrajes']}
         
@@ -390,7 +383,6 @@ def traer_datos():
         return maderas, fondos, config
 
     except Exception as e:
-        # Si falla el intento, recargamos la página para forzar el re-login o refresco
         st.warning("La sesión se actualizó. Por favor, recargá la página.")
         st.stop()
 
@@ -417,7 +409,7 @@ def traer_datos_historial():
         return pd.DataFrame()
 
 def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_puertas, cant_cajones, estantes_fijos, estantes_moviles, tiene_parante, sin_fondo, distribucion_tapas="Iguales"):
-    """Genera un SVG esquemático del mueble con proporciones reales, cobertura de cantos y escalas proporcionales."""
+    """Genera un SVG esquemático del mueble con proporciones reales."""
     try:
         ancho_m = float(ancho_m)
         alto_m = float(alto_m)
@@ -427,19 +419,16 @@ def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_pue
     if ancho_m <= 0 or alto_m <= 0:
         return ""
 
-    # Canvas fijo, proporciones relativas
     W = 300
     H = int(W * (alto_m / ancho_m))
     H = max(150, min(H, 400))
     pad = 16
-    esp = 10 # Representación de los 18mm
+    esp = 10
 
-    # Lógica de estilos
     es_embutida = "Embutida" in tipo_tapa
     es_gola = "Gola" in tipo_tapa
     es_unero = "Uñero" in tipo_tapa
 
-    # Colores BVM
     c_estructura = "#5D4E37"
     c_fondo_int  = "#F5F0E8" if not sin_fondo else "#EAEAEA"
     c_puerta     = "#8B6F47"
@@ -449,7 +438,6 @@ def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_pue
     c_texto      = "#4A3728"
     c_gola       = "#2A2A2A" 
 
-    # Coordenadas de la estructura interior
     ix = pad + esp
     iy = pad + esp
     iw = W - pad*2 - esp*2
@@ -457,24 +445,19 @@ def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_pue
 
     lines = [f'<svg viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:320px;border-radius:8px;">']
 
-    # Estructura del mueble (Caja Base)
     lines.append(f'<rect x="{pad}" y="{pad}" width="{W-pad*2}" height="{H-pad*2}" rx="3" fill="{c_fondo_int}" stroke="{c_estructura}" stroke-width="2"/>')
     lines.append(f'<rect x="{pad}" y="{pad}" width="{esp}" height="{H-pad*2}" fill="{c_estructura}"/>')
     lines.append(f'<rect x="{W-pad-esp}" y="{pad}" width="{esp}" height="{H-pad*2}" fill="{c_estructura}"/>')
     lines.append(f'<rect x="{pad}" y="{pad}" width="{W-pad*2}" height="{esp}" fill="{c_estructura}"/>')
     lines.append(f'<rect x="{pad}" y="{H-pad-esp}" width="{W-pad*2}" height="{esp}" fill="{c_estructura}"/>')
 
-    # Lógica Universal de Cobertura (Embutida vs Superpuesta)
     if es_embutida:
-        # Por dentro de los 18mm
         px_start = pad + esp + 2
         pw_total = W - pad*2 - esp*2 - 4
     else: 
-        # Superpuesta o Gola: tapan los laterales
         px_start = pad + 1
         pw_total = W - pad*2 - 2
 
-    # --- LÓGICA DE MÓDULOS ---
     if tipo_modulo == "Bajo Mesada":
         frenin_h = int(ih * 0.12)
         lines.append(f'<rect x="{ix}" y="{iy}" width="{iw}" height="{frenin_h}" fill="{c_estructura}" opacity="0.6"/>')
@@ -516,7 +499,6 @@ def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_pue
             if es_gola:
                 ch_útil -= (cajones * 8 + 2) 
 
-            # Matriz de proporciones
             props = [1.0 / cajones] * cajones
             if "Proporcional" in distribucion_tapas:
                 if cajones == 2: props = [0.40, 0.60]
@@ -566,6 +548,8 @@ def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_pue
     lines.append(f'<text x="{W//2}" y="{H-3}" text-anchor="middle" font-size="9" fill="{c_texto}" opacity="0.5">{int(ancho_m)}×{int(alto_m)} mm</text>')
     lines.append('</svg>')
     return '\n'.join(lines)
+
+
 # ===========================================================================
 # INTERFAZ
 # ===========================================================================
@@ -598,6 +582,7 @@ h2 { font-size: 17px !important; font-weight: 500 !important; }
 
 if not gestionar_auth():
     st.stop()
+
 # ONBOARDING
 if "onboarding_visto" not in st.session_state:
     st.session_state["onboarding_visto"] = False
@@ -656,7 +641,6 @@ else:
     menu = st.sidebar.radio("Navegación", _opciones_menu, index=st.session_state.get("menu_idx", 0))
     st.session_state["menu_idx"] = _opciones_menu.index(menu)
 
-# Filtramos None para evitar error cuando hay un placeholder de edición
 _modulos_validos = [m for m in st.session_state["obra_modulos"] if m is not None]
 if _modulos_validos:
     total_obra_sb = sum(m["precio"] for m in _modulos_validos)
@@ -678,7 +662,6 @@ if menu == "🪵 Cotizador":
     try:
         st.title("🪵 BVM — Cotizador de muebles")
 
-        # Selector de módulo de obra multi-módulo
         obra_mods = st.session_state.get("editar_obra_modulos")
         if obra_mods and not st.session_state.get("editar_presupuesto"):
             cliente_obra_edit = st.session_state.get("editar_obra_cliente", "")
@@ -687,7 +670,6 @@ if menu == "🪵 Cotizador":
                 col_info, col_sel = st.columns([4, 1])
                 col_info.write(f"**{i+1}. {mod['nombre']}** — {mod['ancho_m']}x{mod['alto_m']}x{mod['prof_m']} mm — {mod['mat_principal']} — ${mod['precio']:,.0f}")
                 if col_sel.button("Editar este", key=f"sel_mod_obra_{i}"):
-                    # Extraemos los parámetros de forma segura, blindando contra JSONs viejos y nuevos
                     p = mod.get("params", {})
                     mod_para_editar = {
                         "tipo_modulo":          mod.get("tipo_modulo", mod.get("tipo", "")),
@@ -720,7 +702,7 @@ if menu == "🪵 Cotizador":
                         "nombre":               mod.get("nombre", ""),
                         "dias_prod":            p.get("dias_prod", mod.get("dias_prod", 0.0)),
                         "indices_estantes_fijos": p.get("indices_estantes_fijos", mod.get("indices_estantes_fijos", [])),
-                        "herrajes_extra":       p.get("herrajes_extra", mod.get("herrajes_extra", {})), # <--- AQUÍ EXTRAE LAS CORREDERAS
+                        "herrajes_extra":       p.get("herrajes_extra", mod.get("herrajes_extra", {})),
                     }
                     otros = []
                     for j, m in enumerate(obra_mods):
@@ -736,8 +718,6 @@ if menu == "🪵 Cotizador":
                                 "df_corte": None,
                             })
                     lista = otros[:i] + [None] + otros[i:]
-                    # Preservamos editar_obra_id para que al guardar la obra
-                    # se actualice el registro correcto en Supabase
                     _obra_id_preservado = st.session_state.get("editar_obra_id")
                     st.session_state.update({
                         "obra_modulos":         lista,
@@ -762,7 +742,7 @@ if menu == "🪵 Cotizador":
                     "editar_presupuesto": None, 
                     "editar_id": None, 
                     "editar_cliente": "",
-                    "idx_modulo_editar": None,     # <--- ESTO DESTRABA EL BOTÓN
+                    "idx_modulo_editar": None,
                     "edicion_tipo_cargado": False
                 })
                 st.rerun()
@@ -849,8 +829,8 @@ if menu == "🪵 Cotizador":
 
             with st.expander("🏗️ Configuración del módulo", expanded=False):
                 
-                # INICIALIZACIÓN POR DEFECTO: Previene el NameError en módulos sin estantes
-                indices_fijos = [] 
+                # Inicialización defensiva
+                indices_fijos = []
                 
                 if tipo_modulo == "Bajo Mesada":
                     _bm_opts = ["Superpuesta", "Gola BVM", "Embutida"]
@@ -866,7 +846,6 @@ if menu == "🪵 Cotizador":
                         tipo_parante      = c_p1.selectbox("Tipo de Parante", ["Corto (100mm)", "Largo (Fondo Lateral)"])
                         distancia_parante = c_p2.number_input("Distancia desde lateral izq. (mm)", value=ancho_m/cant_puertas if ancho_m > 0 else 0.0, step=1.0)
 
-                    # Parante medio
                     tiene_parante_medio = st.checkbox("¿Lleva parante medio?", value=bool(_v("tiene_parante_medio", False)),
                                                        help="Parante central para dividir el bajo mesada en dos sectores")
 
@@ -877,7 +856,6 @@ if menu == "🪵 Cotizador":
                     _fmt_opts  = ["Completo", "Medio"]
                     _fmt_idx   = _fmt_opts.index(_v("tipo_estante_manual", "Completo")) if _v("tipo_estante_manual", "Completo") in _fmt_opts else 0
                     tipo_estante_manual = st.radio("Formato de Estante", _fmt_opts, index=_fmt_idx, key="fmt_est_bm")
-                    # Recuperamos qué estantes eran fijos al editar
                     _indices_fijos_guardados = _v("indices_estantes_fijos", [])
                     indices_fijos = []
                     if cant_total_est > 0:
@@ -923,7 +901,7 @@ if menu == "🪵 Cotizador":
                             alto_cenefa = st.number_input("Altura de Cenefa (mm)", value=50.0, step=5.0)
                     cant_cajones = 0
 
-                else:  # CAJONERA — sin bisagras
+                else:  # CAJONERA
                     c_caj, _ = st.columns(2)
                     cant_cajones = c_caj.number_input("Cant. Cajones", value=int(_v("cant_cajones", 0)), min_value=0)
                     opciones_estilo = ["Superpuesta", "Embutida"]
@@ -951,7 +929,6 @@ if menu == "🪵 Cotizador":
                         esp_corredera = col_c1.number_input("Espesor de corredera (mm)", value=float(_v("esp_corredera", 13.0)), help="Estándar: 13mm")
                         aire_trasero  = col_c2.number_input("Espacio libre trasero (mm)", value=float(_v("aire_trasero", 30.0)),  help="Mínimo: 30mm")
 
-            # Soporte solo para Bajo Mesada y Cajonera, no para Alacena
             if tipo_modulo != "Alacena":
                 with st.expander("📦 Soporte (por módulo)", expanded=False):
                     _opts_base = ["Zócalo de Madera", "Banquina", "Patas Plásticas", "Nada"]
@@ -972,37 +949,32 @@ if menu == "🪵 Cotizador":
                 tipo_base   = "Nada"
                 altura_base = 0.0
                 costo_base  = 0
-            # --- SECCIÓN UNIFICADA DE HERRAJES ---
+
             st.markdown("---")
             st.markdown("#### 🔩 Herrajes y Accesorios")
             
-            # 1. Sugerencia inteligente basada en el módulo
             if tipo_modulo in ["Bajo Mesada", "Alacena"] and cant_puertas > 0:
                 st.info(f"💡 Sugerencia: Este módulo lleva {cant_puertas * 2} bisagras.")
             elif tipo_modulo == "Cajonera" and cant_cajones > 0:
                 st.info(f"💡 Sugerencia: Este módulo lleva {cant_cajones} pares de correderas.")
 
-            # 2. Consolidamos TODOS los herrajes (Base + Custom)
-            # Filtramos solo lo que NO son costos fijos o fletes
             herrajes_disponibles = {k: v for k, v in config.items() if k not in ['gastos_fijos_diarios', 'flete_capital', 'flete_norte', 'colocacion_dia', 'ganancia_taller_pct']}
             
             herrajes_extra_sel = {}
             if herrajes_disponibles:
                 _herrajes_guardados = _v("herrajes_extra", {})
                 
-                # Nombres más limpios para los herrajes base
                 opciones_limpias = []
                 mapa_nombres = {}
                 for k in herrajes_disponibles.keys():
                     if k == 'bisagra_cazoleta': nombre_mostrar = "Bisagra Cazoleta Estándar"
                     elif k == 'telescopica_45': nombre_mostrar = "Guía Telescópica 45cm"
                     elif k == 'telescopica_soft': nombre_mostrar = "Guía Telescópica Cierre Suave"
-                    else: nombre_mostrar = k # Mantiene el nombre custom
+                    else: nombre_mostrar = k
                     
                     opciones_limpias.append(nombre_mostrar)
-                    mapa_nombres[nombre_mostrar] = k # Mapa inverso para recuperar la clave de la BD
+                    mapa_nombres[nombre_mostrar] = k
                 
-                # Seleccionamos las opciones guardadas (traduciendo de vuelta si es necesario)
                 def_sel = []
                 for k in _herrajes_guardados.keys():
                      if k == 'bisagra_cazoleta': def_sel.append("Bisagra Cazoleta Estándar")
@@ -1015,7 +987,7 @@ if menu == "🪵 Cotizador":
                 if seleccionados:
                     c_herr1, c_herr2 = st.columns(2)
                     for idx, nombre_mostrar in enumerate(seleccionados):
-                        clave_db = mapa_nombres[nombre_mostrar] # Recuperamos la clave real ('telescopica_45', etc)
+                        clave_db = mapa_nombres[nombre_mostrar]
                         col = c_herr1 if idx % 2 == 0 else c_herr2
                         cant_h = col.number_input(f"Cant. {nombre_mostrar}", min_value=1, value=int(_herrajes_guardados.get(clave_db, 1)), step=1, key=f"cant_{clave_db}")
                         herrajes_extra_sel[clave_db] = cant_h
@@ -1028,7 +1000,6 @@ if menu == "🪵 Cotizador":
 
 
         with col_out:
-            # --- PREVIEW VISUAL SVG ---
             if ancho_m > 0 and alto_m > 0:
                 svg_preview = generar_svg_mueble(
                     tipo_modulo, ancho_m, alto_m, prof_m,
@@ -1079,7 +1050,6 @@ if menu == "🪵 Cotizador":
                     m2_fondo     = (df_fondo_only['L'] * df_fondo_only['A'] * df_fondo_only['Cant']).sum() / 1_000_000 if not df_fondo_only.empty else 0.0
                     costo_fondo  = 0.0 if sin_fondo else m2_fondo * (fondos.get(mat_fondo_sel, 0.0) / 5.03)
                     
-                    # --- NUEVO: El costo de herrajes se calcula 100% desde la selección unificada ---
                     costo_herrajes = 0.0
                     for clave_db, h_cant in herrajes_extra_sel.items():
                         costo_unitario = config.get(clave_db, 0.0)
@@ -1093,7 +1063,6 @@ if menu == "🪵 Cotizador":
             retazos_en_stock = consultar_retazos_disponibles(mat_principal)
             ahorro_madera, matches = calcular_ahorro_retazos(df_corte, retazos_en_stock, maderas.get(mat_principal, 0.0))
             
-            # --- CÁLCULO FINANCIERO PURO DEL MUEBLE ---
             total_costo_real = total_costo - ahorro_madera
             utilidad  = total_costo_real * config.get('ganancia_taller_pct', 0.30)
             precio_final = total_costo_real + utilidad
@@ -1129,7 +1098,6 @@ if menu == "🪵 Cotizador":
                                "Monto": [costo_madera+costo_fondo, costo_herrajes, costo_operativo+costo_base, utilidad]}
                     st.bar_chart(pd.DataFrame(datos_g), x="Categoría", y="Monto", color="#2e7d32")
 
-            # --- ENVIAR AL CARRITO / OBRA ---
             st.write("---")
             st.subheader("🛒 Enviar al Carrito (Resumen de Obra)")
             st.markdown("<span style='color:#666; font-size:14px;'>Para sumar flete, instalación y generar el PDF, enviá este mueble al Resumen de Obra de abajo.</span>", unsafe_allow_html=True)
@@ -1137,38 +1105,47 @@ if menu == "🪵 Cotizador":
             nombre_modulo   = st.text_input("Nombre del módulo", value=f"{tipo_modulo} {ancho_m:.0f}mm")
             idx_mod_editar  = st.session_state.get("idx_modulo_editar")
             estoy_editando_legacy = st.session_state.get("editar_id") is not None
-            
+
+            # ─────────────────────────────────────────────────────────────
+            # FLUJO A: Edición de presupuesto legacy (guardado individual)
+            # ─────────────────────────────────────────────────────────────
             if estoy_editando_legacy:
-                # Botón exclusivo para cuando editan un presupuesto viejo y suelto desde la pestaña "Historial"
                 if st.button("💾 Guardar cambios en el Historial", use_container_width=True, type="primary"):
                     if cliente:
-                        params = {"tipo_modulo": tipo_modulo, "ancho_m": ancho_m, "alto_m": alto_m,
-                                  "prof_m": prof_m, "esp_real": esp_real, "mat_principal": mat_principal,
-                                  "mat_fondo_sel": mat_fondo_sel, "tipo_tapa": tipo_tapa,
-                                  "cant_puertas": cant_puertas, "cant_cajones": cant_cajones,
-                                  "tiene_parante": tiene_parante, "tipo_parante": tipo_parante,
-                                  "tiene_parante_medio": tiene_parante_medio,
-                                  "tipo_base": tipo_base, "altura_base": altura_base,
-                                  "estantes_fijos": estantes_fijos, "estantes_moviles": estantes_moviles,
-                                  "tipo_estante_manual": tipo_estante_manual, "sin_fondo": sin_fondo,
-                                  "luz_entre_tapas": luz_entre_tapas, "luz_perimetral_tapa": luz_perimetral_tapa,
-                                  "alto_frentin_emb": alto_frentin_emb, "aire_trasero": aire_trasero,
-                                  "esp_corredera": esp_corredera, "distribucion_tapas": distribucion_tapas,
-                                  "tiene_cenefa": tiene_cenefa, "alto_cenefa": alto_cenefa,
-                                  "dias_prod": dias_prod,
-                                  "indices_estantes_fijos": indices_fijos,
-                                  "herrajes_extra": herrajes_extra_sel,
+                        params = {
+                            "tipo_modulo": tipo_modulo, "ancho_m": ancho_m, "alto_m": alto_m,
+                            "prof_m": prof_m, "esp_real": esp_real, "mat_principal": mat_principal,
+                            "mat_fondo_sel": mat_fondo_sel, "tipo_tapa": tipo_tapa,
+                            "cant_puertas": cant_puertas, "cant_cajones": cant_cajones,
+                            "tiene_parante": tiene_parante, "tipo_parante": tipo_parante,
+                            "tiene_parante_medio": tiene_parante_medio,
+                            "tipo_base": tipo_base, "altura_base": altura_base,
+                            "estantes_fijos": estantes_fijos, "estantes_moviles": estantes_moviles,
+                            "tipo_estante_manual": tipo_estante_manual, "sin_fondo": sin_fondo,
+                            "luz_entre_tapas": luz_entre_tapas, "luz_perimetral_tapa": luz_perimetral_tapa,
+                            "alto_frentin_emb": alto_frentin_emb, "aire_trasero": aire_trasero,
+                            "esp_corredera": esp_corredera, "distribucion_tapas": distribucion_tapas,
+                            "tiene_cenefa": tiene_cenefa, "alto_cenefa": alto_cenefa,
+                            "dias_prod": dias_prod,
+                            "indices_estantes_fijos": indices_fijos,
+                            "herrajes_extra": herrajes_extra_sel,
                         }
-                        guardar_presupuesto_nube(cliente, tipo_modulo, precio_final_total, parametros=params,
+                        # ✅ FIX: precio_final_total → precio_final
+                        guardar_presupuesto_nube(cliente, tipo_modulo, precio_final, parametros=params,
                                                   id_editar=st.session_state.get("editar_id"))
-                        st.session_state.update({"editar_presupuesto": None, "editar_id": None,
-                                                  "editar_cliente": "", "tipo_modulo_sel": "Bajo Mesada",
-                                                  "edicion_tipo_cargado": False})
+                        st.session_state.update({
+                            "editar_presupuesto": None, "editar_id": None,
+                            "editar_cliente": "", "tipo_modulo_sel": "Bajo Mesada",
+                            "edicion_tipo_cargado": False,
+                        })
                         st.rerun()
                     else:
                         st.warning("Ingresá el nombre del Cliente.")
+
+            # ─────────────────────────────────────────────────────────────
+            # FLUJO B: Agregar/editar módulo en obra multi-módulo
+            # ─────────────────────────────────────────────────────────────
             else:
-                # El flujo normal de BVM: Todo mueble va directo a la Obra
                 label_boton = "✅ Confirmar edición y volver a la Obra" if idx_mod_editar is not None else "👇 Agregar mueble al Resumen de Obra"
                 
                 if st.button(label_boton, use_container_width=True, type="primary"):
@@ -1239,16 +1216,18 @@ if menu == "🪵 Cotizador":
                                         "alto_cenefa": m.get("params",{}).get("alto_cenefa",0.0),
                                         "dias_prod": m.get("params",{}).get("dias_prod",0.0),
                                         "indices_estantes_fijos": m.get("params",{}).get("indices_estantes_fijos",[]),
-                                        "herrajes_extra": m.get("params",{}).get("herrajes_extra",{})
+                                        "herrajes_extra": m.get("params",{}).get("herrajes_extra",{}),
                                     } for m in mods_limpios]
                                 }
                                 _total_auto = sum(m["precio"] for m in mods_limpios)
                                 guardar_presupuesto_nube(_cli_obra, f"Obra ({len(mods_limpios)} módulos)", _total_auto, parametros=_params_auto, id_editar=_obra_id)
 
-                            st.session_state.update({"idx_modulo_editar": None, "editar_presupuesto": None,
-                                                     "editar_id": None, "editar_cliente": "",
-                                                     "editar_obra_id": None, "editar_obra_cliente": "",
-                                                     "tipo_modulo_sel": "Bajo Mesada", "edicion_tipo_cargado": False})
+                            st.session_state.update({
+                                "idx_modulo_editar": None, "editar_presupuesto": None,
+                                "editar_id": None, "editar_cliente": "",
+                                "editar_obra_id": None, "editar_obra_cliente": "",
+                                "tipo_modulo_sel": "Bajo Mesada", "edicion_tipo_cargado": False,
+                            })
                         else:
                             st.session_state["obra_modulos"].append(nuevo_mod)
                         st.session_state.update({"ultimo_modulo_agregado": nombre_modulo, "ultimo_precio_agregado": precio_final})
@@ -1256,23 +1235,13 @@ if menu == "🪵 Cotizador":
                     else:
                         st.warning("Ingresá las medidas y calculá el módulo antes de agregar.")
 
-            
-                        guardar_presupuesto_nube(cliente, tipo_modulo, precio_final_total, parametros=params,
-                                                  id_editar=st.session_state.get("editar_id"))
-                        st.session_state.update({"editar_presupuesto": None, "editar_id": None,
-                                                  "editar_cliente": "", "tipo_modulo_sel": "Bajo Mesada",
-                                                  "edicion_tipo_cargado": False})
-                        st.rerun()
-                    else:
-                        st.warning("Ingresá el nombre del Cliente.")
-
             if st.session_state.get("ultimo_modulo_agregado"):
                 total_actual = sum(m["precio"] for m in st.session_state["obra_modulos"])
                 n = len(st.session_state["obra_modulos"])
                 st.info(f"**✅ Módulo agregado: {st.session_state['ultimo_modulo_agregado']}** — ${st.session_state['ultimo_precio_agregado']:,.0f}\n\n📋 Tenés **{n} módulo(s)** — Total: **${total_actual:,.0f}**\n\n👉 Configurá el siguiente módulo arriba o bajá al **Resumen de Obra**.")
                 st.session_state.update({"ultimo_modulo_agregado": None, "ultimo_precio_agregado": 0})
 
-            # --- Terminal CNC Individual (Exportar corte) ---
+            # Terminal CNC Individual
             if not df_corte.empty:
                 st.write("---")
                 with st.expander("⚙️ Terminal CNC — Este módulo"):
@@ -1307,11 +1276,9 @@ if menu == "🪵 Cotizador":
             st.write("---")
             st.header("🏠 Resumen de Obra Completa")
 
-            # Filtramos None (placeholders de edición)
             _mods_obra = [m for m in st.session_state["obra_modulos"] if m is not None]
             subtotal_modulos = sum(m["precio"] for m in _mods_obra)
 
-            # Lista de módulos
             for i, mod in enumerate(_mods_obra):
                 col_mod, col_del = st.columns([5,1])
                 with col_mod:
@@ -1323,7 +1290,6 @@ if menu == "🪵 Cotizador":
 
             st.write("---")
 
-            # LOGÍSTICA AL FINAL DE LA OBRA
             with st.expander("🚛 Logística y colocación de la obra", expanded=True):
                 st.caption("Estos costos se suman al total de la obra, no por módulo.")
                 col_fl, col_col, col_dias = st.columns(3)
@@ -1340,7 +1306,6 @@ if menu == "🪵 Cotizador":
 
             total_obra = subtotal_modulos + costo_log_total
 
-            # TOTAL DESTACADO
             st.markdown(f"""<div style="background:#0F6E56;border-radius:12px;padding:20px 24px;margin:12px 0;text-align:center;">
             <div style="color:rgba(255,255,255,0.7);font-size:12px;letter-spacing:0.1em;margin-bottom:6px;">TOTAL DE LA OBRA</div>
             <div style="color:white;font-size:44px;font-weight:700;letter-spacing:-2px;">${total_obra:,.0f}</div>
@@ -1378,7 +1343,6 @@ if menu == "🪵 Cotizador":
                 if st.button("🗑️ Limpiar obra", use_container_width=True):
                     st.session_state["obra_modulos"] = []; st.rerun()
 
-            # CNC DE TODA LA OBRA
             with st.expander("⚙️ Terminal CNC — Obra completa"):
                 st.caption("Todos los módulos en un solo archivo, separados por sección.")
                 modulos_con_df = [m for m in st.session_state["obra_modulos"] if m is not None and m.get("df_corte") is not None]
@@ -1395,7 +1359,7 @@ if menu == "🪵 Cotizador":
                 else:
                     st.warning("No hay datos CNC disponibles. Los módulos deben calcularse en la sesión actual.")
 
-            # GUARDAR
+            # ✅ FIX: herrajes_extra incluido en params_obra
             if st.button("💾 Guardar obra en historial", use_container_width=True):
                 _cli = cliente or st.session_state.get("editar_obra_cliente","") or st.session_state.get("editar_cliente","")
                 if _cli:
@@ -1405,7 +1369,6 @@ if menu == "🪵 Cotizador":
                             "nombre": m["nombre"], "tipo_modulo": m["tipo"], "ancho_m": m["ancho"],
                             "alto_m": m["alto"], "prof_m": m["prof"], "mat_principal": m["material"],
                             "precio": m["precio"],
-                            # Params completos para poder editar después
                             "mat_fondo_sel":       m.get("params", {}).get("mat_fondo_sel", "Fibroplus Blanco 3mm"),
                             "esp_real":            m.get("params", {}).get("esp_real", 18.0),
                             "tipo_tapa":           m.get("tipo_tapa", "Superpuesta"),
@@ -1430,6 +1393,7 @@ if menu == "🪵 Cotizador":
                             "alto_cenefa":         m.get("params", {}).get("alto_cenefa", 0.0),
                             "dias_prod":           m.get("params", {}).get("dias_prod", 0.0),
                             "indices_estantes_fijos": m.get("params", {}).get("indices_estantes_fijos", []),
+                            "herrajes_extra":      m.get("params", {}).get("herrajes_extra", {}),  # ✅ AGREGADO
                         } for m in st.session_state["obra_modulos"] if m is not None]
                     }
                     guardar_presupuesto_nube(_cli, f"Obra ({len(st.session_state['obra_modulos'])} módulos)",
@@ -1604,7 +1568,6 @@ elif menu == "♻️ Retazos":
 elif menu == "⚙️ Precios":
     st.title("⚙️ Configuración de precios")
 
-    # --- 1. SECCIÓN MADERAS ---
     with st.expander("🪵 Precios de Placas (18mm)", expanded=True):
         for madera, precio in list(maderas.items()):
             col_name, col_price, col_del = st.columns([5, 3, 1])
@@ -1624,8 +1587,6 @@ elif menu == "⚙️ Precios":
                 actualizar_precio_nube(nueva_mad_n, nueva_mad_p, 'maderas')
                 st.rerun()
 
-    # --- 2. SECCIÓN HERRAJES Y CERRADURAS ---
-    # Filtramos los herrajes base del sistema y separamos los personalizados
     claves_base = ['bisagra_cazoleta', 'telescopica_45', 'telescopica_soft']
     herrajes_custom = {k: v for k, v in config.items() if k not in ['gastos_fijos_diarios', 'flete_capital', 'flete_norte', 'colocacion_dia', 'ganancia_taller_pct'] + claves_base}
 
@@ -1659,7 +1620,6 @@ elif menu == "⚙️ Precios":
                 actualizar_precio_nube(nuevo_herr_n, nuevo_herr_p, 'herrajes')
                 st.rerun()
 
-    # --- 3. SECCIÓN GASTOS Y LOGÍSTICA ---
     with st.expander("🚛 Gastos Fijos y Logística", expanded=False):
         f1, f2 = st.columns(2)
         config['gastos_fijos_diarios'] = f1.number_input("Gasto Diario Taller", value=float(config.get('gastos_fijos_diarios', 25000)), step=5000.0)
@@ -1667,7 +1627,6 @@ elif menu == "⚙️ Precios":
         config['flete_norte']          = f1.number_input("Flete Zona Norte", value=float(config.get('flete_norte', 20000)), step=1000.0)
         config['colocacion_dia']       = f2.number_input("Costo Día de Colocación", value=float(config.get('colocacion_dia', 45000)), step=5000.0)
 
-    # --- 4. SECCIÓN MARGEN ---
     with st.expander("💰 Margen de Ganancia", expanded=False):
         config['ganancia_taller_pct'] = st.slider("Porcentaje de Utilidad", 0.0, 1.0, float(config.get('ganancia_taller_pct', 0.3)), 0.05)
         st.write(f"Margen actual: {config.get('ganancia_taller_pct', 0.3)*100:.0f}%")
@@ -1676,7 +1635,6 @@ elif menu == "⚙️ Precios":
         for madera, precio in maderas.items():
             actualizar_precio_nube(madera, precio, 'maderas')
         for k, v in config.items():
-            # El sistema clasifica automáticamente si es un costo fijo o un herraje
             cat = 'costos' if k in ['gastos_fijos_diarios', 'flete_capital', 'flete_norte', 'colocacion_dia', 'ganancia_taller_pct'] else 'herrajes'
             actualizar_precio_nube(k, v, cat)
         st.success("✅ Configuración guardada")
