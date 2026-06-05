@@ -408,7 +408,7 @@ def traer_datos_historial():
     except:
         return pd.DataFrame()
 
-def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_puertas, cant_cajones, estantes_fijos, estantes_moviles, tiene_parante, sin_fondo, distribucion_tapas="Iguales"):
+def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_puertas, cant_cajones, estantes_fijos, estantes_moviles, tiene_parante, sin_fondo, distribucion_tapas="Iguales", tipo_base="Nada", altura_base=0):
     """Genera un SVG esquemático del mueble con proporciones reales."""
     try:
         ancho_m = float(ancho_m)
@@ -419,15 +419,20 @@ def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_pue
     if ancho_m <= 0 or alto_m <= 0:
         return ""
 
-    W = 300
-    H = int(W * (alto_m / ancho_m))
-    H = max(150, min(H, 400))
+    W   = 300
     pad = 16
     esp = 10
 
+    # Altura proporcional al mueble, con espacio extra abajo para el soporte
+    tiene_soporte = tipo_base not in ("Nada", "", None)
+    soporte_px    = 22 if tiene_soporte else 0   # píxeles que ocupa el soporte
+    H_mueble = int(W * (alto_m / ancho_m))
+    H_mueble = max(130, min(H_mueble, 370))
+    H = H_mueble + soporte_px + pad  # canvas total
+
     es_embutida = "Embutida" in tipo_tapa
-    es_gola = "Gola" in tipo_tapa
-    es_unero = "Uñero" in tipo_tapa
+    es_gola     = "Gola"     in tipo_tapa
+    es_unero    = "Uñero"    in tipo_tapa
 
     c_estructura = "#5D4E37"
     c_fondo_int  = "#F5F0E8" if not sin_fondo else "#EAEAEA"
@@ -436,20 +441,60 @@ def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_pue
     c_estante    = "#9B7D55"
     c_manija     = "#D4AF7A"
     c_texto      = "#4A3728"
-    c_gola       = "#2A2A2A" 
+    c_gola       = "#2A2A2A"
+    c_soporte    = "#8B7355"
+    c_pata       = "#A0522D"
+    c_metal      = "#B0B0B0"
+
+    # La caja del mueble ocupa desde pad hasta pad+H_mueble
+    caja_y = pad
+    caja_h = H_mueble
 
     ix = pad + esp
-    iy = pad + esp
+    iy = caja_y + esp
     iw = W - pad*2 - esp*2
-    ih = H - pad*2 - esp*2
+    ih = caja_h - esp*2
 
     lines = [f'<svg viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:320px;border-radius:8px;">']
 
-    lines.append(f'<rect x="{pad}" y="{pad}" width="{W-pad*2}" height="{H-pad*2}" rx="3" fill="{c_fondo_int}" stroke="{c_estructura}" stroke-width="2"/>')
-    lines.append(f'<rect x="{pad}" y="{pad}" width="{esp}" height="{H-pad*2}" fill="{c_estructura}"/>')
-    lines.append(f'<rect x="{W-pad-esp}" y="{pad}" width="{esp}" height="{H-pad*2}" fill="{c_estructura}"/>')
-    lines.append(f'<rect x="{pad}" y="{pad}" width="{W-pad*2}" height="{esp}" fill="{c_estructura}"/>')
-    lines.append(f'<rect x="{pad}" y="{H-pad-esp}" width="{W-pad*2}" height="{esp}" fill="{c_estructura}"/>')
+    # ── SOPORTE (se dibuja ANTES de la caja para que quede atrás) ──
+    if tiene_soporte:
+        sx     = pad
+        sy     = caja_y + caja_h          # justo debajo de la caja
+        sw     = W - pad * 2
+        sh     = soporte_px
+
+        if tipo_base == "Zócalo de Madera":
+            # Rectángulo macizo de madera, mismo ancho que la caja
+            lines.append(f'<rect x="{sx}" y="{sy}" width="{sw}" height="{sh}" rx="1" fill="{c_soporte}" stroke="{c_estructura}" stroke-width="1"/>')
+            lines.append(f'<rect x="{sx+4}" y="{sy+3}" width="{sw-8}" height="{sh-6}" rx="1" fill="{c_soporte}" opacity="0.5" stroke="{c_estructura}" stroke-width="0.5"/>')
+            lines.append(f'<text x="{W//2}" y="{sy+sh//2+4}" text-anchor="middle" font-size="7" fill="white" opacity="0.8">ZÓCALO</text>')
+
+        elif tipo_base == "Banquina":
+            # Dos bloques laterales (tipo U invertida)
+            bw = sw // 5
+            lines.append(f'<rect x="{sx}"        y="{sy}" width="{bw}" height="{sh}" rx="1" fill="{c_soporte}" stroke="{c_estructura}" stroke-width="1"/>')
+            lines.append(f'<rect x="{sx+sw-bw}"  y="{sy}" width="{bw}" height="{sh}" rx="1" fill="{c_soporte}" stroke="{c_estructura}" stroke-width="1"/>')
+            # Barra horizontal arriba
+            lines.append(f'<rect x="{sx}" y="{sy}" width="{sw}" height="4" fill="{c_soporte}" opacity="0.6"/>')
+            lines.append(f'<text x="{W//2}" y="{sy+sh//2+4}" text-anchor="middle" font-size="7" fill="{c_texto}" opacity="0.7">BANQUINA</text>')
+
+        elif tipo_base == "Patas Plásticas":
+            # 4 patas cilíndricas
+            pw2 = 10
+            ph2 = sh - 2
+            posiciones = [sx+6, sx+sw//3, sx+2*sw//3, sx+sw-pw2-6]
+            for px2 in posiciones:
+                lines.append(f'<rect x="{px2}" y="{sy+2}" width="{pw2}" height="{ph2}" rx="3" fill="{c_metal}" stroke="#888" stroke-width="0.8"/>')
+                lines.append(f'<ellipse cx="{px2+pw2//2}" cy="{sy+2}" rx="{pw2//2}" ry="2.5" fill="{c_metal}" stroke="#888" stroke-width="0.8"/>')
+            lines.append(f'<text x="{W//2}" y="{sy+sh+10}" text-anchor="middle" font-size="7" fill="{c_texto}" opacity="0.6">PATAS</text>')
+
+    # ── CAJA DEL MUEBLE ──
+    lines.append(f'<rect x="{pad}" y="{caja_y}" width="{W-pad*2}" height="{caja_h}" rx="3" fill="{c_fondo_int}" stroke="{c_estructura}" stroke-width="2"/>')
+    lines.append(f'<rect x="{pad}" y="{caja_y}" width="{esp}" height="{caja_h}" fill="{c_estructura}"/>')
+    lines.append(f'<rect x="{W-pad-esp}" y="{caja_y}" width="{esp}" height="{caja_h}" fill="{c_estructura}"/>')
+    lines.append(f'<rect x="{pad}" y="{caja_y}" width="{W-pad*2}" height="{esp}" fill="{c_estructura}"/>')
+    lines.append(f'<rect x="{pad}" y="{caja_y+caja_h-esp}" width="{W-pad*2}" height="{esp}" fill="{c_estructura}"/>')
 
     if es_embutida:
         px_start = pad + esp + 2
@@ -545,7 +590,8 @@ def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_pue
                 mx = px + pw - 12 if p % 2 == 0 else px + 6
                 lines.append(f'<rect x="{mx}" y="{py + ph - 30}" width="6" height="24" rx="2" fill="{c_manija}"/>')
 
-    lines.append(f'<text x="{W//2}" y="{H-3}" text-anchor="middle" font-size="9" fill="{c_texto}" opacity="0.5">{int(ancho_m)}×{int(alto_m)} mm</text>')
+    _label_soporte = f" + {tipo_base}" if tiene_soporte else ""
+    lines.append(f'<text x="{W//2}" y="{H-2}" text-anchor="middle" font-size="8" fill="{c_texto}" opacity="0.5">{int(ancho_m)}×{int(alto_m)} mm{_label_soporte}</text>')
     lines.append('</svg>')
     return '\n'.join(lines)
 
@@ -715,8 +761,8 @@ def _serializar_obra_para_nube(mods):
 
 def _limpiar_edicion():
     st.session_state["edit_ctx"] = None
-    # Limpiamos también la key de tipo_modulo para que el cotizador arranque fresh
     st.session_state.pop("_tipo_modulo_sel", None)
+    st.session_state.pop("_ctx_sig_prev",    None)
 
 def _guardar_obra_nube(mods, cliente, obra_id=None):
     mods  = [m for m in mods if m is not None]
@@ -764,12 +810,12 @@ if menu == "🪵 Cotizador":
     # de selección funcionen sin conflicto
     # ───────────────────────────────────────────────────────────────────────
     _tipo_default = _v("tipo_modulo", "Bajo Mesada")
-    if "_tipo_modulo_sel" not in st.session_state:
+    # Hash estable: usamos el tipo_modulo + ancho + alto del contexto
+    # así el hash no cambia entre reruns del mismo contexto
+    _ctx_sig = f"{_tipo_default}_{_v('ancho_m',0)}_{_v('alto_m',0)}_{_v('precio_guardado',0)}" if ep else "none"
+    if "_tipo_modulo_sel" not in st.session_state or st.session_state.get("_ctx_sig_prev") != _ctx_sig:
         st.session_state["_tipo_modulo_sel"] = _tipo_default
-    # Si acabamos de cargar un nuevo contexto, sincronizamos el tipo
-    if ep and st.session_state.get("_ctx_loaded_hash") != id(ctx):
-        st.session_state["_tipo_modulo_sel"] = _tipo_default
-        st.session_state["_ctx_loaded_hash"] = id(ctx)
+        st.session_state["_ctx_sig_prev"]    = _ctx_sig
 
     # Defaults de variables (se usan antes de renderizar los expanders)
     df_corte = pd.DataFrame()
@@ -977,7 +1023,8 @@ if menu == "🪵 Cotizador":
       if ancho_m > 0 and alto_m > 0:
           svg_prev = generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa,
                                          cant_puertas, cant_cajones, estantes_fijos, estantes_moviles,
-                                         tiene_parante, sin_fondo, distribucion_tapas)
+                                         tiene_parante, sin_fondo, distribucion_tapas,
+                                         tipo_base=tipo_base, altura_base=altura_base)
           if svg_prev:
               st.markdown(f'<div style="text-align:center;padding:16px;background:white;border:1px solid #E0DED6;border-radius:10px;margin-bottom:24px;">{svg_prev}</div>', unsafe_allow_html=True)
 
@@ -1019,6 +1066,26 @@ if menu == "🪵 Cotizador":
               costo_herrajes  = sum(config.get(k, 0.0) * v for k, v in herrajes_extra_sel.items())
               costo_operativo = dias_prod * config.get("gastos_fijos_diarios", 0)
               total_costo     = costo_madera + costo_fondo + costo_herrajes + costo_operativo + costo_base
+
+              # Terminal CNC — solo se muestra cuando hay datos calculados en esta sesión
+              st.write("---")
+              with st.expander("⚙️ Terminal CNC — Este módulo"):
+                  import io as _io, ezdxf as _ezdxf
+                  _doc = _ezdxf.new("R2010"); _msp = _doc.modelspace(); _x = 0
+                  for _, _row in df_corte.iterrows():
+                      for _ in range(int(_row["Cant"])):
+                          _pts = [(_x,0),(_x+float(_row["L"]),0),(_x+float(_row["L"]),float(_row["A"])),(_x,float(_row["A"])),(_x,0)]
+                          _msp.add_lwpolyline(_pts, close=True)
+                          _msp.add_text(f"{_row['Pieza']}\n{int(_row['L'])}x{int(_row['A'])}", height=10).set_placement((_x+5,5))
+                          _x += float(_row["L"]) + 50
+                  _out = _io.StringIO(); _doc.write(_out)
+                  _dxf_b = _out.getvalue().encode("utf-8")
+                  _df_a  = df_corte.copy().rename(columns={"Pieza":"Name","L":"Length","A":"Width","Cant":"Quantity"})
+                  _df_a["Thickness"] = esp_real; _df_a["Material"] = mat_principal
+                  _csv_b = _df_a[["Name","Length","Width","Thickness","Quantity","Material"]].to_csv(index=False).encode("utf-8")
+                  cc1, cc2 = st.columns(2)
+                  cc1.download_button("📐 DXF", data=_dxf_b, file_name=f"BVM_{nombre_modulo}.dxf", mime="application/dxf", use_container_width=True)
+                  cc2.download_button("🤖 CSV Aspire", data=_csv_b, file_name=f"BVM_{nombre_modulo}.csv", mime="text/csv", use_container_width=True)
       else:
           st.warning("Esperando medidas para calcular...")
 
@@ -1171,26 +1238,6 @@ if menu == "🪵 Cotizador":
           st.info(f"**✅ {ua['nombre']}** agregado — ${ua['precio']:,.0f}\n\n📋 Tenés **{n} módulo(s)** — Total: **${tot:,.0f}**\n\n👉 Configurá el siguiente módulo arriba o bajá al Resumen de Obra.")
           st.session_state["ultimo_agregado"] = None
 
-      # Terminal CNC individual
-      if not df_corte.empty:
-          st.write("---")
-          with st.expander("⚙️ Terminal CNC — Este módulo"):
-              import io as _io, ezdxf as _ezdxf
-              _doc = _ezdxf.new("R2010"); _msp = _doc.modelspace(); _x = 0
-              for _, _row in df_corte.iterrows():
-                  for _ in range(int(_row["Cant"])):
-                      _pts = [(_x,0),(_x+float(_row["L"]),0),(_x+float(_row["L"]),float(_row["A"])),(_x,float(_row["A"])),(_x,0)]
-                      _msp.add_lwpolyline(_pts, close=True)
-                      _msp.add_text(f"{_row['Pieza']}\n{int(_row['L'])}x{int(_row['A'])}", height=10).set_placement((_x+5,5))
-                      _x += float(_row["L"]) + 50
-              _out = _io.StringIO(); _doc.write(_out)
-              _dxf_b = _out.getvalue().encode("utf-8")
-              _df_a  = df_corte.copy().rename(columns={"Pieza":"Name","L":"Length","A":"Width","Cant":"Quantity"})
-              _df_a["Thickness"] = esp_real; _df_a["Material"] = mat_principal
-              _csv_b = _df_a[["Name","Length","Width","Thickness","Quantity","Material"]].to_csv(index=False).encode("utf-8")
-              cc1, cc2 = st.columns(2)
-              cc1.download_button("📐 DXF", data=_dxf_b, file_name=f"BVM_{nombre_modulo}.dxf", mime="application/dxf", use_container_width=True)
-              cc2.download_button("🤖 CSV Aspire", data=_csv_b, file_name=f"BVM_{nombre_modulo}.csv", mime="text/csv", use_container_width=True)
 
     # ═══════════════════════════════════════════════════════════════════════
     # RESUMEN DE OBRA
@@ -1217,7 +1264,7 @@ if menu == "🪵 Cotizador":
                     "params":      _params_desde_mod(mod),
                 }
                 st.session_state.pop("_tipo_modulo_sel", None)
-                st.session_state.pop("_ctx_loaded_hash", None)
+                st.session_state.pop("_ctx_sig_prev",    None)
                 st.rerun()
             if col_del.button("✕", key=f"del_mod_{i_m}"):
                 st.session_state["obra_modulos"].pop(i_m)
@@ -1388,7 +1435,7 @@ elif menu == "📋 Historial":
                                     "params":  params,
                                 }
                                 st.session_state.pop("_tipo_modulo_sel", None)
-                                st.session_state.pop("_ctx_loaded_hash", None)
+                                st.session_state.pop("_ctx_sig_prev",    None)
                                 st.session_state["menu_idx"] = 0
                             st.rerun()
                         except Exception as e:
