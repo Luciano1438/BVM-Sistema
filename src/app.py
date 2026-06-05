@@ -750,13 +750,16 @@ if menu == "🪵 Cotizador":
             _limpiar_edicion()
             st.rerun()
 
-    # ───────────────────────────────────────────────────────────────────────
     # Carga de params desde contexto de edición
     # ───────────────────────────────────────────────────────────────────────
-    ep = ctx.get("params") if ctx else None
+    # Si ctx existe y es un diccionario, extraemos params. Si no, usamos un diccionario vacío.
+    ep = ctx.get("params", {}) if isinstance(ctx, dict) else {}
 
     def _v(key, default):
-        return ep[key] if ep and key in ep else default
+        # Aseguramos que ep sea siempre un diccionario antes de buscar claves
+        if isinstance(ep, dict) and key in ep:
+            return ep[key]
+        return default
 
     # ───────────────────────────────────────────────────────────────────────
     # Tipo de módulo: se persiste en session_state para que los botones
