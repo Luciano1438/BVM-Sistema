@@ -1627,33 +1627,31 @@ elif menu == "⚙️ Precios":
     herrajes_custom = {k: v for k, v in config.items() if k not in ['gastos_fijos_diarios', 'flete_capital', 'flete_norte', 'colocacion_dia', 'ganancia_taller_pct'] + claves_base}
 
     with st.expander("🔩 Herrajes, Cerraduras y Extras", expanded=False):
-        # Mapeo para que los nombres base se vean lindos
+        # Mapeo para nombres legibles si existen, si no, usa el nombre de la clave
         _nombres_base = {
             'bisagra_cazoleta': 'Bisagra Cazoleta',
             'telescopica_45': 'Guía Telescópica 45cm',
             'telescopica_soft': 'Guía Cierre Suave'
         }
-        claves_base = ['bisagra_cazoleta', 'telescopica_45', 'telescopica_soft']
         
-        # Filtramos solo lo que son herrajes
+        # Filtramos para excluir las variables de configuración general
         herrajes_items = {k: v for k, v in config.items() if k not in ['gastos_fijos_diarios', 'flete_capital', 'flete_norte', 'colocacion_dia', 'ganancia_taller_pct']}
         
-        # Renderizamos TODO en la misma lista estilo "Placas"
+        # Renderizado unificado
         for h_clave, h_precio in list(herrajes_items.items()):
             col_name, col_price, col_del = st.columns([5, 3, 1])
             
-            # Nombre legible (si es base, usamos el label lindo; si es custom, la clave)
+            # Formateo del nombre
             label = _nombres_base.get(h_clave, h_clave)
             col_name.markdown(f"<div style='padding-top: 8px; font-weight: 500;'>{label}</div>", unsafe_allow_html=True)
             
             # Input de precio
             config[h_clave] = col_price.number_input("Precio", value=float(h_precio), step=100.0, key=f"p_{h_clave}", label_visibility="collapsed")
             
-            # Solo mostramos el botón de borrar si NO es un herraje base
-            if h_clave not in claves_base:
-                if col_del.button("🗑️", key=f"del_{h_clave}", help=f"Eliminar {h_clave}"):
-                    eliminar_precio_nube(h_clave, 'herrajes')
-                    st.rerun()
+            # Botón de eliminación habilitado para TODOS los elementos
+            if col_del.button("🗑️", key=f"del_{h_clave}", help=f"Eliminar {label}"):
+                eliminar_precio_nube(h_clave, 'herrajes')
+                st.rerun()
 
         st.write("---")
         st.markdown("**➕ Agregar nuevo accesorio**")
