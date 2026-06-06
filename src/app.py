@@ -764,10 +764,14 @@ def _limpiar_edicion():
     st.session_state.pop("_tipo_modulo_sel", None)
     st.session_state.pop("_ctx_sig_prev",    None)
 
-def _guardar_obra_nube(mods, cliente, obra_id=None):
+def _guardar_obra_nube(mods, cliente, obra_id=None, total_con_logistica=None, logistica=None):
     mods  = [m for m in mods if m is not None]
-    total = sum(m["precio"] for m in mods)
-    params = {"es_obra": True, "modulos": _serializar_obra_para_nube(mods)}
+    total = total_con_logistica if total_con_logistica is not None else sum(m["precio"] for m in mods)
+    params = {
+        "es_obra":   True,
+        "modulos":   _serializar_obra_para_nube(mods),
+        "logistica": logistica or {},
+    }
     guardar_presupuesto_nube(cliente, f"Obra ({len(mods)} módulos)", total,
                               parametros=params, id_editar=obra_id)
 
@@ -919,7 +923,8 @@ if menu == "🪵 Cotizador":
         mat_fondo_sel = st.selectbox("Material del fondo", lista_fondos, index=idx_fondo)
         sin_fondo = mat_fondo_sel == "Sin fondo"
 
-      with st.expander("🏗️ Configuración del módulo", expanded=False):
+      _editando = modo in ("editar_modulo_obra", "editar_legacy")
+      with st.expander("🏗️ Configuración del módulo", expanded=_editando):
         if tipo_modulo == "Bajo Mesada":
             _bm_opts = ["Superpuesta", "Gola BVM", "Embutida"]
             tipo_tapa    = st.radio("Estilo", _bm_opts, index=_bm_opts.index(_v("tipo_tapa","Superpuesta")) if _v("tipo_tapa","Superpuesta") in _bm_opts else 0)
@@ -1002,7 +1007,7 @@ if menu == "🪵 Cotizador":
                 aire_trasero  = col_c2.number_input("Espacio libre trasero (mm)", value=float(_v("aire_trasero", 30.0)))
 
       if tipo_modulo != "Alacena":
-        with st.expander("📦 Soporte", expanded=False):
+        with st.expander("📦 Soporte", expanded=_editando):
             _opts_base = ["Zócalo de Madera", "Banquina", "Patas Plásticas", "Nada"]
             _base_def  = _v("tipo_base","Nada") if _v("tipo_base","Nada") in _opts_base else "Nada"
             tipo_base = st.selectbox("Tipo de Soporte", _opts_base, index=_opts_base.index(_base_def))
@@ -1015,7 +1020,7 @@ if menu == "🪵 Cotizador":
         tipo_base = "Nada"; altura_base = 0.0; costo_base = 0
 
       st.markdown("---")
-      st.markdown("#### 🔩 Herrajes y Accesorios")
+      st.markdown("#### 🔩 Herrajes y Accesorios")  # siempre visible (no expander)
       if tipo_modulo in ["Bajo Mesada","Alacena"] and cant_puertas > 0:
           st.info(f"💡 Sugerencia: {cant_puertas * 2} bisagras.")
       elif tipo_modulo == "Cajonera" and cant_cajones > 0:
@@ -1042,7 +1047,7 @@ if menu == "🪵 Cotizador":
                   cant_h = col_h.number_input(f"Cant. {nm}", min_value=1, value=int(_herr_guard.get(clave, 1)), step=1, key=f"cant_{clave}")
                   herrajes_extra_sel[clave] = cant_h
 
-      with st.expander("🔨 Días de taller", expanded=False):
+      with st.expander("🔨 Días de taller", expanded=_editando):
           dias_prod = st.number_input("Días de trabajo en taller", value=float(_v("dias_prod", 0.0)), step=0.5)
 
     # ═══════════════════════════════════════════════════════════════════════
@@ -1359,7 +1364,15 @@ if menu == "🪵 Cotizador":
             else:
                 # Usamos el obra_id del historial si estamos editando una obra existente
                 _id_a_guardar = st.session_state.pop("_obra_id_historial", None)
-                _guardar_obra_nube(_mods_obra, cliente_obra, _id_a_guardar)
+                _log_data = {
+                    "flete_sel": flete_sel, "costo_flete": costo_flete,
+                    "dias_col": dias_col_obra, "costo_col": costo_col,
+                    "costo_log_total": costo_log,
+                    "dias_entrega": dias_entrega, "pct_seña": pct_seña,
+                }
+                _guardar_obra_nube(_mods_obra, cliente_obra, _id_a_guardar,
+                                    total_con_logistica=total_obra,
+                                    logistica=_log_data)
                 # Limpieza total del cotizador
                 st.session_state["obra_modulos"] = []
                 st.session_state.pop("_obra_cliente_historial", None)
@@ -1642,3 +1655,4 @@ elif menu == "⚙️ Precios":
             cat = 'costos' if k in ['gastos_fijos_diarios', 'flete_capital', 'flete_norte', 'colocacion_dia', 'ganancia_taller_pct'] else 'herrajes'
             actualizar_precio_nube(k, v, cat)
         st.success("✅ Configuración guardada")
+        
