@@ -768,10 +768,9 @@ def _limpiar_edicion(nuke_obra=False):
     st.session_state["edit_ctx"] = None
     st.session_state.pop("_tipo_modulo_sel", None)
     st.session_state.pop("_ctx_sig_prev",    None)
-    
-    # Modo Exterminio: destruye la obra en curso para volver a default
     if nuke_obra:
         st.session_state["obra_modulos"] = []
+        st.session_state["logistica_obra"] = {}
         st.session_state.pop("_obra_id_historial", None)
         st.session_state.pop("_obra_cliente_historial", None)
 
@@ -827,8 +826,8 @@ if menu == "🪵 Cotizador":
     elif modo == "editar_modulo_obra":
         st.info(f"✏️ **Editando módulo** de la obra de **{ctx.get('obra_cliente','')}** — Cambiá lo que necesitás y confirmá.")
         if st.button("✕ Cancelar edición", key="btn_cancel_edit"):
-            # Si venimos del historial, aniquilamos la obra. Si es obra nueva, solo cerramos el módulo.
-            _es_historial = st.session_state.get("_obra_id_historial") is not None
+            # Si tiene un obra_id, vino del historial. Al cancelar, aniquilamos todo el cotizador.
+            _es_historial = ctx.get("obra_id") is not None
             _limpiar_edicion(nuke_obra=_es_historial)
             st.rerun()
 
@@ -1245,7 +1244,11 @@ if menu == "🪵 Cotizador":
                   _oid = ctx.get("obra_id")
                   _cli = ctx.get("obra_cliente") or cliente
                   if _oid and _cli:
-                      _guardar_obra_nube(mods, _cli, _oid)
+                      # Recuperamos la logística de la RAM para no aplastarla con cero
+                      _log_guardada = st.session_state.get("logistica_obra", {})
+                      _tot_log = _log_guardada.get("costo_log_total", 0.0)
+                      _tot_auto = sum(m["precio"] for m in mods) + _tot_log
+                      _guardar_obra_nube(mods, _cli, _oid, total_con_logistica=_tot_auto, logistica=_log_guardada)
                   _limpiar_edicion()
                   st.rerun()
 
@@ -1315,10 +1318,17 @@ if menu == "🪵 Cotizador":
 
         with st.expander("🚛 Logística y colocación", expanded=True):
             st.caption("Costos que se suman al total de la obra.")
+            _log_mem = st.session_state.get("logistica_obra", {})
             col_fl, col_col, col_dias = st.columns(3)
-            flete_sel     = col_fl.selectbox("Flete", ["Ninguno","Capital","Zona Norte"], key="flete_obra")
-            necesita_col  = col_col.checkbox("¿Requiere colocación?", key="col_obra")
-            dias_col_obra = col_dias.number_input("Días de colocación", value=0, min_value=0, key="dias_col_obra") if necesita_col else 0
+            
+            _flete_opc = ["Ninguno","Capital","Zona Norte"]
+            _flete_val = _log_mem.get("flete_sel", "Ninguno")
+            _flete_idx = _flete_opc.index(_flete_val) if _flete_val in _flete_opc else 0
+            
+            flete_sel     = col_fl.selectbox("Flete", _flete_opc, index=_flete_idx, key="flete_obra")
+            necesita_col  = col_col.checkbox("¿Requiere colocación?", value=(_log_mem.get("dias_col", 0) > 0), key="col_obra")
+            dias_col_obra = col_dias.number_input("Días de colocación", value=int(_log_mem.get("dias_col", 0)), min_value=0, key="dias_col_obra") if necesita_col else 0
+            
             costo_flete   = config.get("flete_capital",0) if flete_sel=="Capital" else config.get("flete_norte",0) if flete_sel=="Zona Norte" else 0.0
             costo_col     = dias_col_obra * config.get("colocacion_dia", 0)
             costo_log     = costo_flete + costo_col
@@ -1333,8 +1343,8 @@ if menu == "🪵 Cotizador":
         </div>''', unsafe_allow_html=True)
 
         col_d1, col_d2 = st.columns(2)
-        dias_entrega = col_d1.number_input("Días de entrega total", value=20, step=1, key="dias_obra")
-        pct_seña     = col_d2.slider("% de Seña", 0, 100, 50, 5, key="sena_obra")
+        dias_entrega = col_d1.number_input("Días de entrega total", value=int(_log_mem.get("dias_entrega", 20)), step=1, key="dias_obra")
+        pct_seña     = col_d2.slider("% de Seña", 0, 100, int(_log_mem.get("pct_seña", 50)), 5, key="sena_obra")
         cliente_obra = cliente or ""
 
         col_g1, col_g2, col_g3 = st.columns(3)
@@ -1352,7 +1362,8 @@ if menu == "🪵 Cotizador":
             st.link_button("🟢 WhatsApp", link_wa, use_container_width=True)
         with col_g3:
             if st.button("🗑️ Limpiar obra", use_container_width=True):
-                st.session_state["obra_modulos"] = []; st.rerun()
+                _limpiar_edicion(nuke_obra=True)
+                st.rerun()
 
         with st.expander("⚙️ Terminal CNC — Obra completa"):
             _mods_cnc = [m for m in _mods_obra if m.get("df_corte") is not None]
@@ -1385,7 +1396,7 @@ if menu == "🪵 Cotizador":
                 st.session_state.pop("_obra_cliente_historial", None)
                 st.session_state.pop("_tipo_modulo_sel",        None)
                 st.session_state.pop("_ctx_sig_prev",           None)
-                _limpiar_edicion()
+                _limpiar_edicion(nuke_obra=True)
                 st.rerun()
 
   except Exception as e:
@@ -1478,6 +1489,7 @@ elif menu == "📋 Historial":
                                 st.session_state["obra_modulos"]            = mods_internos
                                 st.session_state["_obra_id_historial"]      = id_venta
                                 st.session_state["_obra_cliente_historial"] = cliente_h
+                                st.session_state["logistica_obra"] = params.get("logistica", {}) # <--- AGREGAR ESTA LÍNEA
                                 st.session_state.pop("_tipo_modulo_sel", None)
                                 st.session_state.pop("_ctx_sig_prev",    None)
                                 st.session_state["menu_idx"] = 0
