@@ -717,8 +717,14 @@ if st.sidebar.button("Cerrar sesión"):
 # HELPERS DE SERIALIZACIÓN
 # ===========================================================================
 def _params_desde_mod(m):
-    """Extrae el dict de params de un módulo (compatible con formato viejo y nuevo)."""
-    p = m.get("params") or {}
+    """Extrae el dict de params blindado contra aplanamiento de Supabase."""
+    if not isinstance(m, dict): return {}
+    
+    p = m.get("params")
+    # EL FIX MAESTRO: Si la base de datos aplastó el JSON, leemos directo de la raíz
+    if not isinstance(p, dict):
+        p = m  
+        
     return {
         "tipo_modulo":          m.get("tipo_modulo", m.get("tipo", p.get("tipo_modulo", ""))),
         "ancho_m":              m.get("ancho_m", m.get("ancho", p.get("ancho_m", 0))),
@@ -726,7 +732,7 @@ def _params_desde_mod(m):
         "prof_m":               m.get("prof_m",  m.get("prof",  p.get("prof_m",  0))),
         "mat_principal":        m.get("mat_principal", m.get("material", p.get("mat_principal", ""))),
         "precio_guardado":      m.get("precio", p.get("precio_guardado", 0)),
-        "nombre":               m.get("nombre") or p.get("nombre") or "",
+        "nombre":               m.get("nombre", p.get("nombre", "")),
         "mat_fondo_sel":        p.get("mat_fondo_sel", "Fibroplus Blanco 3mm"),
         "esp_real":             p.get("esp_real", 18.0),
         "tipo_tapa":            p.get("tipo_tapa", m.get("tipo_tapa", "Superpuesta")),
@@ -754,15 +760,20 @@ def _params_desde_mod(m):
         "herrajes_extra":       p.get("herrajes_extra", {}),
         "distancia_parante":    p.get("distancia_parante", 0.0),
     }
-
 def _serializar_obra_para_nube(mods):
     """Convierte lista de módulos al formato que se guarda en Supabase."""
     return [dict(_params_desde_mod(m), precio=m.get("precio", 0), nombre=m.get("nombre","")) for m in mods if m is not None]
 
-def _limpiar_edicion():
+def _limpiar_edicion(nuke_obra=False):
     st.session_state["edit_ctx"] = None
     st.session_state.pop("_tipo_modulo_sel", None)
     st.session_state.pop("_ctx_sig_prev",    None)
+    
+    # Modo Exterminio: destruye la obra en curso para volver a default
+    if nuke_obra:
+        st.session_state["obra_modulos"] = []
+        st.session_state.pop("_obra_id_historial", None)
+        st.session_state.pop("_obra_cliente_historial", None)
 
 def _guardar_obra_nube(mods, cliente, obra_id=None, total_con_logistica=None, logistica=None):
     mods  = [m for m in mods if m is not None]
@@ -789,7 +800,6 @@ if menu == "🪵 Cotizador":
     # ───────────────────────────────────────────────────────────────────────
     # BANNER de edición activa
     # ───────────────────────────────────────────────────────────────────────
-    # ── MODO ESPECIAL: selector de módulo para obras con varios módulos ──
     if modo == "elegir_modulo_obra":
         _mods_elegir = [m for m in st.session_state.get("obra_modulos", []) if m is not None]
         _cli_elegir  = ctx.get("obra_cliente", "")
@@ -810,26 +820,23 @@ if menu == "🪵 Cotizador":
                 st.session_state.pop("_ctx_sig_prev",    None)
                 st.rerun()
         if st.button("✕ Cancelar", key="btn_cancel_elegir"):
-            st.session_state["obra_modulos"] = []
-            st.session_state.pop("_obra_id_historial",      None)
-            st.session_state.pop("_obra_cliente_historial", None)
-            _limpiar_edicion()
+            _limpiar_edicion(nuke_obra=True)
             st.rerun()
-        # No renderizamos el cotizador en este modo
         st.stop()
 
     elif modo == "editar_modulo_obra":
         st.info(f"✏️ **Editando módulo** de la obra de **{ctx.get('obra_cliente','')}** — Cambiá lo que necesitás y confirmá.")
         if st.button("✕ Cancelar edición", key="btn_cancel_edit"):
-            _limpiar_edicion()
+            # Si venimos del historial, aniquilamos la obra. Si es obra nueva, solo cerramos el módulo.
+            _es_historial = st.session_state.get("_obra_id_historial") is not None
+            _limpiar_edicion(nuke_obra=_es_historial)
             st.rerun()
 
     elif modo == "editar_legacy":
         st.info(f"✏️ **Editando presupuesto** de **{ctx.get('cliente','')}** — Modificá y guardá.")
         if st.button("✕ Cancelar edición", key="btn_cancel_edit"):
-            _limpiar_edicion()
+            _limpiar_edicion(nuke_obra=True)
             st.rerun()
-
     # ───────────────────────────────────────────────────────────────────────
     # Carga de params desde contexto de edición
     # ───────────────────────────────────────────────────────────────────────
