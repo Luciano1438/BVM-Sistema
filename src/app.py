@@ -785,7 +785,36 @@ if menu == "🪵 Cotizador":
     # ───────────────────────────────────────────────────────────────────────
     # BANNER de edición activa
     # ───────────────────────────────────────────────────────────────────────
-    if modo == "editar_modulo_obra":
+    # ── MODO ESPECIAL: selector de módulo para obras con varios módulos ──
+    if modo == "elegir_modulo_obra":
+        _mods_elegir = [m for m in st.session_state.get("obra_modulos", []) if m is not None]
+        _cli_elegir  = ctx.get("obra_cliente", "")
+        _oid_elegir  = ctx.get("obra_id")
+        st.markdown(f"### ✏️ Editando obra de **{_cli_elegir}** — ¿Qué módulo querés editar?")
+        for i_e, mod_e in enumerate(_mods_elegir):
+            c_info, c_btn = st.columns([5, 1])
+            c_info.markdown(f"**{i_e+1}. {mod_e['nombre']}** — {mod_e['ancho']}×{mod_e['alto']}×{mod_e['prof']} mm — {mod_e['material']} — `${mod_e['precio']:,.0f}`")
+            if c_btn.button("✏️ Editar", key=f"elegir_{i_e}", use_container_width=True):
+                st.session_state["edit_ctx"] = {
+                    "modo":        "editar_modulo_obra",
+                    "idx":         i_e,
+                    "obra_id":     _oid_elegir,
+                    "obra_cliente": _cli_elegir,
+                    "params":      _params_desde_mod(mod_e),
+                }
+                st.session_state.pop("_tipo_modulo_sel", None)
+                st.session_state.pop("_ctx_sig_prev",    None)
+                st.rerun()
+        if st.button("✕ Cancelar", key="btn_cancel_elegir"):
+            st.session_state["obra_modulos"] = []
+            st.session_state.pop("_obra_id_historial",      None)
+            st.session_state.pop("_obra_cliente_historial", None)
+            _limpiar_edicion()
+            st.rerun()
+        # No renderizamos el cotizador en este modo
+        st.stop()
+
+    elif modo == "editar_modulo_obra":
         st.info(f"✏️ **Editando módulo** de la obra de **{ctx.get('obra_cliente','')}** — Cambiá lo que necesitás y confirmá.")
         if st.button("✕ Cancelar edición", key="btn_cancel_edit"):
             _limpiar_edicion()
@@ -1243,7 +1272,7 @@ if menu == "🪵 Cotizador":
     # RESUMEN DE OBRA
     # ═══════════════════════════════════════════════════════════════════════
     _mods_obra = [m for m in st.session_state["obra_modulos"] if m is not None]
-    if _mods_obra and modo not in ["editar_legacy"]:
+    if _mods_obra and modo not in ["editar_legacy", "editar_modulo_obra", "elegir_modulo_obra"]:
         st.write("---")
         st.header("🏠 Resumen de Obra Completa")
 
@@ -1328,8 +1357,14 @@ if menu == "🪵 Cotizador":
             if not cliente_obra:
                 st.warning("Ingresá el nombre del cliente arriba.")
             else:
-                _guardar_obra_nube(_mods_obra, cliente_obra, None)
+                # Usamos el obra_id del historial si estamos editando una obra existente
+                _id_a_guardar = st.session_state.pop("_obra_id_historial", None)
+                _guardar_obra_nube(_mods_obra, cliente_obra, _id_a_guardar)
+                # Limpieza total del cotizador
                 st.session_state["obra_modulos"] = []
+                st.session_state.pop("_obra_cliente_historial", None)
+                st.session_state.pop("_tipo_modulo_sel",        None)
+                st.session_state.pop("_ctx_sig_prev",           None)
                 _limpiar_edicion()
                 st.rerun()
 
@@ -1400,31 +1435,49 @@ elif menu == "📋 Historial":
                         try:
                             params = json.loads(row['parametros'])
                             if params.get("es_obra"):
-                                # Obra multi-módulo: el usuario elige qué módulo editar
-                                # directamente desde el Resumen de Obra en el Cotizador
-                                mods = params.get("modulos", [])
+                                mods      = params.get("modulos", [])
+                                cliente_h = row.get('cliente','')
+
                                 # Convertimos al formato interno de obra_modulos
                                 mods_internos = []
                                 for m in mods:
                                     p = _params_desde_mod(m)
                                     mods_internos.append({
-                                        "nombre":   m.get("nombre", p.get("nombre","")),
-                                        "tipo":     m.get("tipo_modulo", p.get("tipo_modulo","")),
-                                        "ancho":    int(m.get("ancho_m", p.get("ancho_m", 0))),
-                                        "alto":     int(m.get("alto_m",  p.get("alto_m",  0))),
-                                        "prof":     int(m.get("prof_m",  p.get("prof_m",  0))),
-                                        "material": m.get("mat_principal", p.get("mat_principal","")),
-                                        "precio":   m.get("precio", p.get("precio_guardado", 0)),
+                                        "nombre":    m.get("nombre", p.get("nombre","")),
+                                        "tipo":      m.get("tipo_modulo", p.get("tipo_modulo","")),
+                                        "ancho":     int(m.get("ancho_m", p.get("ancho_m", 0))),
+                                        "alto":      int(m.get("alto_m",  p.get("alto_m",  0))),
+                                        "prof":      int(m.get("prof_m",  p.get("prof_m",  0))),
+                                        "material":  m.get("mat_principal", p.get("mat_principal","")),
+                                        "precio":    m.get("precio", p.get("precio_guardado", 0)),
                                         "tipo_tapa": p.get("tipo_tapa","Superpuesta"),
-                                        "df_corte": None,
-                                        "params":   p,
+                                        "df_corte":  None,
+                                        "params":    p,
                                     })
-                                st.session_state["obra_modulos"] = mods_internos
-                                # Guardamos el obra_id para que al editar módulos se auto-guarde
+
+                                st.session_state["obra_modulos"]            = mods_internos
                                 st.session_state["_obra_id_historial"]      = id_venta
-                                st.session_state["_obra_cliente_historial"] = row.get('cliente','')
-                                st.session_state["edit_ctx"] = None
+                                st.session_state["_obra_cliente_historial"] = cliente_h
+                                st.session_state.pop("_tipo_modulo_sel", None)
+                                st.session_state.pop("_ctx_sig_prev",    None)
                                 st.session_state["menu_idx"] = 0
+
+                                if len(mods_internos) == 1:
+                                    # Un solo módulo: cargarlo directo en el cotizador
+                                    st.session_state["edit_ctx"] = {
+                                        "modo":        "editar_modulo_obra",
+                                        "idx":         0,
+                                        "obra_id":     id_venta,
+                                        "obra_cliente": cliente_h,
+                                        "params":      mods_internos[0]["params"],
+                                    }
+                                else:
+                                    # Varios módulos: ir al cotizador y mostrar selector arriba
+                                    st.session_state["edit_ctx"] = {
+                                        "modo":        "elegir_modulo_obra",
+                                        "obra_id":     id_venta,
+                                        "obra_cliente": cliente_h,
+                                    }
                             else:
                                 # Presupuesto individual
                                 params["precio_guardado"] = float(row.get("precio_final", 0))
