@@ -408,7 +408,7 @@ def traer_datos_historial():
     except:
         return pd.DataFrame()
 
-def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_puertas, cant_cajones, estantes_fijos, estantes_moviles, tiene_parante, sin_fondo, distribucion_tapas="Iguales", tipo_base="Nada", altura_base=0):
+def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_puertas, cant_cajones, estantes_fijos, estantes_moviles, tiene_parante, sin_fondo, distribucion_tapas="Iguales", tipo_base="Nada", altura_base=0, **kwargs):
     """Genera un SVG esquemático del mueble con proporciones reales."""
     try:
         ancho_m = float(ancho_m)
@@ -589,6 +589,85 @@ def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_pue
             if not (es_gola or es_unero):
                 mx = px + pw - 12 if p % 2 == 0 else px + 6
                 lines.append(f'<rect x="{mx}" y="{py + ph - 30}" width="6" height="24" rx="2" fill="{c_manija}"/>')
+
+    # ── PLACARD ──────────────────────────────────────────────────────────
+    elif tipo_modulo == "Placard":
+        # Usamos division_placard y zonas si se pasan como kwargs,
+        # sino dibujamos un placard genérico con división central
+        _div = kwargs.get("division_placard", "Sin división")
+        _z_izq   = kwargs.get("zona_izq",   "Solo estantes")
+        _z_der   = kwargs.get("zona_der",   "Solo estantes")
+        _z_unica = kwargs.get("zona_unica", "Solo estantes")
+
+        # Frentín superior
+        frenin_h = int(ih * 0.07)
+        lines.append(f'<rect x="{ix}" y="{iy}" width="{iw}" height="{frenin_h}" fill="{c_estructura}" opacity="0.5"/>')
+
+        # División(es) vertical(es)
+        if _div == "Una división central":
+            mid_x = ix + iw // 2
+            lines.append(f'<rect x="{mid_x - 2}" y="{iy}" width="4" height="{ih}" fill="{c_estructura}"/>')
+            zonas_svg = [
+                (ix, iw // 2 - 2, _z_izq),
+                (mid_x + 2, iw // 2 - 2, _z_der),
+            ]
+        elif _div == "Dos divisiones":
+            tercio = iw // 3
+            x1 = ix + tercio
+            x2 = ix + tercio * 2
+            lines.append(f'<rect x="{x1 - 2}" y="{iy}" width="4" height="{ih}" fill="{c_estructura}"/>')
+            lines.append(f'<rect x="{x2 - 2}" y="{iy}" width="4" height="{ih}" fill="{c_estructura}"/>')
+            zonas_svg = [
+                (ix,      tercio - 2, _z_izq),
+                (x1 + 2,  tercio - 4, _z_unica),
+                (x2 + 2,  iw - tercio * 2 - 2, _z_der),
+            ]
+        else:  # Sin división
+            zonas_svg = [(ix, iw, _z_unica)]
+
+        # Dibujamos el contenido de cada zona
+        for zx, zw, ztipo in zonas_svg:
+            zy_content = iy + frenin_h + 4
+            zh_content = ih - frenin_h - 8
+            if ztipo == "Solo estantes":
+                # 3 líneas de estante
+                paso = zh_content // 4
+                for k in range(1, 4):
+                    sy = zy_content + paso * k
+                    lines.append(f'<rect x="{zx+2}" y="{sy}" width="{zw-4}" height="3" rx="1" fill="{c_estante}" opacity="0.6"/>')
+            elif ztipo == "Ropa colgada":
+                # Tubo horizontal a ~60% de la altura
+                tubo_y = zy_content + int(zh_content * 0.60)
+                lines.append(f'<rect x="{zx+4}" y="{tubo_y}" width="{zw-8}" height="4" rx="2" fill="{c_metal}" opacity="0.8"/>')
+                # Perchas (3 triángulos simples)
+                paso_p = (zw - 8) // 4
+                for k in range(1, 4):
+                    px_p = zx + 4 + paso_p * k
+                    lines.append(f'<line x1="{px_p}" y1="{tubo_y}" x2="{px_p - 6}" y2="{tubo_y + 12}" stroke="{c_metal}" stroke-width="1.5" opacity="0.6"/>')
+                    lines.append(f'<line x1="{px_p}" y1="{tubo_y}" x2="{px_p + 6}" y2="{tubo_y + 12}" stroke="{c_metal}" stroke-width="1.5" opacity="0.6"/>')
+                # Estante superior
+                lines.append(f'<rect x="{zx+2}" y="{zy_content + 6}" width="{zw-4}" height="3" rx="1" fill="{c_estante}" opacity="0.6"/>')
+            elif ztipo == "Cajones":
+                # 3 cajones
+                paso_c = zh_content // 3
+                for k in range(3):
+                    cy = zy_content + paso_c * k + 2
+                    lines.append(f'<rect x="{zx+3}" y="{cy}" width="{zw-6}" height="{paso_c - 4}" rx="1" fill="{c_cajon}" opacity="0.7" stroke="{c_estructura}" stroke-width="0.5"/>')
+                    # manija
+                    lines.append(f'<rect x="{zx + zw//2 - 8}" y="{cy + (paso_c-4)//2 - 2}" width="16" height="4" rx="2" fill="{c_manija}" opacity="0.8"/>')
+
+    # ── PANEL A MEDIDA ────────────────────────────────────────────────────
+    elif tipo_modulo == "Panel a Medida":
+        # Rectángulo punteado con texto L×A centrado
+        lines.append(f'<rect x="{ix}" y="{iy}" width="{iw}" height="{ih}" rx="3" fill="none" stroke="{c_estructura}" stroke-width="1.5" stroke-dasharray="6,4" opacity="0.5"/>')
+        mid_x = ix + iw // 2
+        mid_y = iy + ih // 2
+        lines.append(f'<text x="{mid_x}" y="{mid_y - 8}" text-anchor="middle" font-size="14" fill="{c_texto}" opacity="0.5" font-weight="bold">{int(ancho_m)}</text>')
+        lines.append(f'<text x="{mid_x}" y="{mid_y + 6}" text-anchor="middle" font-size="10" fill="{c_texto}" opacity="0.4">×</text>')
+        lines.append(f'<text x="{mid_x}" y="{mid_y + 20}" text-anchor="middle" font-size="14" fill="{c_texto}" opacity="0.5" font-weight="bold">{int(alto_m)}</text>')
+        # Flechas de dimensión
+        lines.append(f'<line x1="{ix+2}" y1="{iy + ih//2}" x2="{ix + iw - 2}" y2="{iy + ih//2}" stroke="{c_texto}" stroke-width="0.5" opacity="0.2"/>')
+        lines.append(f'<line x1="{ix + iw//2}" y1="{iy + 2}" x2="{ix + iw//2}" y2="{iy + ih - 2}" stroke="{c_texto}" stroke-width="0.5" opacity="0.2"/>')
 
     _label_soporte = f" + {tipo_base}" if tiene_soporte else ""
     lines.append(f'<text x="{W//2}" y="{H-2}" text-anchor="middle" font-size="8" fill="{c_texto}" opacity="0.5">{int(ancho_m)}×{int(alto_m)} mm{_label_soporte}</text>')
@@ -1169,7 +1248,10 @@ if menu == "🪵 Cotizador":
           svg_prev = generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa,
                                          cant_puertas, cant_cajones, estantes_fijos, estantes_moviles,
                                          tiene_parante, sin_fondo, distribucion_tapas,
-                                         tipo_base=tipo_base, altura_base=altura_base)
+                                         tipo_base=tipo_base, altura_base=altura_base,
+                                         # Placard — datos de zonas para el SVG dinámico
+                                         division_placard=division_placard,
+                                         zona_izq=zona_izq, zona_der=zona_der, zona_unica=zona_unica)
           if svg_prev:
               st.markdown(f'<div style="text-align:center;padding:16px;background:white;border:1px solid #E0DED6;border-radius:10px;margin-bottom:24px;">{svg_prev}</div>', unsafe_allow_html=True)
 
