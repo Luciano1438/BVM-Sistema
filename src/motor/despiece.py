@@ -27,46 +27,6 @@ def calcular_medida_frente(ancho_hueco, alto_hueco, tipo_montaje="Superpuesto", 
         return ancho_real, alto_real
 
 
-def calcular_ahorro_retazos(df_corte, retazos_stock, precio_m2_placa):
-    """
-    Compara las piezas del despiece contra el stock de retazos.
-    Devuelve (ahorro_total, lista_de_matches).
-    """
-    if df_corte is None or df_corte.empty or not retazos_stock:
-        return 0.0, []
-
-    matches = []
-    ahorro_total = 0.0
-
-    try:
-        for _, pieza in df_corte.iterrows():
-            largo_p = float(pieza.get("L", 0))
-            ancho_p = float(pieza.get("A", 0))
-            cant_p  = int(pieza.get("Cant", 1))
-            nombre_p = str(pieza.get("Pieza", ""))
-
-            for _ in range(cant_p):
-                for retazo in retazos_stock:
-                    largo_r = float(retazo.get("largo", 0))
-                    ancho_r = float(retazo.get("ancho", 0))
-                    # La pieza entra en el retazo (en cualquiera de las dos orientaciones)
-                    entra = (largo_p <= largo_r and ancho_p <= ancho_r) or \
-                            (ancho_p <= largo_r and largo_p <= ancho_r)
-                    if entra:
-                        area_pieza = (largo_p * ancho_p) / 1_000_000
-                        ahorro = area_pieza * (precio_m2_placa / 5.03)
-                        matches.append({
-                            "pieza":     nombre_p,
-                            "retazo_id": retazo.get("id", "?"),
-                            "ahorro":    round(ahorro, 2),
-                        })
-                        ahorro_total += ahorro
-                        break  # Una pieza usa un solo retazo
-    except Exception:
-        pass
-
-    return round(ahorro_total, 2), matches
-
 
 def generar_despiece_bvm(
     tipo, ancho_m, alto_m, prof_m, esp_real,
