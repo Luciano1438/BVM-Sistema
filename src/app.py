@@ -841,8 +841,15 @@ if menu == "🪵 Cotizador":
     # ───────────────────────────────────────────────────────────────────────
     ep = ctx.get("params") if ctx else None
 
-    def _v(key, default):
-        return ep[key] if ep and key in ep else default
+    def _v(key, default, st_key=None):
+        # 1. Si estamos editando, forzamos el valor guardado
+        if ep and key in ep:
+            return ep[key]
+        # 2. Si es un módulo nuevo, leemos lo último que el usuario dejó en pantalla
+        if st_key and st_key in st.session_state:
+            return st.session_state[st_key]
+        # 3. Valor por defecto de fábrica
+        return default
 
     # ───────────────────────────────────────────────────────────────────────
     # Tipo de módulo: se persiste en session_state para que los botones
@@ -921,14 +928,20 @@ if menu == "🪵 Cotizador":
 
         tipo_modulo = st.session_state["_tipo_modulo_sel"]
         c1, c2, c3 = st.columns(3)
-        ancho_m = c1.number_input("Ancho total (mm)", min_value=0.0, max_value=5000.0, value=float(_v("ancho_m", 0.0)), step=0.5)
-        alto_m  = c2.number_input("Alto total (mm)",  min_value=0.0, max_value=5000.0, value=float(_v("alto_m",  0.0)), step=0.5)
-        prof_m  = c3.number_input("Profundidad (mm)", min_value=0.0, max_value=2000.0, value=float(_v("prof_m",  0.0)), step=0.5)
-        mat_principal = st.selectbox("Material del cuerpo (18mm)", lista_maderas, index=idx_madera)
-        esp_real      = st.number_input("Espesor real de placa (mm)", min_value=1.0, max_value=50.0, value=float(_v("esp_real", 18.0)), step=0.1)
-        mat_fondo_sel = st.selectbox("Material del fondo", lista_fondos, index=idx_fondo)
+        ancho_m = c1.number_input("Ancho total (mm)", min_value=0.0, max_value=5000.0, value=float(_v("ancho_m", 0.0, "in_ancho")), step=0.5, key="in_ancho")
+        alto_m  = c2.number_input("Alto total (mm)",  min_value=0.0, max_value=5000.0, value=float(_v("alto_m",  0.0, "in_alto")), step=0.5, key="in_alto")
+        prof_m  = c3.number_input("Profundidad (mm)", min_value=0.0, max_value=2000.0, value=float(_v("prof_m",  0.0, "in_prof")), step=0.5, key="in_prof")
+        
+        val_mat = _v("mat_principal", lista_maderas[0], "in_mat")
+        idx_madera = lista_maderas.index(val_mat) if val_mat in lista_maderas else 0
+        mat_principal = st.selectbox("Material del cuerpo (18mm)", lista_maderas, index=idx_madera, key="in_mat")
+        
+        esp_real      = st.number_input("Espesor real de placa (mm)", min_value=1.0, max_value=50.0, value=float(_v("esp_real", 18.0, "in_esp")), step=0.1, key="in_esp")
+        
+        val_fondo = _v("mat_fondo_sel", lista_fondos[0], "in_fondo")
+        idx_fondo = lista_fondos.index(val_fondo) if val_fondo in lista_fondos else 0
+        mat_fondo_sel = st.selectbox("Material del fondo", lista_fondos, index=idx_fondo, key="in_fondo")
         sin_fondo = mat_fondo_sel == "Sin fondo"
-
       _editando = modo in ("editar_modulo_obra", "editar_legacy")
       with st.expander("🏗️ Configuración del módulo", expanded=_editando):
         if tipo_modulo == "Bajo Mesada":
@@ -969,7 +982,12 @@ if menu == "🪵 Cotizador":
             _p_ala = int(_v("cant_puertas",2))
             cant_puertas = c_ala2.selectbox("Cantidad de Puertas", [2,3,4], index=[2,3,4].index(_p_ala) if _p_ala in [2,3,4] else 0)
             st.markdown("---")
-            cant_total_est = st.number_input("Cantidad Total Estantes", min_value=0, value=1, step=1)
+            # Memoria inteligente para los estantes de alacena
+            _est_ala_val = int(_v("estantes_fijos", 1)) + int(_v("estantes_moviles", 0))
+            if not ep and "cant_est_ala" in st.session_state:
+                _est_ala_val = st.session_state["cant_est_ala"]
+                
+            cant_total_est = st.number_input("Cantidad Total Estantes", min_value=0, value=_est_ala_val, step=1, key="cant_est_ala")
             _indices_guard_ala = _v("indices_estantes_fijos", [])
             indices_fijos = []
             if cant_total_est > 0:
@@ -1376,7 +1394,7 @@ if menu == "🪵 Cotizador":
             else:
                 st.warning("Calculá los módulos en esta sesión para exportar CNC.")
 
-        if st.button("💾 Guardar obra en historial", use_container_width=True):
+        if st.button("💾 Guardar Obra en Historial", use_container_width=True, type="primary"):
             if not cliente_obra:
                 st.warning("Ingresá el nombre del cliente arriba.")
             else:
@@ -1391,11 +1409,7 @@ if menu == "🪵 Cotizador":
                 _guardar_obra_nube(_mods_obra, cliente_obra, _id_a_guardar,
                                     total_con_logistica=total_obra,
                                     logistica=_log_data)
-                # Limpieza total del cotizador
-                st.session_state["obra_modulos"] = []
-                st.session_state.pop("_obra_cliente_historial", None)
-                st.session_state.pop("_tipo_modulo_sel",        None)
-                st.session_state.pop("_ctx_sig_prev",           None)
+                # Exterminio total centralizado: deja el escritorio impecable para el próximo cliente
                 _limpiar_edicion(nuke_obra=True)
                 st.rerun()
 
@@ -1442,9 +1456,31 @@ elif menu == "📋 Historial":
                 icono, bg, tc = COLORES[estado_actual]
                 id_venta = row.get('id')
 
+                # --- LÓGICA DE CÁLCULO PARA SEÑA/SALDO ---
+                precio_total = float(row['precio_final'])
+                pct_sena = 50
+                try:
+                    if row.get('parametros'):
+                        p_dict = json.loads(row['parametros'])
+                        if p_dict.get("es_obra"):
+                            pct_sena = p_dict.get("logistica", {}).get("pct_seña", 50)
+                except:
+                    pass
+
+                monto_sena = precio_total * (pct_sena / 100)
+                saldo = precio_total - monto_sena
+
+                if estado_actual == "Señado":
+                    badge_text = f"Total: ${precio_total:,.0f} | Seña ({pct_sena}%): ${monto_sena:,.0f} | Saldo: ${saldo:,.0f}"
+                elif estado_actual == "Pagado":
+                    badge_text = f"Abonado: ${precio_total:,.0f} ✅"
+                else:
+                    badge_text = f"Total: ${precio_total:,.0f}"
+
+                # Dibujamos la caja con la nueva información
                 st.markdown(f"""<div style="background:{bg};border-radius:8px;padding:12px 16px;margin-bottom:4px;">
                 <span style="color:{tc};font-weight:600;font-size:15px;">{icono} {row.get('cliente','Sin nombre')} — {row.get('mueble','')}</span>
-                <span style="color:{tc};float:right;font-size:15px;font-weight:600;">${row['precio_final']:,.0f}</span></div>""", unsafe_allow_html=True)
+                <span style="color:{tc};float:right;font-size:13.5px;font-weight:600;opacity:0.9;">{badge_text}</span></div>""", unsafe_allow_html=True)
 
                 col_fecha, col_estado, col_b1, col_b2, col_b3 = st.columns([2,2,1,1,1])
                 fecha_str = str(row.get('fecha',''))[:16] if row.get('fecha') else 'Sin fecha'
