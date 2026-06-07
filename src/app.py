@@ -1659,9 +1659,30 @@ elif menu == "📋 Historial":
                 icono, bg, tc = COLORES[estado_actual]
                 id_venta = row.get('id')
 
+                # --- LÓGICA FINANCIERA (SEÑA Y SALDO) ---
+                precio_total = float(row['precio_final'])
+                pct_sena = 50
+                try:
+                    if row.get('parametros'):
+                        p_dict = json.loads(row['parametros'])
+                        if p_dict.get("es_obra"):
+                            pct_sena = p_dict.get("logistica", {}).get("pct_seña", 50)
+                except:
+                    pass
+
+                monto_sena = precio_total * (pct_sena / 100)
+                saldo = precio_total - monto_sena
+
+                if estado_actual == "Señado":
+                    badge_text = f"Total: ${precio_total:,.0f} | Seña ({pct_sena}%): ${monto_sena:,.0f} | Saldo: ${saldo:,.0f}"
+                elif estado_actual == "Pagado":
+                    badge_text = f"Abonado: ${precio_total:,.0f} ✅"
+                else:
+                    badge_text = f"Total: ${precio_total:,.0f}"
+
                 st.markdown(f"""<div style="background:{bg};border-radius:8px;padding:12px 16px;margin-bottom:4px;">
                 <span style="color:{tc};font-weight:600;font-size:15px;">{icono} {row.get('cliente','Sin nombre')} — {row.get('mueble','')}</span>
-                <span style="color:{tc};float:right;font-size:15px;font-weight:600;">${row['precio_final']:,.0f}</span></div>""", unsafe_allow_html=True)
+                <span style="color:{tc};float:right;font-size:13.5px;font-weight:600;opacity:0.9;">{badge_text}</span></div>""", unsafe_allow_html=True)
 
                 col_fecha, col_estado, col_b1, col_b2, col_b3 = st.columns([2,2,1,1,1])
                 fecha_str = str(row.get('fecha',''))[:16] if row.get('fecha') else 'Sin fecha'
