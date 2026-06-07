@@ -1639,13 +1639,30 @@ elif menu == "📋 Historial":
         if df_hist.empty:
             st.info("No hay presupuestos guardados todavía.")
         else:
-            total_pend  = df_hist[df_hist['estado']=='Pendiente']['precio_final'].sum()
-            total_señad = df_hist[df_hist['estado']=='Señado']['precio_final'].sum()
-            total_pag   = df_hist[df_hist['estado']=='Pagado']['precio_final'].sum()
-            c1,c2,c3 = st.columns(3)
-            c1.metric("🔴 Pendientes", f"${total_pend:,.0f}",  f"{len(df_hist[df_hist['estado']=='Pendiente'])} presupuestos")
-            c2.metric("🟡 Señados",    f"${total_señad:,.0f}", f"{len(df_hist[df_hist['estado']=='Señado'])} presupuestos")
-            c3.metric("🟢 Pagados",    f"${total_pag:,.0f}",   f"{len(df_hist[df_hist['estado']=='Pagado'])} presupuestos")
+            # --- CÁLCULO ESTRICTO DE FLUJO DE CAJA (CASHFLOW) ---
+            total_pend = df_hist[df_hist['estado']=='Pendiente']['precio_final'].sum()
+            total_pag  = df_hist[df_hist['estado']=='Pagado']['precio_final'].sum()
+            
+            # Para los señados, extraemos exactamente la liquidez real que entró a la cuenta
+            total_senad_cash = 0.0
+            df_senados = df_hist[df_hist['estado']=='Señado']
+            
+            for _, row_s in df_senados.iterrows():
+                precio_s = float(row_s.get('precio_final', 0))
+                pct_s = 50.0  # Asumimos 50% por defecto si es un presupuesto viejo sin datos
+                try:
+                    if row_s.get('parametros'):
+                        p_dict = json.loads(row_s.get('parametros'))
+                        if p_dict.get("es_obra"):
+                            pct_s = float(p_dict.get("logistica", {}).get("pct_seña", 50))
+                except:
+                    pass
+                total_senad_cash += precio_s * (pct_s / 100.0)
+
+            c1, c2, c3 = st.columns(3)
+            c1.metric("🔴 En Negociación (Proyección)", f"${total_pend:,.0f}", f"{len(df_hist[df_hist['estado']=='Pendiente'])} presupuestos")
+            c2.metric("🟡 Caja Retenida (Señas)", f"${total_senad_cash:,.0f}", f"{len(df_senados)} presupuestos")
+            c3.metric("🟢 Capital Realizado (Pagados)", f"${total_pag:,.0f}", f"{len(df_hist[df_hist['estado']=='Pagado'])} presupuestos")
             st.write("---")
             filtro = st.radio("Mostrar", ["Todos","Pendiente","Señado","Pagado"], horizontal=True)
             df_f = df_hist if filtro=="Todos" else df_hist[df_hist['estado']==filtro]
