@@ -27,17 +27,70 @@ def calcular_medida_frente(ancho_hueco, alto_hueco, tipo_montaje="Superpuesto", 
         return ancho_real, alto_real
 
 
+def calcular_ahorro_retazos(df_corte, retazos_stock, precio_m2_placa):
+    """
+    Compara las piezas del despiece contra el stock de retazos.
+    Devuelve (ahorro_total, lista_de_matches).
+    """
+    if df_corte is None or df_corte.empty or not retazos_stock:
+        return 0.0, []
+
+    matches = []
+    ahorro_total = 0.0
+
+    try:
+        for _, pieza in df_corte.iterrows():
+            largo_p = float(pieza.get("L", 0))
+            ancho_p = float(pieza.get("A", 0))
+            cant_p  = int(pieza.get("Cant", 1))
+            nombre_p = str(pieza.get("Pieza", ""))
+
+            for _ in range(cant_p):
+                for retazo in retazos_stock:
+                    largo_r = float(retazo.get("largo", 0))
+                    ancho_r = float(retazo.get("ancho", 0))
+                    # La pieza entra en el retazo (en cualquiera de las dos orientaciones)
+                    entra = (largo_p <= largo_r and ancho_p <= ancho_r) or \
+                            (ancho_p <= largo_r and largo_p <= ancho_r)
+                    if entra:
+                        area_pieza = (largo_p * ancho_p) / 1_000_000
+                        ahorro = area_pieza * (precio_m2_placa / 5.03)
+                        matches.append({
+                            "pieza":     nombre_p,
+                            "retazo_id": retazo.get("id", "?"),
+                            "ahorro":    round(ahorro, 2),
+                        })
+                        ahorro_total += ahorro
+                        break  # Una pieza usa un solo retazo
+    except Exception:
+        pass
+
+    return round(ahorro_total, 2), matches
+
+
 def generar_despiece_bvm(
     tipo, ancho_m, alto_m, prof_m, esp_real,
-    tiene_parante, tipo_parante, distancia_parante,
-    cant_cajones, tipo_tapa, tipo_base, altura_base,
-    luz_entre_tapas, luz_perimetral_tapa, alto_frentin_emb,
-    aire_trasero, esp_corredera, distribucion_tapas,
-    cant_puertas=0, tiene_cenefa=False, alto_cenefa=0.0,
+    tiene_parante=False, tipo_parante="Corto (100mm)", distancia_parante=0,
+    cant_cajones=0, tipo_tapa="Superpuesta", tipo_base="Nada", altura_base=0,
+    luz_entre_tapas=3.0, luz_perimetral_tapa=4.0, alto_frentin_emb=0,
+    aire_trasero=30, esp_corredera=13, distribucion_tapas="Iguales",
+    cant_puertas=2, tiene_cenefa=False, alto_cenefa=0.0,
     estantes_fijos=0, estantes_moviles=0,
     tipo_estante_manual="Completo",
-    sin_fondo=False,          # NUEVO: opción sin fondo
-    tiene_parante_medio=False, # NUEVO: parante medio en BM
+    sin_fondo=False,
+    tiene_parante_medio=False,
+    # Parámetros exclusivos de Placard
+    division_placard="Sin división",
+    zona_izq="Solo estantes",
+    zona_der="Solo estantes",
+    zona_unica="Solo estantes",
+    altura_tubo=1200,
+    cant_estantes_izq_fijos=0, cant_estantes_izq_moviles=0,
+    cant_estantes_der_fijos=0, cant_estantes_der_moviles=0,
+    cant_estantes_unica_fijos=1, cant_estantes_unica_moviles=0,
+    cant_cajones_placard=0,
+    # Parámetros exclusivos de Panel a Medida
+    cant_paneles=1,
 ):
     despiece = []
     ancho_interno_total = ancho_m - (esp_real * 2)
@@ -64,12 +117,10 @@ def generar_despiece_bvm(
         despiece.append({"Pieza": "Travesaño Trasero (100)", "Cant": 1, "L": ancho_interno_total, "A": 100, "Tipo": "Cuerpo"})
         despiece.append({"Pieza": "Travesaño Trasero (60)",  "Cant": 1, "L": ancho_interno_total, "A": 60,  "Tipo": "Cuerpo"})
 
-        # Fondo opcional
         if not sin_fondo:
             alto_fondo = alto_m - 80 - esp_real
             despiece.append({"Pieza": "Fondo Mueble", "Cant": 1, "L": alto_fondo, "A": ancho_m - 20, "Tipo": "Fondo"})
 
-        # Estantes
         prof_est = prof_m - 20
         if tipo_estante_manual == "Medio":
             etiqueta_est    = "Medio Estante"
@@ -85,12 +136,10 @@ def generar_despiece_bvm(
         if estantes_moviles > 0:
             despiece.append({"Pieza": f"{etiqueta_est} MÓVIL", "Cant": int(estantes_moviles * mult_cant), "L": round(ancho_est_final - 2, 1), "A": prof_est, "Tipo": "Cuerpo"})
 
-        # Parante medio (nuevo)
         if tiene_parante_medio:
             ancho_par_medio = prof_m if tipo_parante == "Largo (Fondo Lateral)" else 100
             despiece.append({"Pieza": "Parante Medio", "Cant": 1, "L": altura_lateral, "A": ancho_par_medio, "Tipo": "Cuerpo"})
 
-        # Parante divisor (para 3 puertas)
         if tiene_parante:
             ancho_par = prof_m if tipo_parante == "Largo (Fondo Lateral)" else 100
             despiece.append({"Pieza": "Parante Divisor", "Cant": 1, "L": altura_lateral, "A": ancho_par, "Tipo": "Cuerpo"})
@@ -221,5 +270,123 @@ def generar_despiece_bvm(
             else:                   ancho_p = (ancho_m - 16) / 4
 
         despiece.append({"Pieza": "Puerta", "Cant": cant_puertas, "L": alto_p, "A": round(ancho_p, 1), "Tipo": "Frente"})
+
+    # -----------------------------------------------------------------------
+    # PLACARD
+    # -----------------------------------------------------------------------
+    elif tipo == "Placard":
+        # ── CAJA ESTRUCTURAL ──────────────────────────────────────────────
+        # Igual que Alacena: techo tapa los laterales, piso va entre laterales
+        ancho_interno = ancho_m - (esp_real * 2)
+        alto_lateral  = alto_m - esp_real          # lateral = alto total - 1 espesor (techo lo tapa)
+
+        despiece.append({"Pieza": "Techo",    "Cant": 1, "L": ancho_m,      "A": prof_m, "Tipo": "Cuerpo"})
+        despiece.append({"Pieza": "Piso",     "Cant": 1, "L": ancho_interno, "A": prof_m, "Tipo": "Cuerpo"})
+        despiece.append({"Pieza": "Lateral",  "Cant": 2, "L": alto_lateral,  "A": prof_m, "Tipo": "Cuerpo"})
+
+        # Fondo opcional
+        if not sin_fondo:
+            despiece.append({"Pieza": "Fondo", "Cant": 1, "L": alto_m - 10, "A": ancho_m - 10, "Tipo": "Fondo"})
+
+        # Frentin superior opcional (mismo que bajo mesada: ancho interno x 50mm)
+        if tiene_parante:  # reutilizamos tiene_parante como flag "lleva frentín"
+            despiece.append({"Pieza": "Frentín Superior", "Cant": 1, "L": ancho_interno, "A": 50, "Tipo": "Cuerpo"})
+
+        # ── DIVISIÓN CENTRAL ──────────────────────────────────────────────
+        # division_placard: "Sin división" | "Una división central" | "Dos divisiones"
+        tiene_division = division_placard != "Sin división"
+        cant_divisiones = 0
+        if division_placard == "Una división central":
+            cant_divisiones = 1
+        elif division_placard == "Dos divisiones":
+            cant_divisiones = 2
+
+        if cant_divisiones > 0:
+            # Parante vertical: alto_lateral x prof_m (igual que lateral)
+            # Mismo criterio que alacena: alto - 2 espesores (piso y techo lo contienen)
+            alto_parante = alto_m - (esp_real * 2)
+            despiece.append({
+                "Pieza": "Parante Divisor",
+                "Cant":  cant_divisiones,
+                "L":     alto_parante,
+                "A":     prof_m,
+                "Tipo":  "Cuerpo"
+            })
+
+        # ── CÁLCULO DE ANCHOS DE ZONA ─────────────────────────────────────
+        # Con 1 división → zona izquierda y zona derecha, ancho = ancho_interno / 2
+        # Con 2 divisiones → tres zonas, ancho = ancho_interno / 3
+        # Sin división → una sola zona, ancho = ancho_interno
+        if cant_divisiones == 0:
+            ancho_zona = ancho_interno
+            zonas = [("", zona_unica, cant_estantes_unica_fijos, cant_estantes_unica_moviles)]
+        elif cant_divisiones == 1:
+            ancho_zona = (ancho_interno - esp_real) / 2
+            zonas = [
+                ("Izq", zona_izq, cant_estantes_izq_fijos, cant_estantes_izq_moviles),
+                ("Der", zona_der, cant_estantes_der_fijos, cant_estantes_der_moviles),
+            ]
+        else:  # 2 divisiones → 3 zonas
+            ancho_zona = (ancho_interno - esp_real * 2) / 3
+            zonas = [
+                ("Izq",  zona_izq,   cant_estantes_izq_fijos,   cant_estantes_izq_moviles),
+                ("Med",  zona_unica, cant_estantes_unica_fijos, cant_estantes_unica_moviles),
+                ("Der",  zona_der,   cant_estantes_der_fijos,   cant_estantes_der_moviles),
+            ]
+
+        prof_est = prof_m - 30   # profundidad de estantes: mismo criterio que alacena
+
+        for sufijo, zona_tipo, est_fijos, est_moviles in zonas:
+            label = f" {sufijo}" if sufijo else ""
+
+            if zona_tipo == "Solo estantes":
+                if est_fijos > 0:
+                    despiece.append({"Pieza": f"Estante Fijo{label}",  "Cant": int(est_fijos),  "L": round(ancho_zona, 1),     "A": prof_est, "Tipo": "Cuerpo"})
+                if est_moviles > 0:
+                    despiece.append({"Pieza": f"Estante Móvil{label}", "Cant": int(est_moviles), "L": round(ancho_zona - 2, 1), "A": prof_est, "Tipo": "Cuerpo"})
+
+            elif zona_tipo == "Ropa colgada":
+                # Estante superior encima del tubo (mismo ancho que estante fijo)
+                despiece.append({"Pieza": f"Estante Superior{label}", "Cant": 1, "L": round(ancho_zona, 1), "A": prof_est, "Tipo": "Cuerpo"})
+                # El tubo no es una pieza de madera → se anota como referencia
+                despiece.append({"Pieza": f"Tubo Ropero{label} (ref.)", "Cant": 1, "L": round(ancho_zona, 1), "A": 35, "Tipo": "Herraje"})
+                # Estantes adicionales debajo del tubo si los hay
+                if est_fijos > 0:
+                    despiece.append({"Pieza": f"Estante Fijo inf.{label}",  "Cant": int(est_fijos),  "L": round(ancho_zona, 1),     "A": prof_est, "Tipo": "Cuerpo"})
+                if est_moviles > 0:
+                    despiece.append({"Pieza": f"Estante Móvil inf.{label}", "Cant": int(est_moviles), "L": round(ancho_zona - 2, 1), "A": prof_est, "Tipo": "Cuerpo"})
+
+            elif zona_tipo == "Cajones":
+                # Reutilizamos la lógica de cajonera completa para esta zona
+                # El ancho de la zona actúa como ancho del módulo de cajones
+                cant_caj = int(cant_cajones_placard) if cant_cajones_placard > 0 else 3
+                ancho_int_zona = ancho_zona - (esp_real * 2)  # ancho interno de la mini-cajonera
+                esp_util = alto_m - 30 - ((cant_caj - 1) * luz_entre_tapas)
+                alto_tapa_caj = esp_util / cant_caj
+                ancho_tapa_caj = ancho_zona - luz_perimetral_tapa
+
+                for i in range(cant_caj):
+                    despiece.append({"Pieza": f"Tapa Cajón{label} {i+1}", "Cant": 1, "L": round(alto_tapa_caj, 1), "A": round(ancho_tapa_caj, 1), "Tipo": "Frente"})
+
+                ancho_caja_caj = ancho_int_zona - (esp_corredera * 2)
+                ancho_frente_caj = ancho_caja_caj - (esp_real * 2)
+                largo_lat_caj = prof_m - aire_trasero
+                despiece.append({"Pieza": f"Lateral Cajón{label}",        "Cant": cant_caj * 2, "L": 150, "A": largo_lat_caj,                           "Tipo": "Cuerpo"})
+                despiece.append({"Pieza": f"Frente/Fondo Int.{label}",    "Cant": cant_caj * 2, "L": 150, "A": round(ancho_frente_caj, 1),               "Tipo": "Cuerpo"})
+                despiece.append({"Pieza": f"Piso Cajón{label}",           "Cant": cant_caj,     "L": round(largo_lat_caj - 20, 1), "A": round(ancho_caja_caj - 20, 1), "Tipo": "Piso"})
+
+    # -----------------------------------------------------------------------
+    # PANEL A MEDIDA
+    # -----------------------------------------------------------------------
+    elif tipo == "Panel a Medida":
+        # Sin lógica automática — el carpintero ingresa L, A y cantidad.
+        # Se genera una sola línea en la planilla.
+        despiece.append({
+            "Pieza": "Panel",
+            "Cant":  int(cant_paneles) if cant_paneles > 0 else 1,
+            "L":     ancho_m,   # L = ancho ingresado
+            "A":     alto_m,    # A = alto ingresado
+            "Tipo":  "Cuerpo",
+        })
 
     return despiece
