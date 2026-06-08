@@ -1889,28 +1889,32 @@ elif menu == "⚙️ Precios":
                 actualizar_precio_nube(nueva_mad_n, nueva_mad_p, 'maderas')
                 st.rerun()
 
-    claves_base = ['bisagra_cazoleta', 'telescopica_45', 'telescopica_soft']
-    herrajes_custom = {k: v for k, v in config.items() if k not in ['gastos_fijos_diarios', 'flete_capital', 'flete_norte', 'colocacion_dia', 'ganancia_taller_pct'] + claves_base}
-
     with st.expander("🔩 Herrajes, Cerraduras y Extras", expanded=False):
-        st.caption("Herrajes base del cotizador automático:")
-        c1, c2, c3 = st.columns(3)
-        config['bisagra_cazoleta'] = c1.number_input("Bisagra Cazoleta", value=float(config.get('bisagra_cazoleta', 1200)), step=100.0)
-        config['telescopica_45']   = c2.number_input("Guía 45cm", value=float(config.get('telescopica_45', 5000)), step=100.0)
-        config['telescopica_soft'] = c3.number_input("Guía Cierre Suave", value=float(config.get('telescopica_soft', 12000)), step=100.0)
-
-        st.write("---")
-        st.caption("Tus accesorios y cerraduras personalizadas:")
-        if not herrajes_custom:
-            st.info("No hay accesorios extra guardados. Agregá uno abajo.")
-        else:
-            for h_nom, h_pre in herrajes_custom.items():
-                ch_n, ch_p, ch_d = st.columns([5, 3, 1])
-                ch_n.markdown(f"<div style='padding-top: 8px; font-weight: 500;'>{h_nom}</div>", unsafe_allow_html=True)
-                config[h_nom] = ch_p.number_input("Precio", value=float(h_pre), step=100.0, key=f"p_{h_nom}", label_visibility="collapsed")
-                if ch_d.button("🗑️", key=f"del_{h_nom}", help=f"Eliminar {h_nom}"):
-                    eliminar_precio_nube(h_nom, 'herrajes')
-                    st.rerun()
+        # Diccionario para mapear las variables internas a nombres comerciales legibles
+        _nombres_base = {
+            'bisagra_cazoleta': 'Bisagra Cazoleta',
+            'telescopica_45': 'Guía Telescópica 45cm',
+            'telescopica_soft': 'Guía Cierre Suave'
+        }
+        
+        # Filtramos para obtener TODOS los herrajes (base y custom)
+        herrajes_items = {k: v for k, v in config.items() if k not in ['gastos_fijos_diarios', 'flete_capital', 'flete_norte', 'colocacion_dia', 'ganancia_taller_pct']}
+        
+        # Renderizado lineal unificado (idéntico a la estructura de Placas)
+        for h_clave, h_precio in list(herrajes_items.items()):
+            col_name, col_price, col_del = st.columns([5, 3, 1])
+            
+            # Nombre formateado
+            label = _nombres_base.get(h_clave, h_clave)
+            col_name.markdown(f"<div style='padding-top: 8px; font-weight: 500;'>{label}</div>", unsafe_allow_html=True)
+            
+            # Input de precio
+            config[h_clave] = col_price.number_input("Precio", value=float(h_precio), step=100.0, key=f"p_{h_clave}", label_visibility="collapsed")
+            
+            # Botón de eliminación universal activado para todos
+            if col_del.button("🗑️", key=f"del_{h_clave}", help=f"Eliminar {label}"):
+                eliminar_precio_nube(h_clave, 'herrajes')
+                st.rerun()
 
         st.write("---")
         st.markdown("**➕ Agregar nuevo accesorio**")
