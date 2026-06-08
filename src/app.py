@@ -648,13 +648,25 @@ def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_pue
                 # Estante superior
                 lines.append(f'<rect x="{zx+2}" y="{zy_content + 6}" width="{zw-4}" height="3" rx="1" fill="{c_estante}" opacity="0.6"/>')
             elif ztipo == "Cajones":
-                # 3 cajones
-                paso_c = zh_content // 3
-                for k in range(3):
-                    cy = zy_content + paso_c * k + 2
-                    lines.append(f'<rect x="{zx+3}" y="{cy}" width="{zw-6}" height="{paso_c - 4}" rx="1" fill="{c_cajon}" opacity="0.7" stroke="{c_estructura}" stroke-width="0.5"/>')
-                    # manija
-                    lines.append(f'<rect x="{zx + zw//2 - 8}" y="{cy + (paso_c-4)//2 - 2}" width="16" height="4" rx="2" fill="{c_manija}" opacity="0.8"/>')
+                # Representación realista: Cajonera bloque inferior + Estantes arriba
+                cant_caj = 3 # Fijo para previsualización limpia
+                h_cajon = 25 # Alto de cada cajón en proporción SVG
+                h_bloque_cajones = cant_caj * h_cajon
+                y_cajones_start = zy_content + zh_content - h_bloque_cajones
+                
+                # 1. Dibujar cajones abajo
+                for k in range(cant_caj):
+                    cy = y_cajones_start + (h_cajon * k) + 2
+                    lines.append(f'<rect x="{zx+3}" y="{cy}" width="{zw-6}" height="{h_cajon - 4}" rx="1" fill="{c_cajon}" opacity="0.7" stroke="{c_estructura}" stroke-width="0.5"/>')
+                    # Manija
+                    lines.append(f'<rect x="{zx + zw//2 - 8}" y="{cy + (h_cajon-4)//2 - 2}" width="16" height="4" rx="2" fill="{c_manija}" opacity="0.8"/>')
+                
+                # 2. Dibujar estantes en el espacio superior
+                espacio_libre_arr = y_cajones_start - zy_content
+                paso_est = espacio_libre_arr // 3
+                for k in range(1, 3):
+                    sy = zy_content + paso_est * k
+                    lines.append(f'<rect x="{zx+2}" y="{sy}" width="{zw-4}" height="3" rx="1" fill="{c_estante}" opacity="0.6"/>')
 
     # ── PANEL A MEDIDA ────────────────────────────────────────────────────
     elif tipo_modulo == "Panel a Medida":
@@ -1170,8 +1182,8 @@ if menu == "🪵 Cotizador":
             cant_cajones = 0  # no aplica para placard
 
         elif tipo_modulo == "Panel a Medida":
-            st.info("Ingresá las medidas del panel y la cantidad. Sin despiece automático.")
-            cant_paneles = st.number_input("Cantidad de paneles", value=int(_v("cant_paneles", 1)), min_value=1, max_value=100)
+            st.info("⚠️ **Piezas Extra / Fuera de Estándar:** Usá esta opción para cotizar tapas de terminación, regruesos, estantes sueltos o cualquier panel que no encaje en un módulo completo.")
+            cant_paneles = st.number_input("Cantidad de piezas iguales", value=int(_v("cant_paneles", 1)), min_value=1, max_value=100)
             cant_cajones = 0
 
         else:  # CAJONERA
