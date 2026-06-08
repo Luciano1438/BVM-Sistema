@@ -591,25 +591,33 @@ def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_pue
                 lines.append(f'<rect x="{mx}" y="{py + ph - 30}" width="6" height="24" rx="2" fill="{c_manija}"/>')
 
     # ── PLACARD ──────────────────────────────────────────────────────────
+    # ── PLACARD ──────────────────────────────────────────────────────────
     elif tipo_modulo == "Placard":
-        # Usamos division_placard y zonas si se pasan como kwargs,
-        # sino dibujamos un placard genérico con división central
         _div = kwargs.get("division_placard", "Sin división")
         _z_izq   = kwargs.get("zona_izq",   "Solo estantes")
         _z_der   = kwargs.get("zona_der",   "Solo estantes")
         _z_unica = kwargs.get("zona_unica", "Solo estantes")
+        
+        # Extracción dinámica de variables para el renderizado
+        _h_tubo  = float(kwargs.get("altura_tubo", 1200))
+        _cajones = int(kwargs.get("cant_cajones_placard", 3))
+        if _cajones <= 0: _cajones = 3
+        
+        _est_izq = int(kwargs.get("cant_estantes_izq_fijos", 0)) + int(kwargs.get("cant_estantes_izq_moviles", 0))
+        _est_der = int(kwargs.get("cant_estantes_der_fijos", 0)) + int(kwargs.get("cant_estantes_der_moviles", 0))
+        _est_uni = int(kwargs.get("cant_estantes_unica_fijos", 1)) + int(kwargs.get("cant_estantes_unica_moviles", 0))
 
         # Frentín superior
         frenin_h = int(ih * 0.07)
         lines.append(f'<rect x="{ix}" y="{iy}" width="{iw}" height="{frenin_h}" fill="{c_estructura}" opacity="0.5"/>')
 
-        # División(es) vertical(es)
+        # División(es) vertical(es) y mapeo de zonas con su cantidad de estantes
         if _div == "Una división central":
             mid_x = ix + iw // 2
             lines.append(f'<rect x="{mid_x - 2}" y="{iy}" width="4" height="{ih}" fill="{c_estructura}"/>')
             zonas_svg = [
-                (ix, iw // 2 - 2, _z_izq),
-                (mid_x + 2, iw // 2 - 2, _z_der),
+                (ix, iw // 2 - 2, _z_izq, _est_izq),
+                (mid_x + 2, iw // 2 - 2, _z_der, _est_der),
             ]
         elif _div == "Dos divisiones":
             tercio = iw // 3
@@ -618,56 +626,86 @@ def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_pue
             lines.append(f'<rect x="{x1 - 2}" y="{iy}" width="4" height="{ih}" fill="{c_estructura}"/>')
             lines.append(f'<rect x="{x2 - 2}" y="{iy}" width="4" height="{ih}" fill="{c_estructura}"/>')
             zonas_svg = [
-                (ix,      tercio - 2, _z_izq),
-                (x1 + 2,  tercio - 4, _z_unica),
-                (x2 + 2,  iw - tercio * 2 - 2, _z_der),
+                (ix,      tercio - 2, _z_izq, _est_izq),
+                (x1 + 2,  tercio - 4, _z_unica, _est_uni),
+                (x2 + 2,  iw - tercio * 2 - 2, _z_der, _est_der),
             ]
         else:  # Sin división
-            zonas_svg = [(ix, iw, _z_unica)]
+            zonas_svg = [(ix, iw, _z_unica, _est_uni)]
 
-        # Dibujamos el contenido de cada zona
-        for zx, zw, ztipo in zonas_svg:
+        # Ratio de conversión: milímetros reales a píxeles SVG
+        ratio_y = ih / alto_m if alto_m > 0 else 1
+
+        # Dibujamos el contenido dinámico de cada zona
+        for zx, zw, ztipo, z_est_count in zonas_svg:
             zy_content = iy + frenin_h + 4
             zh_content = ih - frenin_h - 8
+            
             if ztipo == "Solo estantes":
-                # 3 líneas de estante
-                paso = zh_content // 4
-                for k in range(1, 4):
-                    sy = zy_content + paso * k
-                    lines.append(f'<rect x="{zx+2}" y="{sy}" width="{zw-4}" height="3" rx="1" fill="{c_estante}" opacity="0.6"/>')
+                if z_est_count > 0:
+                    paso = zh_content / (z_est_count + 1)
+                    for k in range(1, z_est_count + 1):
+                        sy = zy_content + paso * k
+                        lines.append(f'<rect x="{zx+2}" y="{sy}" width="{zw-4}" height="3" rx="1" fill="{c_estante}" opacity="0.6"/>')
+                        
             elif ztipo == "Ropa colgada":
-                # Tubo horizontal a ~60% de la altura
-                tubo_y = zy_content + int(zh_content * 0.60)
+                # Cálculo geométrico: Altura del tubo real desde el piso a coordenadas SVG
+                dist_desde_techo_real = alto_m - _h_tubo
+                offset_y = dist_desde_techo_real * ratio_y
+                tubo_y = iy + offset_y
+                
+                # Límite de seguridad para que el tubo no se dibuje fuera del placard
+                tubo_y = max(zy_content + 10, min(tubo_y, zy_content + zh_content - 20))
+                
                 lines.append(f'<rect x="{zx+4}" y="{tubo_y}" width="{zw-8}" height="4" rx="2" fill="{c_metal}" opacity="0.8"/>')
-                # Perchas (3 triángulos simples)
+                
                 paso_p = (zw - 8) // 4
                 for k in range(1, 4):
                     px_p = zx + 4 + paso_p * k
                     lines.append(f'<line x1="{px_p}" y1="{tubo_y}" x2="{px_p - 6}" y2="{tubo_y + 12}" stroke="{c_metal}" stroke-width="1.5" opacity="0.6"/>')
                     lines.append(f'<line x1="{px_p}" y1="{tubo_y}" x2="{px_p + 6}" y2="{tubo_y + 12}" stroke="{c_metal}" stroke-width="1.5" opacity="0.6"/>')
-                # Estante superior
+                
+                # Estante estructural superior
                 lines.append(f'<rect x="{zx+2}" y="{zy_content + 6}" width="{zw-4}" height="3" rx="1" fill="{c_estante}" opacity="0.6"/>')
+                
+                # Renderizado de estantes inferiores (si el usuario los agrega debajo de la ropa)
+                if z_est_count > 0:
+                    espacio_inf = (zy_content + zh_content) - (tubo_y + 20)
+                    if espacio_inf > 10:
+                        paso = espacio_inf / (z_est_count + 1)
+                        for k in range(1, z_est_count + 1):
+                            sy = (tubo_y + 20) + paso * k
+                            lines.append(f'<rect x="{zx+2}" y="{sy}" width="{zw-4}" height="3" rx="1" fill="{c_estante}" opacity="0.6"/>')
+
             elif ztipo == "Cajones":
-                # Representación realista: Cajonera bloque inferior + Estantes arriba
-                cant_caj = 3 # Fijo para previsualización limpia
-                h_cajon = 25 # Alto de cada cajón en proporción SVG
-                h_bloque_cajones = cant_caj * h_cajon
+                # Altura de cajón realista (200mm) convertida a SVG
+                h_cajon_real = 200
+                h_cajon_svg = max(15, int(h_cajon_real * ratio_y))
+                h_bloque_cajones = _cajones * h_cajon_svg
+                
+                # Auto-ajuste si el usuario pide más cajones de los que entran físicamente
+                if h_bloque_cajones > zh_content - 10:
+                    h_cajon_svg = (zh_content - 10) // _cajones
+                    h_bloque_cajones = _cajones * h_cajon_svg
+
                 y_cajones_start = zy_content + zh_content - h_bloque_cajones
                 
-                # 1. Dibujar cajones abajo
-                for k in range(cant_caj):
-                    cy = y_cajones_start + (h_cajon * k) + 2
-                    lines.append(f'<rect x="{zx+3}" y="{cy}" width="{zw-6}" height="{h_cajon - 4}" rx="1" fill="{c_cajon}" opacity="0.7" stroke="{c_estructura}" stroke-width="0.5"/>')
-                    # Manija
-                    lines.append(f'<rect x="{zx + zw//2 - 8}" y="{cy + (h_cajon-4)//2 - 2}" width="16" height="4" rx="2" fill="{c_manija}" opacity="0.8"/>')
+                for k in range(_cajones):
+                    cy = y_cajones_start + (h_cajon_svg * k) + 2
+                    lines.append(f'<rect x="{zx+3}" y="{cy}" width="{zw-6}" height="{h_cajon_svg - 4}" rx="1" fill="{c_cajon}" opacity="0.7" stroke="{c_estructura}" stroke-width="0.5"/>')
+                    lines.append(f'<rect x="{zx + zw//2 - 8}" y="{cy + (h_cajon_svg-4)//2 - 2}" width="16" height="4" rx="2" fill="{c_manija}" opacity="0.8"/>')
                 
-                # 2. Dibujar estantes en el espacio superior
-                espacio_libre_arr = y_cajones_start - zy_content
-                paso_est = espacio_libre_arr // 3
-                for k in range(1, 3):
-                    sy = zy_content + paso_est * k
-                    lines.append(f'<rect x="{zx+2}" y="{sy}" width="{zw-4}" height="3" rx="1" fill="{c_estante}" opacity="0.6"/>')
+                # Techo sólido de la cajonera
+                lines.append(f'<rect x="{zx+2}" y="{y_cajones_start - 3}" width="{zw-4}" height="3" rx="1" fill="{c_estante}" opacity="0.8"/>')
 
+                # Renderizado de estantes en el espacio restante superior
+                if z_est_count > 0:
+                    espacio_sup = y_cajones_start - zy_content - 3
+                    if espacio_sup > 10:
+                        paso = espacio_sup / (z_est_count + 1)
+                        for k in range(1, z_est_count + 1):
+                            sy = zy_content + paso * k
+                            lines.append(f'<rect x="{zx+2}" y="{sy}" width="{zw-4}" height="3" rx="1" fill="{c_estante}" opacity="0.6"/>')
     # ── PANEL A MEDIDA ────────────────────────────────────────────────────
     elif tipo_modulo == "Panel a Medida":
         # Rectángulo punteado con texto L×A centrado
