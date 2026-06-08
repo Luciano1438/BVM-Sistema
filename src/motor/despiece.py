@@ -317,35 +317,45 @@ def generar_despiece_bvm(
                     despiece.append({"Pieza": f"Estante Móvil inf.{label}", "Cant": int(est_moviles), "L": round(ancho_zona - 2, 1), "A": prof_est, "Tipo": "Cuerpo"})
 
             elif zona_tipo == "Cajones":
-                # Reutilizamos la lógica de cajonera completa para esta zona
-                # El ancho de la zona actúa como ancho del módulo de cajones
+                # Lógica de vida real: Un bloque de cajones tiene una altura estándar inferior
                 cant_caj = int(cant_cajones_placard) if cant_cajones_placard > 0 else 3
-                ancho_int_zona = ancho_zona - (esp_real * 2)  # ancho interno de la mini-cajonera
-                esp_util = alto_m - 30 - ((cant_caj - 1) * luz_entre_tapas)
-                alto_tapa_caj = esp_util / cant_caj
+                ancho_int_zona = ancho_zona - (esp_real * 2)
+                
+                # Calculamos una altura de bloque realista: 200mm por cajón + zócalo interno
+                alto_bloque_cajones = (cant_caj * 200) + 50 
+                alto_tapa_caj = (alto_bloque_cajones - 50 - ((cant_caj - 1) * luz_entre_tapas)) / cant_caj
                 ancho_tapa_caj = ancho_zona - luz_perimetral_tapa
 
                 for i in range(cant_caj):
                     despiece.append({"Pieza": f"Tapa Cajón{label} {i+1}", "Cant": 1, "L": round(alto_tapa_caj, 1), "A": round(ancho_tapa_caj, 1), "Tipo": "Frente"})
 
+                # Caja estructural de los cajones
                 ancho_caja_caj = ancho_int_zona - (esp_corredera * 2)
                 ancho_frente_caj = ancho_caja_caj - (esp_real * 2)
                 largo_lat_caj = prof_m - aire_trasero
                 despiece.append({"Pieza": f"Lateral Cajón{label}",        "Cant": cant_caj * 2, "L": 150, "A": largo_lat_caj,                           "Tipo": "Cuerpo"})
-                despiece.append({"Pieza": f"Frente/Fondo Int.{label}",    "Cant": cant_caj * 2, "L": 150, "A": round(ancho_frente_caj, 1),               "Tipo": "Cuerpo"})
+                despiece.append({"Pieza": f"Frente/Fondo Int.{label}",    "Cant": cant_caj * 2, "L": 150, "A": round(ancho_frente_caj, 1),              "Tipo": "Cuerpo"})
                 despiece.append({"Pieza": f"Piso Cajón{label}",           "Cant": cant_caj,     "L": round(largo_lat_caj - 20, 1), "A": round(ancho_caja_caj - 20, 1), "Tipo": "Piso"})
+                
+                # Techo de la cajonera interna (Estante fijo obligatorio sobre los cajones)
+                despiece.append({"Pieza": f"Estante sobre cajones{label}", "Cant": 1, "L": round(ancho_zona, 1), "A": prof_est, "Tipo": "Cuerpo"})
+
+                # Estantes restantes en la parte libre superior
+                if est_fijos > 0:
+                    despiece.append({"Pieza": f"Estante Fijo Sup.{label}",  "Cant": int(est_fijos),  "L": round(ancho_zona, 1),     "A": prof_est, "Tipo": "Cuerpo"})
+                if est_moviles > 0:
+                    despiece.append({"Pieza": f"Estante Móvil Sup.{label}", "Cant": int(est_moviles), "L": round(ancho_zona - 2, 1), "A": prof_est, "Tipo": "Cuerpo"})
 
     # -----------------------------------------------------------------------
     # PANEL A MEDIDA
     # -----------------------------------------------------------------------
     elif tipo == "Panel a Medida":
-        # Sin lógica automática — el carpintero ingresa L, A y cantidad.
-        # Se genera una sola línea en la planilla.
+        # Piezas fuera de estándar
         despiece.append({
-            "Pieza": "Panel",
+            "Pieza": "Panel extra / Tapa",
             "Cant":  int(cant_paneles) if cant_paneles > 0 else 1,
-            "L":     ancho_m,   # L = ancho ingresado
-            "A":     alto_m,    # A = alto ingresado
+            "L":     ancho_m,
+            "A":     alto_m,
             "Tipo":  "Cuerpo",
         })
 
