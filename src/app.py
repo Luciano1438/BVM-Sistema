@@ -1403,7 +1403,7 @@ if menu == "🪵 Cotizador":
                           _msp.add_lwpolyline(_pts, close=True)
                           _msp.add_text(f"{_row['Pieza']}\n{int(_row['L'])}x{int(_row['A'])}", height=10).set_placement((_x+5,5))
                           _x += float(_row["L"]) + 50
-                 _out = _io.StringIO(); _doc.write(_out)
+                  _out = _io.StringIO(); _doc.write(_out)
                   _dxf_b = _out.getvalue().encode("utf-8")
                   _df_a  = df_corte.copy().rename(columns={"Pieza":"Name","L":"Length","A":"Width","Cant":"Quantity"})
                   
