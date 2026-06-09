@@ -1601,7 +1601,7 @@ if menu == "🪵 Cotizador":
         subtotal_mods = sum(m["precio"] for m in _mods_obra)
 
        for i_m, mod in enumerate(_mods_obra):
-            # Cambiamos las proporciones para inyectar el botón de descarga individual
+            # Proporciones de columnas limpias para el botón de descarga individual
             col_mod, col_cnc, col_edit, col_del = st.columns([4, 1, 0.5, 0.5])
             col_mod.write(f"**{i_m+1}. {mod['nombre']}** — {mod['ancho']}×{mod['alto']}×{mod['prof']} mm — {mod['material']} — `${mod['precio']:,.0f}`")
             
@@ -1616,7 +1616,6 @@ if menu == "🪵 Cotizador":
                 _mat_fondo  = params_mod.get("mat_fondo_sel", "")
                 _sin_f      = params_mod.get("sin_fondo", False)
                 
-                # Asignación de fondo inteligente
                 _df_mod["Material"] = _df_mod["Tipo"].apply(lambda x: _mat_fondo if x in ["Fondo", "Piso"] and not _sin_f else _mat_cuerpo)
                 
                 _csv_mod = _df_mod[["Name","Length","Width","Thickness","Quantity","Material"]].to_csv(index=False).encode("utf-8")
@@ -1624,7 +1623,6 @@ if menu == "🪵 Cotizador":
             # -----------------------------------------------------------------
 
             if col_edit.button("✏️", key=f"edit_mod_{i_m}", help="Editar este módulo"):
-                # Si la obra vino del historial, preservamos su ID para auto-guardado
                 _obra_id_ctx     = st.session_state.get("_obra_id_historial")
                 _obra_cli_ctx    = st.session_state.get("_obra_cliente_historial") or (cliente if cliente else "")
                 st.session_state["edit_ctx"] = {
@@ -1641,7 +1639,7 @@ if menu == "🪵 Cotizador":
             if col_del.button("✕", key=f"del_mod_{i_m}"):
                 st.session_state["obra_modulos"].pop(i_m)
                 st.rerun()
-
+    
         st.write("---")
 
         with st.expander("🚛 Logística y colocación", expanded=True):
