@@ -85,26 +85,42 @@ def generar_dxf_obra(modulos_con_df):
 
 
 def exportar_csv_obra(modulos_con_df, esp_real):
-    """Genera CSV con todos los módulos para Aspire, separados por módulo."""
+    """Genera CSV con todos los módulos para Aspire, separados por módulo y con material dinámico."""
     filas = []
     for mod in modulos_con_df:
         df = mod.get("df_corte")
         nombre_mod = mod.get("nombre", "Modulo")
-        material = mod.get("material", "")
+        mat_cuerpo = mod.get("material", "")
+        
+        # --- Lógica dinámica de materiales (Fix 3 Global) ---
+        params = mod.get("params", {})
+        mat_fondo = params.get("mat_fondo_sel", "")
+        sin_f = params.get("sin_fondo", False)
+        
         if df is None or df.empty:
             continue
+            
         filas.append({"Name": f"=== {nombre_mod} ===", "Length": "", "Width": "", "Thickness": "", "Quantity": "", "Material": ""})
+        
         for _, row in df.iterrows():
+            tipo_pieza = row.get('Tipo', '')
+            
+            # Si es fondo o piso (y el mueble lleva fondo), clava el material de fondo. Sino, material de cuerpo.
+            if tipo_pieza in ["Fondo", "Piso"] and not sin_f:
+                material_final = mat_fondo
+            else:
+                material_final = mat_cuerpo
+                
             filas.append({
                 "Name": f"{row['Pieza']} [{nombre_mod}]",
                 "Length": row['L'],
                 "Width": row['A'],
                 "Thickness": esp_real,
                 "Quantity": row['Cant'],
-                "Material": material,
+                "Material": material_final,
             })
+            
     return pd.DataFrame(filas).to_csv(index=False).encode('utf-8')
-
 
 def generar_pdf_obra(cliente, modulos, dias_entrega, pct_seña, costo_logistica=0, dias_colocacion=0, costo_colocacion_dia=0):
     pdf = FPDF()
@@ -904,10 +920,15 @@ def _serializar_obra_para_nube(mods):
     """Convierte lista de módulos al formato que se guarda en Supabase."""
     return [dict(_params_desde_mod(m), precio=m.get("precio", 0), nombre=m.get("nombre","")) for m in mods if m is not None]
 
-def _limpiar_edicion():
+def _limpiar_edicion(nuke_obra=False):
     st.session_state["edit_ctx"] = None
-    st.session_state.pop("_tipo_modulo_sel", None)
     st.session_state.pop("_ctx_sig_prev",    None)
+    # ELIMINAMOS la línea que borraba el _tipo_modulo_sel
+    if nuke_obra:
+        st.session_state["obra_modulos"] = []
+        st.session_state["logistica_obra"] = {}
+        st.session_state.pop("_obra_id_historial", None)
+        st.session_state.pop("_obra_cliente_historial", None)
 
 def _guardar_obra_nube(mods, cliente, obra_id=None, total_con_logistica=None, logistica=None):
     mods  = [m for m in mods if m is not None]
@@ -1382,10 +1403,15 @@ if menu == "🪵 Cotizador":
                           _msp.add_lwpolyline(_pts, close=True)
                           _msp.add_text(f"{_row['Pieza']}\n{int(_row['L'])}x{int(_row['A'])}", height=10).set_placement((_x+5,5))
                           _x += float(_row["L"]) + 50
-                  _out = _io.StringIO(); _doc.write(_out)
+                 _out = _io.StringIO(); _doc.write(_out)
                   _dxf_b = _out.getvalue().encode("utf-8")
                   _df_a  = df_corte.copy().rename(columns={"Pieza":"Name","L":"Length","A":"Width","Cant":"Quantity"})
-                  _df_a["Thickness"] = esp_real; _df_a["Material"] = mat_principal
+                  
+                  # --- Lógica dinámica de materiales (Fix 3) ---
+                  _df_a["Thickness"] = esp_real
+                  _df_a["Material"] = _df_a["Tipo"].apply(lambda x: mat_fondo_sel if x in ["Fondo", "Piso"] and not sin_fondo else mat_principal)
+                  # ---------------------------------------------
+                  
                   _csv_b = _df_a[["Name","Length","Width","Thickness","Quantity","Material"]].to_csv(index=False).encode("utf-8")
                   cc1, cc2 = st.columns(2)
                   cc1.download_button("📐 DXF", data=_dxf_b, file_name=f"BVM_{nombre_modulo}.dxf", mime="application/dxf", use_container_width=True)
@@ -1503,13 +1529,15 @@ if menu == "🪵 Cotizador":
           st.subheader("✅ Confirmar cambios en el módulo")
           nombre_modulo = st.text_input("Nombre del módulo", value=_v("nombre", f"{tipo_modulo} {ancho_m:.0f}mm"))
           if st.button("Confirmar edición y volver a la Obra", use_container_width=True, type="primary"):
-              if precio_a_usar <= 0:
-                  st.warning("El precio es 0. Completá las medidas.")
+              if precio_final <= 0 and precio_a_usar <= 0:
+                  st.warning("Completá las medidas para calcular el precio.")
               else:
+                  # Forzamos usar el precio_final recalculado si existe, sino el guardado.
+                  _precio_seguro = precio_final if precio_final > 0 else precio_a_usar
                   nuevo_mod = {
                       "nombre": nombre_modulo, "tipo": tipo_modulo,
                       "ancho": int(ancho_m), "alto": int(alto_m), "prof": int(prof_m),
-                      "material": mat_principal, "precio": precio_a_usar,
+                      "material": mat_principal, "precio": _precio_seguro,
                       "df_corte": df_corte.copy() if not df_corte.empty else None,
                       "tipo_tapa": tipo_tapa, "params": _build_params_dict(),
                   }
@@ -1519,14 +1547,18 @@ if menu == "🪵 Cotizador":
                   else: mods.append(nuevo_mod)
                   mods = [m for m in mods if m is not None]
                   st.session_state["obra_modulos"] = mods
-                  # Auto-guardado en nube si tiene obra_id
+                  
+                  # Auto-guardado en nube respetando TODO el presupuesto
                   _oid = ctx.get("obra_id")
                   _cli = ctx.get("obra_cliente") or cliente
                   if _oid and _cli:
-                      _guardar_obra_nube(mods, _cli, _oid)
+                      _log_guardada = st.session_state.get("logistica_obra", {})
+                      _tot_log = _log_guardada.get("costo_log_total", 0.0)
+                      _tot_auto = sum(m["precio"] for m in mods) + _tot_log
+                      _guardar_obra_nube(mods, _cli, _oid, total_con_logistica=_tot_auto, logistica=_log_guardada)
+                  
                   _limpiar_edicion()
                   st.rerun()
-
       # ── MODO: módulo nuevo → va al carrito de obra ──
       else:
           st.subheader("🛒 Agregar al Resumen de Obra")
@@ -1568,9 +1600,29 @@ if menu == "🪵 Cotizador":
 
         subtotal_mods = sum(m["precio"] for m in _mods_obra)
 
-        for i_m, mod in enumerate(_mods_obra):
-            col_mod, col_edit, col_del = st.columns([5, 1, 1])
+       for i_m, mod in enumerate(_mods_obra):
+            # Cambiamos las proporciones para inyectar el botón de descarga individual
+            col_mod, col_cnc, col_edit, col_del = st.columns([4, 1, 0.5, 0.5])
             col_mod.write(f"**{i_m+1}. {mod['nombre']}** — {mod['ancho']}×{mod['alto']}×{mod['prof']} mm — {mod['material']} — `${mod['precio']:,.0f}`")
+            
+            # --- FIX 4: Descarga de CSV individual con lógica de materiales ---
+            if mod.get("df_corte") is not None and not mod["df_corte"].empty:
+                _df_mod = mod["df_corte"].copy().rename(columns={"Pieza":"Name","L":"Length","A":"Width","Cant":"Quantity"})
+                
+                params_mod = mod.get("params", {})
+                _df_mod["Thickness"] = params_mod.get("esp_real", 18.0)
+                
+                _mat_cuerpo = mod.get("material", "")
+                _mat_fondo  = params_mod.get("mat_fondo_sel", "")
+                _sin_f      = params_mod.get("sin_fondo", False)
+                
+                # Asignación de fondo inteligente
+                _df_mod["Material"] = _df_mod["Tipo"].apply(lambda x: _mat_fondo if x in ["Fondo", "Piso"] and not _sin_f else _mat_cuerpo)
+                
+                _csv_mod = _df_mod[["Name","Length","Width","Thickness","Quantity","Material"]].to_csv(index=False).encode("utf-8")
+                col_cnc.download_button("🤖 CSV", data=_csv_mod, file_name=f"{mod['nombre']}.csv", mime="text/csv", key=f"csv_indiv_{i_m}", use_container_width=True)
+            # -----------------------------------------------------------------
+
             if col_edit.button("✏️", key=f"edit_mod_{i_m}", help="Editar este módulo"):
                 # Si la obra vino del historial, preservamos su ID para auto-guardado
                 _obra_id_ctx     = st.session_state.get("_obra_id_historial")
@@ -1585,6 +1637,7 @@ if menu == "🪵 Cotizador":
                 st.session_state.pop("_tipo_modulo_sel", None)
                 st.session_state.pop("_ctx_sig_prev",    None)
                 st.rerun()
+                
             if col_del.button("✕", key=f"del_mod_{i_m}"):
                 st.session_state["obra_modulos"].pop(i_m)
                 st.rerun()
