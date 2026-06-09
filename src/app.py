@@ -1600,8 +1600,8 @@ if menu == "🪵 Cotizador":
 
         subtotal_mods = sum(m["precio"] for m in _mods_obra)
 
-       for i_m, mod in enumerate(_mods_obra):
-            # Proporciones de columnas limpias para el botón de descarga individual
+        for i_m, mod in enumerate(_mods_obra):
+            # Proporciones de columnas limpias
             col_mod, col_cnc, col_edit, col_del = st.columns([4, 1, 0.5, 0.5])
             col_mod.write(f"**{i_m+1}. {mod['nombre']}** — {mod['ancho']}×{mod['alto']}×{mod['prof']} mm — {mod['material']} — `${mod['precio']:,.0f}`")
             
@@ -1639,7 +1639,6 @@ if menu == "🪵 Cotizador":
             if col_del.button("✕", key=f"del_mod_{i_m}"):
                 st.session_state["obra_modulos"].pop(i_m)
                 st.rerun()
-    
         st.write("---")
 
         with st.expander("🚛 Logística y colocación", expanded=True):
