@@ -85,42 +85,32 @@ def generar_dxf_obra(modulos_con_df):
 
 
 def exportar_csv_obra(modulos_con_df, esp_real):
-    """Genera CSV con todos los módulos para Aspire, separados por módulo y con material dinámico."""
+    """Genera CSV con todos los módulos para Aspire, separados por módulo.
+    Los fondos y pisos usan el material de fondo del módulo, no el principal."""
     filas = []
     for mod in modulos_con_df:
         df = mod.get("df_corte")
-        nombre_mod = mod.get("nombre", "Modulo")
-        mat_cuerpo = mod.get("material", "")
-        
-        # --- Lógica dinámica de materiales (Fix 3 Global) ---
-        params = mod.get("params", {})
-        mat_fondo = params.get("mat_fondo_sel", "")
-        sin_f = params.get("sin_fondo", False)
-        
+        nombre_mod  = mod.get("nombre", "Modulo")
+        mat_cuerpo  = mod.get("material", "")
+        mat_fondo   = mod.get("params", {}).get("mat_fondo_sel", "Fibroplus Blanco 3mm")
+        esp_fondo   = 3.0  # espesor estándar del fondo (3mm o 5.5mm)
+        if "5.5" in mat_fondo or "Faplac" in mat_fondo:
+            esp_fondo = 5.5
         if df is None or df.empty:
             continue
-            
         filas.append({"Name": f"=== {nombre_mod} ===", "Length": "", "Width": "", "Thickness": "", "Quantity": "", "Material": ""})
-        
         for _, row in df.iterrows():
-            tipo_pieza = row.get('Tipo', '')
-            
-            # Si es fondo o piso (y el mueble lleva fondo), clava el material de fondo. Sino, material de cuerpo.
-            if tipo_pieza in ["Fondo", "Piso"] and not sin_f:
-                material_final = mat_fondo
-            else:
-                material_final = mat_cuerpo
-                
+            es_fondo = str(row.get("Tipo","")).lower() in ["fondo", "piso"]
             filas.append({
-                "Name": f"{row['Pieza']} [{nombre_mod}]",
-                "Length": row['L'],
-                "Width": row['A'],
-                "Thickness": esp_real,
-                "Quantity": row['Cant'],
-                "Material": material_final,
+                "Name":      f"{row['Pieza']} [{nombre_mod}]",
+                "Length":    row['L'],
+                "Width":     row['A'],
+                "Thickness": esp_fondo if es_fondo else esp_real,
+                "Quantity":  row['Cant'],
+                "Material":  mat_fondo if es_fondo else mat_cuerpo,
             })
-            
     return pd.DataFrame(filas).to_csv(index=False).encode('utf-8')
+
 
 def generar_pdf_obra(cliente, modulos, dias_entrega, pct_seña, costo_logistica=0, dias_colocacion=0, costo_colocacion_dia=0):
     pdf = FPDF()
@@ -607,33 +597,25 @@ def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_pue
                 lines.append(f'<rect x="{mx}" y="{py + ph - 30}" width="6" height="24" rx="2" fill="{c_manija}"/>')
 
     # ── PLACARD ──────────────────────────────────────────────────────────
-    # ── PLACARD ──────────────────────────────────────────────────────────
     elif tipo_modulo == "Placard":
+        # Usamos division_placard y zonas si se pasan como kwargs,
+        # sino dibujamos un placard genérico con división central
         _div = kwargs.get("division_placard", "Sin división")
         _z_izq   = kwargs.get("zona_izq",   "Solo estantes")
         _z_der   = kwargs.get("zona_der",   "Solo estantes")
         _z_unica = kwargs.get("zona_unica", "Solo estantes")
-        
-        # Extracción dinámica de variables para el renderizado
-        _h_tubo  = float(kwargs.get("altura_tubo", 1200))
-        _cajones = int(kwargs.get("cant_cajones_placard", 3))
-        if _cajones <= 0: _cajones = 3
-        
-        _est_izq = int(kwargs.get("cant_estantes_izq_fijos", 0)) + int(kwargs.get("cant_estantes_izq_moviles", 0))
-        _est_der = int(kwargs.get("cant_estantes_der_fijos", 0)) + int(kwargs.get("cant_estantes_der_moviles", 0))
-        _est_uni = int(kwargs.get("cant_estantes_unica_fijos", 1)) + int(kwargs.get("cant_estantes_unica_moviles", 0))
 
         # Frentín superior
         frenin_h = int(ih * 0.07)
         lines.append(f'<rect x="{ix}" y="{iy}" width="{iw}" height="{frenin_h}" fill="{c_estructura}" opacity="0.5"/>')
 
-        # División(es) vertical(es) y mapeo de zonas con su cantidad de estantes
+        # División(es) vertical(es)
         if _div == "Una división central":
             mid_x = ix + iw // 2
             lines.append(f'<rect x="{mid_x - 2}" y="{iy}" width="4" height="{ih}" fill="{c_estructura}"/>')
             zonas_svg = [
-                (ix, iw // 2 - 2, _z_izq, _est_izq),
-                (mid_x + 2, iw // 2 - 2, _z_der, _est_der),
+                (ix, iw // 2 - 2, _z_izq),
+                (mid_x + 2, iw // 2 - 2, _z_der),
             ]
         elif _div == "Dos divisiones":
             tercio = iw // 3
@@ -642,88 +624,46 @@ def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_pue
             lines.append(f'<rect x="{x1 - 2}" y="{iy}" width="4" height="{ih}" fill="{c_estructura}"/>')
             lines.append(f'<rect x="{x2 - 2}" y="{iy}" width="4" height="{ih}" fill="{c_estructura}"/>')
             zonas_svg = [
-                (ix,      tercio - 2, _z_izq, _est_izq),
-                (x1 + 2,  tercio - 4, _z_unica, _est_uni),
-                (x2 + 2,  iw - tercio * 2 - 2, _z_der, _est_der),
+                (ix,      tercio - 2, _z_izq),
+                (x1 + 2,  tercio - 4, _z_unica),
+                (x2 + 2,  iw - tercio * 2 - 2, _z_der),
             ]
         else:  # Sin división
-            zonas_svg = [(ix, iw, _z_unica, _est_uni)]
+            zonas_svg = [(ix, iw, _z_unica)]
 
-        # Ratio de conversión: milímetros reales a píxeles SVG
-        ratio_y = ih / alto_m if alto_m > 0 else 1
-
-        # Dibujamos el contenido dinámico de cada zona
-        for zx, zw, ztipo, z_est_count in zonas_svg:
+        # Dibujamos el contenido de cada zona
+        for zx, zw, ztipo in zonas_svg:
             zy_content = iy + frenin_h + 4
             zh_content = ih - frenin_h - 8
-            
             if ztipo == "Solo estantes":
-                if z_est_count > 0:
-                    paso = zh_content / (z_est_count + 1)
-                    for k in range(1, z_est_count + 1):
-                        sy = zy_content + paso * k
-                        lines.append(f'<rect x="{zx+2}" y="{sy}" width="{zw-4}" height="3" rx="1" fill="{c_estante}" opacity="0.6"/>')
-                        
+                # 3 líneas de estante
+                paso = zh_content // 4
+                for k in range(1, 4):
+                    sy = zy_content + paso * k
+                    lines.append(f'<rect x="{zx+2}" y="{sy}" width="{zw-4}" height="3" rx="1" fill="{c_estante}" opacity="0.6"/>')
             elif ztipo == "Ropa colgada":
-                # Cálculo geométrico: Altura del tubo real desde el piso a coordenadas SVG
-                dist_desde_techo_real = alto_m - _h_tubo
-                offset_y = dist_desde_techo_real * ratio_y
-                tubo_y = iy + offset_y
-                
-                # Límite de seguridad para que el tubo no se dibuje fuera del placard
-                tubo_y = max(zy_content + 10, min(tubo_y, zy_content + zh_content - 20))
-                
+                # Tubo horizontal a ~60% de la altura
+                tubo_y = zy_content + int(zh_content * 0.60)
                 lines.append(f'<rect x="{zx+4}" y="{tubo_y}" width="{zw-8}" height="4" rx="2" fill="{c_metal}" opacity="0.8"/>')
-                
+                # Perchas (3 triángulos simples)
                 paso_p = (zw - 8) // 4
                 for k in range(1, 4):
                     px_p = zx + 4 + paso_p * k
                     lines.append(f'<line x1="{px_p}" y1="{tubo_y}" x2="{px_p - 6}" y2="{tubo_y + 12}" stroke="{c_metal}" stroke-width="1.5" opacity="0.6"/>')
                     lines.append(f'<line x1="{px_p}" y1="{tubo_y}" x2="{px_p + 6}" y2="{tubo_y + 12}" stroke="{c_metal}" stroke-width="1.5" opacity="0.6"/>')
-                
-                # Estante estructural superior
+                # Estante superior
                 lines.append(f'<rect x="{zx+2}" y="{zy_content + 6}" width="{zw-4}" height="3" rx="1" fill="{c_estante}" opacity="0.6"/>')
-                
-                # Renderizado de estantes inferiores (si el usuario los agrega debajo de la ropa)
-                if z_est_count > 0:
-                    espacio_inf = (zy_content + zh_content) - (tubo_y + 20)
-                    if espacio_inf > 10:
-                        paso = espacio_inf / (z_est_count + 1)
-                        for k in range(1, z_est_count + 1):
-                            sy = (tubo_y + 20) + paso * k
-                            lines.append(f'<rect x="{zx+2}" y="{sy}" width="{zw-4}" height="3" rx="1" fill="{c_estante}" opacity="0.6"/>')
-
             elif ztipo == "Cajones":
-                # Altura de cajón realista (200mm) convertida a SVG
-                h_cajon_real = 200
-                h_cajon_svg = max(15, int(h_cajon_real * ratio_y))
-                h_bloque_cajones = _cajones * h_cajon_svg
-                
-                # Auto-ajuste si el usuario pide más cajones de los que entran físicamente
-                if h_bloque_cajones > zh_content - 10:
-                    h_cajon_svg = (zh_content - 10) // _cajones
-                    h_bloque_cajones = _cajones * h_cajon_svg
+                # 3 cajones
+                paso_c = zh_content // 3
+                for k in range(3):
+                    cy = zy_content + paso_c * k + 2
+                    lines.append(f'<rect x="{zx+3}" y="{cy}" width="{zw-6}" height="{paso_c - 4}" rx="1" fill="{c_cajon}" opacity="0.7" stroke="{c_estructura}" stroke-width="0.5"/>')
+                    # manija
+                    lines.append(f'<rect x="{zx + zw//2 - 8}" y="{cy + (paso_c-4)//2 - 2}" width="16" height="4" rx="2" fill="{c_manija}" opacity="0.8"/>')
 
-                y_cajones_start = zy_content + zh_content - h_bloque_cajones
-                
-                for k in range(_cajones):
-                    cy = y_cajones_start + (h_cajon_svg * k) + 2
-                    lines.append(f'<rect x="{zx+3}" y="{cy}" width="{zw-6}" height="{h_cajon_svg - 4}" rx="1" fill="{c_cajon}" opacity="0.7" stroke="{c_estructura}" stroke-width="0.5"/>')
-                    lines.append(f'<rect x="{zx + zw//2 - 8}" y="{cy + (h_cajon_svg-4)//2 - 2}" width="16" height="4" rx="2" fill="{c_manija}" opacity="0.8"/>')
-                
-                # Techo sólido de la cajonera
-                lines.append(f'<rect x="{zx+2}" y="{y_cajones_start - 3}" width="{zw-4}" height="3" rx="1" fill="{c_estante}" opacity="0.8"/>')
-
-                # Renderizado de estantes en el espacio restante superior
-                if z_est_count > 0:
-                    espacio_sup = y_cajones_start - zy_content - 3
-                    if espacio_sup > 10:
-                        paso = espacio_sup / (z_est_count + 1)
-                        for k in range(1, z_est_count + 1):
-                            sy = zy_content + paso * k
-                            lines.append(f'<rect x="{zx+2}" y="{sy}" width="{zw-4}" height="3" rx="1" fill="{c_estante}" opacity="0.6"/>')
     # ── PANEL A MEDIDA ────────────────────────────────────────────────────
-    elif tipo_modulo == "Panel a Medida":
+    elif tipo_modulo == "Pieza Suelta":
         # Rectángulo punteado con texto L×A centrado
         lines.append(f'<rect x="{ix}" y="{iy}" width="{iw}" height="{ih}" rx="3" fill="none" stroke="{c_estructura}" stroke-width="1.5" stroke-dasharray="6,4" opacity="0.5"/>')
         mid_x = ix + iw // 2
@@ -914,21 +854,17 @@ def _params_desde_mod(m):
         "tiene_frentin_placard":      p.get("tiene_frentin_placard", False),
         # Panel a Medida
         "cant_paneles":               p.get("cant_paneles", 1),
+        "nota_pieza":                 p.get("nota_pieza", ""),
     }
 
 def _serializar_obra_para_nube(mods):
     """Convierte lista de módulos al formato que se guarda en Supabase."""
     return [dict(_params_desde_mod(m), precio=m.get("precio", 0), nombre=m.get("nombre","")) for m in mods if m is not None]
 
-def _limpiar_edicion(nuke_obra=False):
+def _limpiar_edicion():
     st.session_state["edit_ctx"] = None
+    st.session_state.pop("_tipo_modulo_sel", None)
     st.session_state.pop("_ctx_sig_prev",    None)
-    # ELIMINAMOS la línea que borraba el _tipo_modulo_sel
-    if nuke_obra:
-        st.session_state["obra_modulos"] = []
-        st.session_state["logistica_obra"] = {}
-        st.session_state.pop("_obra_id_historial", None)
-        st.session_state.pop("_obra_cliente_historial", None)
 
 def _guardar_obra_nube(mods, cliente, obra_id=None, total_con_logistica=None, logistica=None):
     mods  = [m for m in mods if m is not None]
@@ -1057,6 +993,7 @@ if menu == "🪵 Cotizador":
     cant_estantes_unica_fijos   = int(_v("cant_estantes_unica_fijos",  1))
     cant_estantes_unica_moviles = int(_v("cant_estantes_unica_moviles",0))
     cant_paneles                = int(_v("cant_paneles", 1))
+    nota_pieza                  = _v("nota_pieza", "")
 
     lista_maderas = list(maderas.keys())
     lista_fondos  = list(fondos.keys())
@@ -1081,10 +1018,10 @@ if menu == "🪵 Cotizador":
             "Cajonera":       '<svg viewBox="0 0 80 60" xmlns="http://www.w3.org/2000/svg"><rect x="5" y="4" width="70" height="52" rx="2" fill="COLOR" opacity="0.12" stroke="COLOR" stroke-width="1.5"/><rect x="8" y="8" width="64" height="13" rx="1.5" fill="COLOR" opacity="0.2"/><rect x="8" y="24" width="64" height="13" rx="1.5" fill="COLOR" opacity="0.2"/><rect x="8" y="40" width="64" height="13" rx="1.5" fill="COLOR" opacity="0.2"/><circle cx="40" cy="14.5" r="2" fill="COLOR" opacity="0.7"/><circle cx="40" cy="30.5" r="2" fill="COLOR" opacity="0.7"/><circle cx="40" cy="46.5" r="2" fill="COLOR" opacity="0.7"/></svg>',
             "Alacena":        '<svg viewBox="0 0 80 60" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="2" width="76" height="52" rx="2" fill="COLOR" opacity="0.12" stroke="COLOR" stroke-width="1.5"/><rect x="2" y="2" width="76" height="7" rx="1" fill="COLOR" opacity="0.2"/><line x1="41" y1="9" x2="41" y2="54" stroke="COLOR" stroke-width="1.2"/><rect x="5" y="13" width="33" height="37" rx="1.5" fill="COLOR" opacity="0.18"/><rect x="44" y="13" width="33" height="37" rx="1.5" fill="COLOR" opacity="0.18"/><circle cx="39" cy="31" r="2" fill="COLOR" opacity="0.6"/><circle cx="43" cy="31" r="2" fill="COLOR" opacity="0.6"/></svg>',
             "Placard":        '<svg viewBox="0 0 80 60" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="2" width="76" height="56" rx="2" fill="COLOR" opacity="0.12" stroke="COLOR" stroke-width="1.5"/><rect x="2" y="2" width="76" height="6" rx="1" fill="COLOR" opacity="0.3"/><line x1="41" y1="8" x2="41" y2="58" stroke="COLOR" stroke-width="1.5"/><rect x="5" y="11" width="33" height="4" rx="1" fill="COLOR" opacity="0.5"/><line x1="22" y1="15" x2="22" y2="40" stroke="COLOR" stroke-width="0.8" stroke-dasharray="2,2"/><rect x="44" y="11" width="33" height="4" rx="1" fill="COLOR" opacity="0.5"/><rect x="47" y="20" width="27" height="3" rx="1" fill="COLOR" opacity="0.35"/><rect x="47" y="28" width="27" height="3" rx="1" fill="COLOR" opacity="0.35"/><rect x="47" y="36" width="27" height="3" rx="1" fill="COLOR" opacity="0.35"/></svg>',
-            "Panel a Medida": '<svg viewBox="0 0 80 60" xmlns="http://www.w3.org/2000/svg"><rect x="5" y="5" width="70" height="50" rx="2" fill="COLOR" opacity="0.12" stroke="COLOR" stroke-width="1.5" stroke-dasharray="4,3"/><text x="40" y="26" text-anchor="middle" font-size="9" fill="COLOR" opacity="0.7" font-weight="bold">L</text><text x="40" y="38" text-anchor="middle" font-size="9" fill="COLOR" opacity="0.7" font-weight="bold">×</text><text x="40" y="50" text-anchor="middle" font-size="9" fill="COLOR" opacity="0.7" font-weight="bold">A</text><line x1="12" y1="8" x2="12" y2="52" stroke="COLOR" stroke-width="0.8" opacity="0.5"/><line x1="68" y1="8" x2="68" y2="52" stroke="COLOR" stroke-width="0.8" opacity="0.5"/><line x1="9" y1="10" x2="71" y2="10" stroke="COLOR" stroke-width="0.8" opacity="0.5"/><line x1="9" y1="50" x2="71" y2="50" stroke="COLOR" stroke-width="0.8" opacity="0.5"/></svg>',
+            "Pieza Suelta": '<svg viewBox="0 0 80 60" xmlns="http://www.w3.org/2000/svg"><rect x="5" y="5" width="70" height="50" rx="2" fill="COLOR" opacity="0.12" stroke="COLOR" stroke-width="1.5" stroke-dasharray="4,3"/><text x="40" y="26" text-anchor="middle" font-size="9" fill="COLOR" opacity="0.7" font-weight="bold">L</text><text x="40" y="38" text-anchor="middle" font-size="9" fill="COLOR" opacity="0.7" font-weight="bold">×</text><text x="40" y="50" text-anchor="middle" font-size="9" fill="COLOR" opacity="0.7" font-weight="bold">A</text><line x1="12" y1="8" x2="12" y2="52" stroke="COLOR" stroke-width="0.8" opacity="0.5"/><line x1="68" y1="8" x2="68" y2="52" stroke="COLOR" stroke-width="0.8" opacity="0.5"/><line x1="9" y1="10" x2="71" y2="10" stroke="COLOR" stroke-width="0.8" opacity="0.5"/><line x1="9" y1="50" x2="71" y2="50" stroke="COLOR" stroke-width="0.8" opacity="0.5"/></svg>',
         }
         col_bm, col_caj, col_ala, col_plac, col_panel = st.columns(5)
-        for col_btn, nombre_btn in [(col_bm, "Bajo Mesada"), (col_caj, "Cajonera"), (col_ala, "Alacena"), (col_plac, "Placard"), (col_panel, "Panel a Medida")]:
+        for col_btn, nombre_btn in [(col_bm, "Bajo Mesada"), (col_caj, "Cajonera"), (col_ala, "Alacena"), (col_plac, "Placard"), (col_panel, "Pieza Suelta")]:
             with col_btn:
                 sel   = st.session_state["_tipo_modulo_sel"] == nombre_btn
                 color = "#1D9E75" if sel else "#888780"
@@ -1240,9 +1177,21 @@ if menu == "🪵 Cotizador":
 
             cant_cajones = 0  # no aplica para placard
 
-        elif tipo_modulo == "Panel a Medida":
-            st.info("⚠️ **Piezas Extra / Fuera de Estándar:** Usá esta opción para cotizar tapas de terminación, regruesos, estantes sueltos o cualquier panel que no encaje en un módulo completo.")
-            cant_paneles = st.number_input("Cantidad de piezas iguales", value=int(_v("cant_paneles", 1)), min_value=1, max_value=100)
+        elif tipo_modulo == "Pieza Suelta":
+            st.markdown("""
+<div style="background:#F0F4FF;border-left:3px solid #5B7FD4;border-radius:0 8px 8px 0;padding:12px 14px;margin-bottom:8px;">
+<b style="color:#2A4099;">¿Para qué sirve?</b>
+<div style="color:#2A4099;font-size:13px;margin-top:4px;line-height:1.6;">
+Para piezas que no entran en ningún módulo automático:<br>
+• Piezas a <b>falsa escuadra</b> (paredes que no están a 90°)<br>
+• <b>Paneles de relleno</b> entre muebles y columnas<br>
+• <b>Tapas de mesada</b>, espaldares, paneles decorativos<br>
+• Cualquier corte especial que medís vos en obra
+</div>
+</div>""", unsafe_allow_html=True)
+            cant_paneles = st.number_input("Cantidad de piezas", value=int(_v("cant_paneles", 1)), min_value=1, max_value=100)
+            nota_pieza   = st.text_input("Descripción (opcional)", value=_v("nota_pieza", ""),
+                                          placeholder="Ej: Panel lateral a falsa escuadra, Tapa mesada...")
             cant_cajones = 0
 
         else:  # CAJONERA
@@ -1347,7 +1296,7 @@ if menu == "🪵 Cotizador":
           _em_uni   = cant_estantes_unica_moviles if tipo_modulo == "Placard" else 0
           _caj_pl   = cant_cajones_placard         if tipo_modulo == "Placard" else 0
           _frent_pl = tiene_frentin_placard        if tipo_modulo == "Placard" else False
-          _cant_pan = cant_paneles                 if tipo_modulo == "Panel a Medida" else 1
+          _cant_pan = cant_paneles                 if tipo_modulo == "Pieza Suelta" else 1
 
           piezas = generar_despiece_bvm(
               tipo=tipo_modulo, ancho_m=ancho_m, alto_m=alto_m, prof_m=prof_m,
@@ -1371,6 +1320,7 @@ if menu == "🪵 Cotizador":
               cant_cajones_placard=_caj_pl,
               # Panel
               cant_paneles=_cant_pan,
+              nota_pieza=nota_pieza if tipo_modulo == 'Pieza Suelta' else '',
           )
           df_corte = pd.DataFrame(piezas)
           if not df_corte.empty and "L" in df_corte.columns:
@@ -1406,12 +1356,7 @@ if menu == "🪵 Cotizador":
                   _out = _io.StringIO(); _doc.write(_out)
                   _dxf_b = _out.getvalue().encode("utf-8")
                   _df_a  = df_corte.copy().rename(columns={"Pieza":"Name","L":"Length","A":"Width","Cant":"Quantity"})
-                  
-                  # --- Lógica dinámica de materiales (Fix 3) ---
-                  _df_a["Thickness"] = esp_real
-                  _df_a["Material"] = _df_a["Tipo"].apply(lambda x: mat_fondo_sel if x in ["Fondo", "Piso"] and not sin_fondo else mat_principal)
-                  # ---------------------------------------------
-                  
+                  _df_a["Thickness"] = esp_real; _df_a["Material"] = mat_principal
                   _csv_b = _df_a[["Name","Length","Width","Thickness","Quantity","Material"]].to_csv(index=False).encode("utf-8")
                   cc1, cc2 = st.columns(2)
                   cc1.download_button("📐 DXF", data=_dxf_b, file_name=f"BVM_{nombre_modulo}.dxf", mime="application/dxf", use_container_width=True)
@@ -1506,7 +1451,8 @@ if menu == "🪵 Cotizador":
               "cant_cajones_placard":        cant_cajones_placard       if tipo_modulo == "Placard" else 0,
               "tiene_frentin_placard":       tiene_frentin_placard      if tipo_modulo == "Placard" else False,
               # Panel a Medida
-              "cant_paneles": cant_paneles if tipo_modulo == "Panel a Medida" else 1,
+              "cant_paneles": cant_paneles if tipo_modulo == "Pieza Suelta" else 1,
+              "nota_pieza":   nota_pieza   if tipo_modulo == "Pieza Suelta" else "",
           }
 
       # ── MODO: edición de presupuesto individual legacy ──
@@ -1529,15 +1475,13 @@ if menu == "🪵 Cotizador":
           st.subheader("✅ Confirmar cambios en el módulo")
           nombre_modulo = st.text_input("Nombre del módulo", value=_v("nombre", f"{tipo_modulo} {ancho_m:.0f}mm"))
           if st.button("Confirmar edición y volver a la Obra", use_container_width=True, type="primary"):
-              if precio_final <= 0 and precio_a_usar <= 0:
-                  st.warning("Completá las medidas para calcular el precio.")
+              if precio_a_usar <= 0:
+                  st.warning("El precio es 0. Completá las medidas.")
               else:
-                  # Forzamos usar el precio_final recalculado si existe, sino el guardado.
-                  _precio_seguro = precio_final if precio_final > 0 else precio_a_usar
                   nuevo_mod = {
                       "nombre": nombre_modulo, "tipo": tipo_modulo,
                       "ancho": int(ancho_m), "alto": int(alto_m), "prof": int(prof_m),
-                      "material": mat_principal, "precio": _precio_seguro,
+                      "material": mat_principal, "precio": precio_a_usar,
                       "df_corte": df_corte.copy() if not df_corte.empty else None,
                       "tipo_tapa": tipo_tapa, "params": _build_params_dict(),
                   }
@@ -1547,18 +1491,22 @@ if menu == "🪵 Cotizador":
                   else: mods.append(nuevo_mod)
                   mods = [m for m in mods if m is not None]
                   st.session_state["obra_modulos"] = mods
-                  
-                  # Auto-guardado en nube respetando TODO el presupuesto
+
+                  # Auto-guardado en nube preservando logística guardada
                   _oid = ctx.get("obra_id")
                   _cli = ctx.get("obra_cliente") or cliente
                   if _oid and _cli:
-                      _log_guardada = st.session_state.get("logistica_obra", {})
-                      _tot_log = _log_guardada.get("costo_log_total", 0.0)
-                      _tot_auto = sum(m["precio"] for m in mods) + _tot_log
-                      _guardar_obra_nube(mods, _cli, _oid, total_con_logistica=_tot_auto, logistica=_log_guardada)
-                  
+                      _log_prev = st.session_state.get("logistica_obra", {})
+                      _tot_prev = sum(m["precio"] for m in mods) + _log_prev.get("costo_log_total", 0.0)
+                      _guardar_obra_nube(mods, _cli, _oid,
+                                          total_con_logistica=_tot_prev,
+                                          logistica=_log_prev)
+                  # Limpieza solo de edit_ctx — obra_modulos queda intacto
                   _limpiar_edicion()
+                  # Reseteamos tipo de módulo a Bajo Mesada para que el form quede limpio
+                  st.session_state["_tipo_modulo_sel"] = "Bajo Mesada"
                   st.rerun()
+
       # ── MODO: módulo nuevo → va al carrito de obra ──
       else:
           st.subheader("🛒 Agregar al Resumen de Obra")
@@ -1579,7 +1527,11 @@ if menu == "🪵 Cotizador":
                   }
                   st.session_state["obra_modulos"].append(nuevo_mod)
                   st.session_state["ultimo_agregado"] = {"nombre": nombre_modulo, "precio": precio_a_usar}
+                  # Limpiamos edit_ctx pero CONSERVAMOS el tipo de módulo seleccionado
+                  # para que el carpintero pueda agregar el siguiente módulo igual
+                  _tipo_actual = st.session_state.get("_tipo_modulo_sel", "Bajo Mesada")
                   _limpiar_edicion()
+                  st.session_state["_tipo_modulo_sel"] = _tipo_actual
                   st.rerun()
 
       if st.session_state.get("ultimo_agregado"):
@@ -1601,28 +1553,24 @@ if menu == "🪵 Cotizador":
         subtotal_mods = sum(m["precio"] for m in _mods_obra)
 
         for i_m, mod in enumerate(_mods_obra):
-            # Proporciones de columnas limpias
-            col_mod, col_cnc, col_edit, col_del = st.columns([4, 1, 0.5, 0.5])
+            col_mod, col_plan, col_edit, col_del = st.columns([5, 1, 1, 1])
             col_mod.write(f"**{i_m+1}. {mod['nombre']}** — {mod['ancho']}×{mod['alto']}×{mod['prof']} mm — {mod['material']} — `${mod['precio']:,.0f}`")
-            
-            # --- FIX 4: Descarga de CSV individual con lógica de materiales ---
+            # 📋 Planilla individual descargable (solo si tiene df_corte de sesión)
             if mod.get("df_corte") is not None and not mod["df_corte"].empty:
-                _df_mod = mod["df_corte"].copy().rename(columns={"Pieza":"Name","L":"Length","A":"Width","Cant":"Quantity"})
-                
-                params_mod = mod.get("params", {})
-                _df_mod["Thickness"] = params_mod.get("esp_real", 18.0)
-                
-                _mat_cuerpo = mod.get("material", "")
-                _mat_fondo  = params_mod.get("mat_fondo_sel", "")
-                _sin_f      = params_mod.get("sin_fondo", False)
-                
-                _df_mod["Material"] = _df_mod["Tipo"].apply(lambda x: _mat_fondo if x in ["Fondo", "Piso"] and not _sin_f else _mat_cuerpo)
-                
-                _csv_mod = _df_mod[["Name","Length","Width","Thickness","Quantity","Material"]].to_csv(index=False).encode("utf-8")
-                col_cnc.download_button("🤖 CSV", data=_csv_mod, file_name=f"{mod['nombre']}.csv", mime="text/csv", key=f"csv_indiv_{i_m}", use_container_width=True)
-            # -----------------------------------------------------------------
-
+                _df_dl = mod["df_corte"].copy()
+                _esp_m  = mod.get("params", {}).get("esp_real", 18.0)
+                _mat_m  = mod.get("material", "")
+                _mat_f  = mod.get("params", {}).get("mat_fondo_sel", "Fibroplus Blanco 3mm")
+                _esp_f  = 5.5 if ("5.5" in _mat_f or "Faplac" in _mat_f) else 3.0
+                _df_dl2 = _df_dl.rename(columns={"Pieza":"Name","L":"Length","A":"Width","Cant":"Quantity"})
+                _df_dl2["Thickness"] = _df_dl2.apply(lambda r: _esp_f if str(r.get("Tipo","")).lower() in ["fondo","piso"] else _esp_m, axis=1)
+                _df_dl2["Material"]  = _df_dl2.apply(lambda r: _mat_f  if str(r.get("Tipo","")).lower() in ["fondo","piso"] else _mat_m,  axis=1)
+                _csv_dl = _df_dl2[["Name","Length","Width","Thickness","Quantity","Material"]].to_csv(index=False).encode("utf-8")
+                col_plan.download_button("📋", data=_csv_dl,
+                    file_name=f"Planilla_{mod['nombre'].replace(' ','_')}.csv",
+                    mime="text/csv", key=f"dl_plan_{i_m}", help="Descargar planilla de corte")
             if col_edit.button("✏️", key=f"edit_mod_{i_m}", help="Editar este módulo"):
+                # Si la obra vino del historial, preservamos su ID para auto-guardado
                 _obra_id_ctx     = st.session_state.get("_obra_id_historial")
                 _obra_cli_ctx    = st.session_state.get("_obra_cliente_historial") or (cliente if cliente else "")
                 st.session_state["edit_ctx"] = {
@@ -1635,10 +1583,10 @@ if menu == "🪵 Cotizador":
                 st.session_state.pop("_tipo_modulo_sel", None)
                 st.session_state.pop("_ctx_sig_prev",    None)
                 st.rerun()
-                
             if col_del.button("✕", key=f"del_mod_{i_m}"):
                 st.session_state["obra_modulos"].pop(i_m)
                 st.rerun()
+
         st.write("---")
 
         with st.expander("🚛 Logística y colocación", expanded=True):
@@ -1739,30 +1687,13 @@ elif menu == "📋 Historial":
         if df_hist.empty:
             st.info("No hay presupuestos guardados todavía.")
         else:
-            # --- CÁLCULO ESTRICTO DE FLUJO DE CAJA (CASHFLOW) ---
-            total_pend = df_hist[df_hist['estado']=='Pendiente']['precio_final'].sum()
-            total_pag  = df_hist[df_hist['estado']=='Pagado']['precio_final'].sum()
-            
-            # Para los señados, extraemos exactamente la liquidez real que entró a la cuenta
-            total_senad_cash = 0.0
-            df_senados = df_hist[df_hist['estado']=='Señado']
-            
-            for _, row_s in df_senados.iterrows():
-                precio_s = float(row_s.get('precio_final', 0))
-                pct_s = 50.0  # Asumimos 50% por defecto si es un presupuesto viejo sin datos
-                try:
-                    if row_s.get('parametros'):
-                        p_dict = json.loads(row_s.get('parametros'))
-                        if p_dict.get("es_obra"):
-                            pct_s = float(p_dict.get("logistica", {}).get("pct_seña", 50))
-                except:
-                    pass
-                total_senad_cash += precio_s * (pct_s / 100.0)
-
-            c1, c2, c3 = st.columns(3)
-            c1.metric("🔴 En Negociación (Proyección)", f"${total_pend:,.0f}", f"{len(df_hist[df_hist['estado']=='Pendiente'])} presupuestos")
-            c2.metric("🟡 Caja Retenida (Señas)", f"${total_senad_cash:,.0f}", f"{len(df_senados)} presupuestos")
-            c3.metric("🟢 Capital Realizado (Pagados)", f"${total_pag:,.0f}", f"{len(df_hist[df_hist['estado']=='Pagado'])} presupuestos")
+            total_pend  = df_hist[df_hist['estado']=='Pendiente']['precio_final'].sum()
+            total_señad = df_hist[df_hist['estado']=='Señado']['precio_final'].sum()
+            total_pag   = df_hist[df_hist['estado']=='Pagado']['precio_final'].sum()
+            c1,c2,c3 = st.columns(3)
+            c1.metric("🔴 Pendientes", f"${total_pend:,.0f}",  f"{len(df_hist[df_hist['estado']=='Pendiente'])} presupuestos")
+            c2.metric("🟡 Señados",    f"${total_señad:,.0f}", f"{len(df_hist[df_hist['estado']=='Señado'])} presupuestos")
+            c3.metric("🟢 Pagados",    f"${total_pag:,.0f}",   f"{len(df_hist[df_hist['estado']=='Pagado'])} presupuestos")
             st.write("---")
             filtro = st.radio("Mostrar", ["Todos","Pendiente","Señado","Pagado"], horizontal=True)
             df_f = df_hist if filtro=="Todos" else df_hist[df_hist['estado']==filtro]
@@ -1776,30 +1707,9 @@ elif menu == "📋 Historial":
                 icono, bg, tc = COLORES[estado_actual]
                 id_venta = row.get('id')
 
-                # --- LÓGICA FINANCIERA (SEÑA Y SALDO) ---
-                precio_total = float(row['precio_final'])
-                pct_sena = 50
-                try:
-                    if row.get('parametros'):
-                        p_dict = json.loads(row['parametros'])
-                        if p_dict.get("es_obra"):
-                            pct_sena = p_dict.get("logistica", {}).get("pct_seña", 50)
-                except:
-                    pass
-
-                monto_sena = precio_total * (pct_sena / 100)
-                saldo = precio_total - monto_sena
-
-                if estado_actual == "Señado":
-                    badge_text = f"Total: ${precio_total:,.0f} | Seña ({pct_sena}%): ${monto_sena:,.0f} | Saldo: ${saldo:,.0f}"
-                elif estado_actual == "Pagado":
-                    badge_text = f"Abonado: ${precio_total:,.0f} ✅"
-                else:
-                    badge_text = f"Total: ${precio_total:,.0f}"
-
                 st.markdown(f"""<div style="background:{bg};border-radius:8px;padding:12px 16px;margin-bottom:4px;">
                 <span style="color:{tc};font-weight:600;font-size:15px;">{icono} {row.get('cliente','Sin nombre')} — {row.get('mueble','')}</span>
-                <span style="color:{tc};float:right;font-size:13.5px;font-weight:600;opacity:0.9;">{badge_text}</span></div>""", unsafe_allow_html=True)
+                <span style="color:{tc};float:right;font-size:15px;font-weight:600;">${row['precio_final']:,.0f}</span></div>""", unsafe_allow_html=True)
 
                 col_fecha, col_estado, col_b1, col_b2, col_b3 = st.columns([2,2,1,1,1])
                 fecha_str = str(row.get('fecha',''))[:16] if row.get('fecha') else 'Sin fecha'
@@ -1977,32 +1887,28 @@ elif menu == "⚙️ Precios":
                 actualizar_precio_nube(nueva_mad_n, nueva_mad_p, 'maderas')
                 st.rerun()
 
+    claves_base = ['bisagra_cazoleta', 'telescopica_45', 'telescopica_soft']
+    herrajes_custom = {k: v for k, v in config.items() if k not in ['gastos_fijos_diarios', 'flete_capital', 'flete_norte', 'colocacion_dia', 'ganancia_taller_pct'] + claves_base}
+
     with st.expander("🔩 Herrajes, Cerraduras y Extras", expanded=False):
-        # Diccionario para mapear las variables internas a nombres comerciales legibles
-        _nombres_base = {
-            'bisagra_cazoleta': 'Bisagra Cazoleta',
-            'telescopica_45': 'Guía Telescópica 45cm',
-            'telescopica_soft': 'Guía Cierre Suave'
-        }
-        
-        # Filtramos para obtener TODOS los herrajes (base y custom)
-        herrajes_items = {k: v for k, v in config.items() if k not in ['gastos_fijos_diarios', 'flete_capital', 'flete_norte', 'colocacion_dia', 'ganancia_taller_pct']}
-        
-        # Renderizado lineal unificado (idéntico a la estructura de Placas)
-        for h_clave, h_precio in list(herrajes_items.items()):
-            col_name, col_price, col_del = st.columns([5, 3, 1])
-            
-            # Nombre formateado
-            label = _nombres_base.get(h_clave, h_clave)
-            col_name.markdown(f"<div style='padding-top: 8px; font-weight: 500;'>{label}</div>", unsafe_allow_html=True)
-            
-            # Input de precio
-            config[h_clave] = col_price.number_input("Precio", value=float(h_precio), step=100.0, key=f"p_{h_clave}", label_visibility="collapsed")
-            
-            # Botón de eliminación universal activado para todos
-            if col_del.button("🗑️", key=f"del_{h_clave}", help=f"Eliminar {label}"):
-                eliminar_precio_nube(h_clave, 'herrajes')
-                st.rerun()
+        st.caption("Herrajes base del cotizador automático:")
+        c1, c2, c3 = st.columns(3)
+        config['bisagra_cazoleta'] = c1.number_input("Bisagra Cazoleta", value=float(config.get('bisagra_cazoleta', 1200)), step=100.0)
+        config['telescopica_45']   = c2.number_input("Guía 45cm", value=float(config.get('telescopica_45', 5000)), step=100.0)
+        config['telescopica_soft'] = c3.number_input("Guía Cierre Suave", value=float(config.get('telescopica_soft', 12000)), step=100.0)
+
+        st.write("---")
+        st.caption("Tus accesorios y cerraduras personalizadas:")
+        if not herrajes_custom:
+            st.info("No hay accesorios extra guardados. Agregá uno abajo.")
+        else:
+            for h_nom, h_pre in herrajes_custom.items():
+                ch_n, ch_p, ch_d = st.columns([5, 3, 1])
+                ch_n.markdown(f"<div style='padding-top: 8px; font-weight: 500;'>{h_nom}</div>", unsafe_allow_html=True)
+                config[h_nom] = ch_p.number_input("Precio", value=float(h_pre), step=100.0, key=f"p_{h_nom}", label_visibility="collapsed")
+                if ch_d.button("🗑️", key=f"del_{h_nom}", help=f"Eliminar {h_nom}"):
+                    eliminar_precio_nube(h_nom, 'herrajes')
+                    st.rerun()
 
         st.write("---")
         st.markdown("**➕ Agregar nuevo accesorio**")
