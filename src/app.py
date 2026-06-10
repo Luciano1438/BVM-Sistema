@@ -1707,9 +1707,28 @@ elif menu == "📋 Historial":
                 icono, bg, tc = COLORES[estado_actual]
                 id_venta = row.get('id')
 
+                # Lógica financiera: seña y saldo
+                precio_total = float(row.get('precio_final', 0))
+                pct_sena = 50
+                try:
+                    if row.get('parametros'):
+                        p_dict = json.loads(row['parametros'])
+                        if p_dict.get("es_obra"):
+                            pct_sena = float(p_dict.get("logistica", {}).get("pct_seña", 50))
+                except:
+                    pass
+                monto_sena = precio_total * (pct_sena / 100)
+                saldo = precio_total - monto_sena
+                if estado_actual == "Señado":
+                    badge_text = f"Seña ({pct_sena}%): ${monto_sena:,.0f} | Saldo: ${saldo:,.0f}"
+                elif estado_actual == "Pagado":
+                    badge_text = f"Abonado: ${precio_total:,.0f} ✅"
+                else:
+                    badge_text = f"${precio_total:,.0f}"
+
                 st.markdown(f"""<div style="background:{bg};border-radius:8px;padding:12px 16px;margin-bottom:4px;">
                 <span style="color:{tc};font-weight:600;font-size:15px;">{icono} {row.get('cliente','Sin nombre')} — {row.get('mueble','')}</span>
-                <span style="color:{tc};float:right;font-size:15px;font-weight:600;">${row['precio_final']:,.0f}</span></div>""", unsafe_allow_html=True)
+                <span style="color:{tc};float:right;font-size:13px;font-weight:600;opacity:0.9;">{badge_text}</span></div>""", unsafe_allow_html=True)
 
                 col_fecha, col_estado, col_b1, col_b2, col_b3 = st.columns([2,2,1,1,1])
                 fecha_str = str(row.get('fecha',''))[:16] if row.get('fecha') else 'Sin fecha'
@@ -1887,34 +1906,33 @@ elif menu == "⚙️ Precios":
                 actualizar_precio_nube(nueva_mad_n, nueva_mad_p, 'maderas')
                 st.rerun()
 
-    claves_base = ['bisagra_cazoleta', 'telescopica_45', 'telescopica_soft']
-    herrajes_custom = {k: v for k, v in config.items() if k not in ['gastos_fijos_diarios', 'flete_capital', 'flete_norte', 'colocacion_dia', 'ganancia_taller_pct'] + claves_base}
+    # Todos los herrajes: base + custom, misma estructura que placas
+    _nombres_herraje = {
+        'bisagra_cazoleta': 'Bisagra Cazoleta',
+        'telescopica_45':   'Guía Telescópica 45cm',
+        'telescopica_soft': 'Guía Cierre Suave',
+    }
+    _todos_herrajes = {k: v for k, v in config.items()
+                       if k not in ['gastos_fijos_diarios','flete_capital','flete_norte','colocacion_dia','ganancia_taller_pct']}
 
     with st.expander("🔩 Herrajes, Cerraduras y Extras", expanded=False):
-        st.caption("Herrajes base del cotizador automático:")
-        c1, c2, c3 = st.columns(3)
-        config['bisagra_cazoleta'] = c1.number_input("Bisagra Cazoleta", value=float(config.get('bisagra_cazoleta', 1200)), step=100.0)
-        config['telescopica_45']   = c2.number_input("Guía 45cm", value=float(config.get('telescopica_45', 5000)), step=100.0)
-        config['telescopica_soft'] = c3.number_input("Guía Cierre Suave", value=float(config.get('telescopica_soft', 12000)), step=100.0)
+        for h_clave, h_precio in list(_todos_herrajes.items()):
+            col_name, col_price, col_del = st.columns([5, 3, 1])
+            label = _nombres_herraje.get(h_clave, h_clave)
+            col_name.markdown(f"<div style='padding-top: 8px; font-weight: 500;'>{label}</div>", unsafe_allow_html=True)
+            config[h_clave] = col_price.number_input("Precio", value=float(h_precio), step=100.0,
+                                                      key=f"p_{h_clave}", label_visibility="collapsed")
+            if col_del.button("🗑️", key=f"del_{h_clave}", help=f"Eliminar {label}"):
+                eliminar_precio_nube(h_clave, 'herrajes')
+                st.rerun()
 
         st.write("---")
-        st.caption("Tus accesorios y cerraduras personalizadas:")
-        if not herrajes_custom:
-            st.info("No hay accesorios extra guardados. Agregá uno abajo.")
-        else:
-            for h_nom, h_pre in herrajes_custom.items():
-                ch_n, ch_p, ch_d = st.columns([5, 3, 1])
-                ch_n.markdown(f"<div style='padding-top: 8px; font-weight: 500;'>{h_nom}</div>", unsafe_allow_html=True)
-                config[h_nom] = ch_p.number_input("Precio", value=float(h_pre), step=100.0, key=f"p_{h_nom}", label_visibility="collapsed")
-                if ch_d.button("🗑️", key=f"del_{h_nom}", help=f"Eliminar {h_nom}"):
-                    eliminar_precio_nube(h_nom, 'herrajes')
-                    st.rerun()
-
-        st.write("---")
-        st.markdown("**➕ Agregar nuevo accesorio**")
+        st.markdown("**➕ Agregar nuevo herraje**")
         ch_nm, ch_np, ch_nb = st.columns([5, 3, 1])
-        nuevo_herr_n = ch_nm.text_input("Nombre", key="new_herr_n", label_visibility="collapsed", placeholder="Ej: Cerradura cajón Hafele")
-        nuevo_herr_p = ch_np.number_input("Precio", min_value=0.0, step=100.0, key="new_herr_p", label_visibility="collapsed")
+        nuevo_herr_n = ch_nm.text_input("Nombre", key="new_herr_n", label_visibility="collapsed",
+                                         placeholder="Ej: Cerradura cajón Hafele")
+        nuevo_herr_p = ch_np.number_input("Precio", min_value=0.0, step=100.0, key="new_herr_p",
+                                           label_visibility="collapsed")
         if ch_nb.button("Agregar", key="add_herr", use_container_width=True):
             if nuevo_herr_n and nuevo_herr_p > 0:
                 actualizar_precio_nube(nuevo_herr_n, nuevo_herr_p, 'herrajes')
