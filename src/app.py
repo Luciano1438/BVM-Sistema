@@ -1035,9 +1035,9 @@ if menu == "🪵 Cotizador":
 
         tipo_modulo = st.session_state["_tipo_modulo_sel"]
         c1, c2, c3 = st.columns(3)
-        ancho_m = c1.number_input("Ancho total (mm)", min_value=0.0, max_value=5000.0, value=float(_v("ancho_m", 0.0)), step=0.5)
-        alto_m  = c2.number_input("Alto total (mm)",  min_value=0.0, max_value=5000.0, value=float(_v("alto_m",  0.0)), step=0.5)
-        prof_m  = c3.number_input("Profundidad (mm)", min_value=0.0, max_value=2000.0, value=float(_v("prof_m",  0.0)), step=0.5)
+        ancho_m = c1.number_input("Ancho total (mm)", min_value=0.0, max_value=5000.0, value=float(_v("ancho_m", 0.0)), step=0.5, key="inp_ancho")
+        alto_m  = c2.number_input("Alto total (mm)",  min_value=0.0, max_value=5000.0, value=float(_v("alto_m",  0.0)), step=0.5, key="inp_alto")
+        prof_m  = c3.number_input("Profundidad (mm)", min_value=0.0, max_value=2000.0, value=float(_v("prof_m",  0.0)), step=0.5, key="inp_prof")
         mat_principal = st.selectbox("Material del cuerpo (18mm)", lista_maderas, index=idx_madera)
         esp_real      = st.number_input("Espesor real de placa (mm)", min_value=1.0, max_value=50.0, value=float(_v("esp_real", 18.0)), step=0.1)
         mat_fondo_sel = st.selectbox("Material del fondo", lista_fondos, index=idx_fondo)
@@ -1656,12 +1656,19 @@ Para piezas que no entran en ningún módulo automático:<br>
                 _guardar_obra_nube(_mods_obra, cliente_obra, _id_a_guardar,
                                     total_con_logistica=total_obra,
                                     logistica=_log_data)
-                # Limpieza total del cotizador
-                st.session_state["obra_modulos"] = []
+                # Limpieza total — cotizador queda completamente en blanco
+                st.session_state["obra_modulos"]    = []
+                st.session_state["logistica_obra"]  = {}
+                st.session_state["ultimo_agregado"] = None
+                st.session_state["_tipo_modulo_sel"] = "Bajo Mesada"
                 st.session_state.pop("_obra_cliente_historial", None)
-                st.session_state.pop("_tipo_modulo_sel",        None)
+                st.session_state.pop("_obra_id_historial",      None)
                 st.session_state.pop("_ctx_sig_prev",           None)
-                _limpiar_edicion()
+                st.session_state["edit_ctx"] = None
+                # Resetear los campos de medidas a 0
+                for _k in ["inp_ancho", "inp_alto", "inp_prof"]:
+                    if _k in st.session_state:
+                        st.session_state[_k] = 0.0
                 st.rerun()
 
   except Exception as e:
