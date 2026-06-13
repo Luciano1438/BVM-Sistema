@@ -293,19 +293,25 @@ def get_token():
                     return new_token.access_token
         return None
 
+@st.cache_data(ttl=120, show_spinner=False)
+def _traer_retazos_db(user_id: str):
+    """Carga retazos desde Supabase. Cacheado 2 minutos."""
+    return supabase.table("retazos").select("*").eq("user_id", user_id).execute().data
+
 def consultar_retazos_disponibles(material):
     try:
         token = get_token()
-        if token: supabase.postgrest.auth(token)
-        res = supabase.table("retazos").select("*").eq("user_id", st.session_state["user"].id).execute()
-        return res.data
+        if not token: return []
+        supabase.postgrest.auth(token)
+        return _traer_retazos_db(st.session_state["user"].id)
     except Exception as e:
-        if "JWT" in str(e) or "expired" in str(e).lower() or "PGRST303" in str(e):
+        err = str(e)
+        if "JWT" in err or "expired" in err.lower() or "PGRST303" in err:
             if refrescar_sesion():
                 try:
-                    res = supabase.table("retazos").select("*").eq("user_id", st.session_state["user"].id).execute()
-                    return res.data
-                except:
+                    _traer_retazos_db.clear()
+                    return _traer_retazos_db(st.session_state["user"].id)
+                except Exception:
                     pass
         st.warning("Sesión expirada. Recargá la página si el problema persiste.")
         return []
@@ -314,6 +320,7 @@ def registrar_retazo(material, largo, ancho):
     try:
         if (largo >= 400 and ancho >= 150) or (largo >= 150 and ancho >= 400):
             supabase.table("retazos").insert({"material": material, "largo": largo, "ancho": ancho, "user_id": st.session_state["user"].id}).execute()
+            _traer_retazos_db.clear()
             st.toast(f"Retazo guardado: {int(largo)}x{int(ancho)}")
         else:
             st.error(f"Error: {int(largo)}x{int(ancho)} inferior al mínimo 150x400.")
@@ -382,36 +389,32 @@ def eliminar_precio_nube(clave, categoria):
     except Exception as e:
         st.error(f"Error al eliminar {clave}: {e}")
 
+@st.cache_data(ttl=300, show_spinner=False)
+def _traer_datos_db(user_id: str, token: str):
+    """Carga configuración desde Supabase. Cacheada 5 minutos por user_id."""
+    supabase.postgrest.auth(token)
+    datos_db = supabase.table("configuracion").select("*").eq("user_id", user_id).execute().data
+    maderas_db = {d['clave']: d['valor'] for d in datos_db if str(d.get('categoria','')).lower().strip() == 'maderas'}
+    config_db  = {d['clave']: d['valor'] for d in datos_db if str(d.get('categoria','')).lower().strip() in ['costos','margen','herrajes']}
+    return maderas_db, config_db
+
 def traer_datos():
+    MADERAS_DEFAULT = {"Melamina Blanca 18mm": 60000.0, "Melamina Color 18mm": 85000.0, "Enchapado Roble 18mm": 120000.0}
+    CONFIG_DEFAULT  = {'bisagra_cazoleta': 1200.0, 'telescopica_45': 5000.0, 'telescopica_soft': 12000.0,
+                       'gastos_fijos_diarios': 25000.0, 'flete_capital': 15000.0, 'flete_norte': 20000.0,
+                       'colocacion_dia': 45000.0, 'ganancia_taller_pct': 0.30}
+    FONDOS          = {'Fibroplus Blanco 3mm': 34500.0, 'Faplac Fondo 5.5mm': 45000.0, 'Sin fondo': 0.0}
+
     if "session" not in st.session_state or not st.session_state["session"]:
-        maderas_default = {"Melamina Blanca 18mm": 60000.0, "Melamina Color 18mm": 85000.0, "Enchapado Roble 18mm": 120000.0}
-        config_default  = {'bisagra_cazoleta': 1200.0, 'telescopica_45': 5000.0, 'telescopica_soft': 12000.0,
-                           'gastos_fijos_diarios': 25000.0, 'flete_capital': 15000.0, 'flete_norte': 20000.0,
-                           'colocacion_dia': 45000.0, 'ganancia_taller_pct': 0.30}
-        return maderas_default, {'Fibroplus Blanco 3mm': 34500.0, 'Sin fondo': 0.0}, config_default
+        return MADERAS_DEFAULT, {'Fibroplus Blanco 3mm': 34500.0, 'Sin fondo': 0.0}, CONFIG_DEFAULT
 
     try:
         token = get_token()
         if not token: raise Exception("No token")
-        
-        supabase.postgrest.auth(token)
-        datos_db = supabase.table("configuracion").select("*").eq("user_id", st.session_state["user"].id).execute().data
-        
-        maderas_db = {d['clave']: d['valor'] for d in datos_db if str(d.get('categoria','')).lower().strip() == 'maderas'}
-        config_db  = {d['clave']: d['valor'] for d in datos_db if str(d.get('categoria','')).lower().strip() in ['costos','margen','herrajes']}
-        
-        maderas_default = {"Melamina Blanca 18mm": 60000.0, "Melamina Color 18mm": 85000.0, "Enchapado Roble 18mm": 120000.0}
-        config_default  = {'bisagra_cazoleta': 1200.0, 'telescopica_45': 5000.0, 'telescopica_soft': 12000.0,
-                           'gastos_fijos_diarios': 25000.0, 'flete_capital': 15000.0, 'flete_norte': 20000.0,
-                           'colocacion_dia': 45000.0, 'ganancia_taller_pct': 0.30}
-                           
-        maderas = {**maderas_default, **maderas_db}
-        config  = {**config_default,  **config_db}
-        fondos  = {'Fibroplus Blanco 3mm': 34500.0, 'Faplac Fondo 5.5mm': 45000.0, 'Sin fondo': 0.0}
-        
-        return maderas, fondos, config
-
-    except Exception as e:
+        user_id = st.session_state["user"].id
+        maderas_db, config_db = _traer_datos_db(user_id, token)
+        return {**MADERAS_DEFAULT, **maderas_db}, FONDOS, {**CONFIG_DEFAULT, **config_db}
+    except Exception:
         st.warning("La sesión se actualizó. Por favor, recargá la página.")
         st.stop()
 
@@ -423,10 +426,12 @@ def guardar_presupuesto_nube(cliente, mueble, total, parametros=None, id_editar=
                 "parametros": json.dumps(parametros) if parametros else None}
         if id_editar:
             supabase.table("ventas").update(data).eq("id", id_editar).execute()
+            _traer_historial_db.clear()
             st.success("✅ Presupuesto actualizado.")
         else:
             data["estado"] = "Pendiente"
             supabase.table("ventas").insert(data).execute()
+            _traer_historial_db.clear()
             st.success("✅ Presupuesto guardado.")
     except Exception as e:
         err_msg = str(e)
@@ -437,10 +442,17 @@ def guardar_presupuesto_nube(cliente, mueble, total, parametros=None, id_editar=
         else:
             st.error(f"Error al guardar: {err_msg}")
 
+@st.cache_data(ttl=60, show_spinner=False)
+def _traer_historial_db(user_id: str):
+    """Carga historial desde Supabase. Cacheado 60 segundos."""
+    return pd.DataFrame(
+        supabase.table("ventas").select("*").eq("user_id", user_id).execute().data
+    )
+
 def traer_datos_historial():
     try:
-        return pd.DataFrame(supabase.table("ventas").select("*").eq("user_id", st.session_state["user"].id).execute().data)
-    except:
+        return _traer_historial_db(st.session_state["user"].id)
+    except Exception:
         return pd.DataFrame()
 
 def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_puertas, cant_cajones, estantes_fijos, estantes_moviles, tiene_parante, sin_fondo, distribucion_tapas="Iguales", tipo_base="Nada", altura_base=0, **kwargs):
@@ -1714,6 +1726,7 @@ elif menu == "📋 Historial":
         try:
             supabase.postgrest.auth(st.session_state["session"].access_token)
             supabase.table("ventas").update({"estado": nuevo_estado}).eq("id", id_venta).execute()
+            _traer_historial_db.clear()
         except Exception as e:
             st.error(f"Error: {e}")
 
@@ -1869,6 +1882,7 @@ elif menu == "📋 Historial":
                             token = get_token()
                             if token: supabase.postgrest.auth(token)
                             supabase.table("ventas").delete().eq("id", id_venta).execute()
+                            _traer_historial_db.clear()
                             st.rerun()
                         except Exception as e:
                             st.error(f"Error: {e}")
@@ -1933,6 +1947,7 @@ elif menu == "♻️ Retazos":
                             token = get_token()
                             if token: supabase.postgrest.auth(token)
                             supabase.table("retazos").delete().eq("id", ret_id).execute()
+                            _traer_retazos_db.clear()
                             st.rerun()
                         except Exception as e:
                             st.error(f"Error: {e}")
@@ -1948,6 +1963,7 @@ elif menu == "⚙️ Precios":
             maderas[madera] = col_price.number_input("Precio", value=float(precio), step=1000.0, key=f"p_{madera}", label_visibility="collapsed")
             if col_del.button("🗑️", key=f"del_{madera}", help=f"Eliminar {madera}"):
                 eliminar_precio_nube(madera, 'maderas')
+                _traer_datos_db.clear()
                 st.rerun()
 
         st.write("---")
@@ -1958,6 +1974,7 @@ elif menu == "⚙️ Precios":
         if c_nb.button("Agregar", key="add_mad", use_container_width=True):
             if nueva_mad_n and nueva_mad_p > 0:
                 actualizar_precio_nube(nueva_mad_n, nueva_mad_p, 'maderas')
+                _traer_datos_db.clear()
                 st.rerun()
 
     # Todos los herrajes: base + custom, misma estructura que placas
@@ -1978,6 +1995,7 @@ elif menu == "⚙️ Precios":
                                                       key=f"p_{h_clave}", label_visibility="collapsed")
             if col_del.button("🗑️", key=f"del_{h_clave}", help=f"Eliminar {label}"):
                 eliminar_precio_nube(h_clave, 'herrajes')
+                _traer_datos_db.clear()
                 st.rerun()
 
         st.write("---")
@@ -1990,6 +2008,7 @@ elif menu == "⚙️ Precios":
         if ch_nb.button("Agregar", key="add_herr", use_container_width=True):
             if nuevo_herr_n and nuevo_herr_p > 0:
                 actualizar_precio_nube(nuevo_herr_n, nuevo_herr_p, 'herrajes')
+                _traer_datos_db.clear()
                 st.rerun()
 
     with st.expander("🚛 Gastos Fijos y Logística", expanded=False):
@@ -2009,4 +2028,6 @@ elif menu == "⚙️ Precios":
         for k, v in config.items():
             cat = 'costos' if k in ['gastos_fijos_diarios', 'flete_capital', 'flete_norte', 'colocacion_dia', 'ganancia_taller_pct'] else 'herrajes'
             actualizar_precio_nube(k, v, cat)
+        # Invalidar cache para que el cotizador vea los precios nuevos inmediatamente
+        _traer_datos_db.clear()
         st.success("✅ Configuración guardada")
