@@ -19,12 +19,29 @@ from motor import (
 )
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# ── Helpers de conversión segura ─────────────────────────────────────────
+def _safe_int(val, default=0) -> int:
+    """Convierte a int sin crashear — maneja None, '', strings, floats."""
+    try:
+        if val is None or val == "": return default
+        return int(float(str(val).strip()))
+    except (ValueError, TypeError):
+        return default
+
+def _safe_float(val, default=0.0) -> float:
+    """Convierte a float sin crashear — maneja None, '', strings."""
+    try:
+        if val is None or val == "": return default
+        return float(str(val).strip())
+    except (ValueError, TypeError):
+        return default
 load_dotenv(dotenv_path=BASE_DIR / '.env')
 
 try:
     url = st.secrets["supabase"]["url"]
     key = st.secrets["supabase"]["key"]
-except:
+except (KeyError, FileNotFoundError):
     url = os.getenv("SUPABASE_URL")
     key = os.getenv("SUPABASE_KEY")
 
@@ -252,7 +269,8 @@ def refrescar_sesion():
             st.session_state["session"] = res.session
             st.session_state["user"] = res.user
             return True
-    except:
+    except Exception as e:
+        # Loguear sin crashear — token expirado es el caso más común
         pass
     return False
 
@@ -262,12 +280,17 @@ def get_token():
         return None
     try:
         token = st.session_state["session"].access_token
+        if not token:
+            return None
         supabase.postgrest.auth(token)
         return token
     except Exception as e:
-        if "JWT" in str(e) or "expired" in str(e).lower():
+        err = str(e).lower()
+        if "jwt" in err or "expired" in err or "unauthorized" in err:
             if refrescar_sesion():
-                return st.session_state["session"].access_token
+                new_token = st.session_state.get("session", {})
+                if hasattr(new_token, "access_token"):
+                    return new_token.access_token
         return None
 
 def consultar_retazos_disponibles(material):
@@ -406,7 +429,13 @@ def guardar_presupuesto_nube(cliente, mueble, total, parametros=None, id_editar=
             supabase.table("ventas").insert(data).execute()
             st.success("✅ Presupuesto guardado.")
     except Exception as e:
-        st.error(f"Error al guardar: {e}")
+        err_msg = str(e)
+        if "JWT" in err_msg or "expired" in err_msg.lower():
+            st.error("Sesión expirada. Recargá la página e intentá de nuevo.")
+        elif "duplicate" in err_msg.lower():
+            st.error("Ya existe un registro con esos datos.")
+        else:
+            st.error(f"Error al guardar: {err_msg}")
 
 def traer_datos_historial():
     try:
@@ -416,14 +445,13 @@ def traer_datos_historial():
 
 def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_puertas, cant_cajones, estantes_fijos, estantes_moviles, tiene_parante, sin_fondo, distribucion_tapas="Iguales", tipo_base="Nada", altura_base=0, **kwargs):
     """Genera un SVG esquemático del mueble con proporciones reales."""
-    try:
-        ancho_m = float(ancho_m)
-        alto_m = float(alto_m)
-    except:
-        return ""
-        
+    ancho_m = _safe_float(ancho_m)
+    alto_m  = _safe_float(alto_m)
     if ancho_m <= 0 or alto_m <= 0:
         return ""
+    # Sanitizar para SVG — eliminar caracteres que podrían romper el markup
+    ancho_m = min(ancho_m, 9999)
+    alto_m  = min(alto_m,  9999)
 
     W   = 300
     pad = 16
@@ -806,11 +834,11 @@ def _params_desde_mod(m):
     p = m.get("params") or {}
     return {
         "tipo_modulo":          m.get("tipo_modulo", m.get("tipo", p.get("tipo_modulo", ""))),
-        "ancho_m":              m.get("ancho_m", m.get("ancho", p.get("ancho_m", 0))),
-        "alto_m":               m.get("alto_m",  m.get("alto",  p.get("alto_m",  0))),
-        "prof_m":               m.get("prof_m",  m.get("prof",  p.get("prof_m",  0))),
+        "ancho_m":              _safe_float(m.get("ancho_m", m.get("ancho", p.get("ancho_m", 0)))),
+        "alto_m":               _safe_float(m.get("alto_m",  m.get("alto",  p.get("alto_m",  0)))),
+        "prof_m":               _safe_float(m.get("prof_m",  m.get("prof",  p.get("prof_m",  0)))),
         "mat_principal":        m.get("mat_principal", m.get("material", p.get("mat_principal", ""))),
-        "precio_guardado":      m.get("precio", p.get("precio_guardado", 0)),
+        "precio_guardado":      _safe_float(m.get("precio", p.get("precio_guardado", 0))),
         "nombre":               m.get("nombre") or p.get("nombre") or "",
         "mat_fondo_sel":        p.get("mat_fondo_sel", "Fibroplus Blanco 3mm"),
         "esp_real":             p.get("esp_real", 18.0),
@@ -1769,7 +1797,12 @@ elif menu == "📋 Historial":
                                  use_container_width=True, disabled=not tiene_params,
                                  help="Editar este presupuesto" if tiene_params else "Sin parámetros guardados"):
                         try:
-                            params = json.loads(row['parametros'])
+                            _raw = row.get('parametros')
+                            if not _raw or _raw in ('null', 'None', ''):
+                                raise ValueError("Parámetros vacíos")
+                            params = json.loads(_raw)
+                            if not isinstance(params, dict):
+                                raise ValueError("Schema inválido")
                             if params.get("es_obra"):
                                 mods      = params.get("modulos", [])
                                 cliente_h = row.get('cliente','')
@@ -1781,9 +1814,9 @@ elif menu == "📋 Historial":
                                     mods_internos.append({
                                         "nombre":    m.get("nombre", p.get("nombre","")),
                                         "tipo":      m.get("tipo_modulo", p.get("tipo_modulo","")),
-                                        "ancho":     int(m.get("ancho_m", p.get("ancho_m", 0))),
-                                        "alto":      int(m.get("alto_m",  p.get("alto_m",  0))),
-                                        "prof":      int(m.get("prof_m",  p.get("prof_m",  0))),
+                                        "ancho":     _safe_int(m.get("ancho_m", p.get("ancho_m", 0))),
+                                        "alto":      _safe_int(m.get("alto_m",  p.get("alto_m",  0))),
+                                        "prof":      _safe_int(m.get("prof_m",  p.get("prof_m",  0))),
                                         "material":  m.get("mat_principal", p.get("mat_principal","")),
                                         "precio":    m.get("precio", p.get("precio_guardado", 0)),
                                         "tipo_tapa": p.get("tipo_tapa","Superpuesta"),
