@@ -4,3 +4,4 @@ supabase
 python-dotenv
 fpdf2
 ezdxf
+pydantic
