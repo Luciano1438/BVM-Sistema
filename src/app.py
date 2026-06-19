@@ -727,28 +727,177 @@ def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_pue
 st.set_page_config(page_title="BVM — Sistema de Gestión para Carpintería", page_icon="🪵", layout="wide")
 
 st.markdown("""<style>
-html, body, [class*="css"] { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-[data-testid="stSidebar"] { background-color: #0F6E56 !important; border-right: none !important; }
-[data-testid="stSidebar"] * { color: rgba(255,255,255,0.85) !important; }
-[data-testid="stSidebar"] .stRadio label { color: rgba(255,255,255,0.75) !important; font-size: 14px !important; }
-[data-testid="stSidebar"] hr { border-color: rgba(255,255,255,0.15) !important; }
-[data-testid="stSidebar"] .stButton button { background: rgba(255,255,255,0.1) !important; color: rgba(255,255,255,0.8) !important; border: 1px solid rgba(255,255,255,0.2) !important; border-radius: 8px !important; }
+/* ── Variables de diseño BVM ───────────────────────────────────── */
+:root {
+    --bvm-green:        #0F6E56;
+    --bvm-green-light:  #1D9E75;
+    --bvm-green-pale:   #E1F5EE;
+    --bvm-surface:      #F8F8F6;
+    --bvm-border:       #E0DED6;
+    --bvm-text:         #1A1A1A;
+    --bvm-text-muted:   #888780;
+    --bvm-radius:       10px;
+    --bvm-shadow:       0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --bvm-shadow-md:    0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+}
+
+/* ── Tipografía global ─────────────────────────────────────────── */
+html, body, [class*="css"] {
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+h1 { font-size: 21px !important; font-weight: 600 !important; color: var(--bvm-text) !important; letter-spacing: -0.3px !important; }
+h2 { font-size: 16px !important; font-weight: 600 !important; color: var(--bvm-text) !important; }
+h3 { font-size: 14px !important; font-weight: 600 !important; color: var(--bvm-text) !important; }
+
+/* ── Layout principal ──────────────────────────────────────────── */
+[data-testid="stAppViewContainer"] > .main .block-container {
+    padding-top: 1.2rem !important;
+    padding-bottom: 3rem !important;
+    max-width: 1400px !important;
+}
+
+/* ── Sidebar premium ───────────────────────────────────────────── */
+[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #0F6E56 0%, #0A5240 100%) !important;
+    border-right: none !important;
+    box-shadow: 2px 0 12px rgba(0,0,0,0.15) !important;
+}
+[data-testid="stSidebar"] * { color: rgba(255,255,255,0.88) !important; }
+[data-testid="stSidebar"] .stRadio label {
+    color: rgba(255,255,255,0.75) !important;
+    font-size: 13.5px !important;
+    font-weight: 500 !important;
+    padding: 4px 0 !important;
+    transition: color 0.15s !important;
+}
+[data-testid="stSidebar"] .stRadio label:hover { color: white !important; }
+[data-testid="stSidebar"] hr { border-color: rgba(255,255,255,0.12) !important; margin: 8px 0 !important; }
+[data-testid="stSidebar"] .stButton button {
+    background: rgba(255,255,255,0.08) !important;
+    color: rgba(255,255,255,0.85) !important;
+    border: 1px solid rgba(255,255,255,0.15) !important;
+    border-radius: 8px !important;
+    font-size: 13px !important;
+    transition: background 0.15s !important;
+}
+[data-testid="stSidebar"] .stButton button:hover {
+    background: rgba(255,255,255,0.15) !important;
+}
 [data-testid="stSidebarNav"] { display: none; }
-[data-testid="stAppViewContainer"] > .main .block-container { padding-top: 1.5rem !important; max-width: 1400px !important; }
-h1 { font-size: 22px !important; font-weight: 500 !important; }
-h2 { font-size: 17px !important; font-weight: 500 !important; }
-.stButton > button[kind="primary"] { background-color: #1D9E75 !important; border-color: #1D9E75 !important; color: white !important; border-radius: 8px !important; font-weight: 500 !important; }
-.stButton > button[kind="primary"]:hover { background-color: #0F6E56 !important; }
-.stButton > button[kind="secondary"] { border-radius: 8px !important; font-size: 13px !important; border-color: #D3D1C7 !important; }
-[data-testid="stMetric"] { background: #F8F8F6 !important; border-radius: 10px !important; padding: 14px 16px !important; border: 0.5px solid #E0DED6 !important; }
-[data-testid="stMetricLabel"] { font-size: 12px !important; color: #888780 !important; text-transform: uppercase !important; letter-spacing: 0.04em !important; }
-[data-testid="stMetricValue"] { font-size: 22px !important; font-weight: 500 !important; }
-[data-testid="stExpander"] { border: 0.5px solid #E0DED6 !important; border-radius: 10px !important; margin-bottom: 8px !important; }
-[data-testid="stExpander"] summary { font-weight: 500 !important; font-size: 13px !important; padding: 10px 14px !important; background: #F8F8F6 !important; border-radius: 10px !important; }
-[data-testid="stNumberInput"] input, [data-testid="stTextInput"] input { border-radius: 7px !important; font-size: 13px !important; border-color: #D3D1C7 !important; }
-[data-testid="stAlert"] { border-radius: 8px !important; font-size: 13px !important; }
-[data-testid="stDownloadButton"] button { border-radius: 8px !important; font-size: 13px !important; }
-[data-testid="stInfo"] { background: #E1F5EE !important; border-left: 3px solid #1D9E75 !important; border-radius: 0 8px 8px 0 !important; }
+
+/* ── Botones ───────────────────────────────────────────────────── */
+.stButton > button[kind="primary"] {
+    background: linear-gradient(135deg, #1D9E75 0%, #0F6E56 100%) !important;
+    border: none !important;
+    color: white !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    font-size: 13.5px !important;
+    letter-spacing: 0.01em !important;
+    box-shadow: 0 2px 6px rgba(15,110,86,0.3) !important;
+    transition: all 0.15s !important;
+}
+.stButton > button[kind="primary"]:hover {
+    box-shadow: 0 4px 12px rgba(15,110,86,0.4) !important;
+    transform: translateY(-1px) !important;
+}
+.stButton > button[kind="secondary"] {
+    border-radius: 8px !important;
+    font-size: 13px !important;
+    border-color: var(--bvm-border) !important;
+    color: #444 !important;
+    transition: border-color 0.15s, background 0.15s !important;
+}
+.stButton > button[kind="secondary"]:hover {
+    border-color: var(--bvm-green-light) !important;
+    color: var(--bvm-green) !important;
+    background: var(--bvm-green-pale) !important;
+}
+
+/* ── Métricas ──────────────────────────────────────────────────── */
+[data-testid="stMetric"] {
+    background: white !important;
+    border-radius: var(--bvm-radius) !important;
+    padding: 16px 18px !important;
+    border: 1px solid var(--bvm-border) !important;
+    box-shadow: var(--bvm-shadow) !important;
+    transition: box-shadow 0.15s !important;
+}
+[data-testid="stMetric"]:hover { box-shadow: var(--bvm-shadow-md) !important; }
+[data-testid="stMetricLabel"] {
+    font-size: 11px !important;
+    color: var(--bvm-text-muted) !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.06em !important;
+    font-weight: 600 !important;
+}
+[data-testid="stMetricValue"] { font-size: 24px !important; font-weight: 700 !important; color: var(--bvm-text) !important; }
+[data-testid="stMetricDelta"] { font-size: 12px !important; }
+
+/* ── Expanders ─────────────────────────────────────────────────── */
+[data-testid="stExpander"] {
+    border: 1px solid var(--bvm-border) !important;
+    border-radius: var(--bvm-radius) !important;
+    margin-bottom: 10px !important;
+    box-shadow: var(--bvm-shadow) !important;
+    overflow: hidden !important;
+}
+[data-testid="stExpander"] summary {
+    font-weight: 600 !important;
+    font-size: 13px !important;
+    padding: 12px 16px !important;
+    background: var(--bvm-surface) !important;
+    border-radius: var(--bvm-radius) !important;
+    letter-spacing: 0.01em !important;
+}
+[data-testid="stExpander"] summary:hover { background: #F0F0EC !important; }
+
+/* ── Inputs ────────────────────────────────────────────────────── */
+[data-testid="stNumberInput"] input,
+[data-testid="stTextInput"] input,
+[data-testid="stTextArea"] textarea {
+    border-radius: 7px !important;
+    font-size: 13px !important;
+    border-color: var(--bvm-border) !important;
+    transition: border-color 0.15s, box-shadow 0.15s !important;
+}
+[data-testid="stNumberInput"] input:focus,
+[data-testid="stTextInput"] input:focus {
+    border-color: var(--bvm-green-light) !important;
+    box-shadow: 0 0 0 3px rgba(29,158,117,0.12) !important;
+}
+[data-testid="stSelectbox"] > div > div {
+    border-radius: 7px !important;
+    border-color: var(--bvm-border) !important;
+    font-size: 13px !important;
+}
+
+/* ── Alertas e info ────────────────────────────────────────────── */
+[data-testid="stAlert"]        { border-radius: 8px !important; font-size: 13px !important; }
+[data-testid="stInfo"]         { background: var(--bvm-green-pale) !important; border-left: 3px solid var(--bvm-green-light) !important; border-radius: 0 8px 8px 0 !important; }
+[data-testid="stSuccess"]      { border-radius: 8px !important; }
+[data-testid="stDownloadButton"] button { border-radius: 8px !important; font-size: 13px !important; font-weight: 500 !important; }
+
+/* ── Data editor / tablas ──────────────────────────────────────── */
+[data-testid="stDataFrame"] { border-radius: 8px !important; overflow: hidden !important; border: 1px solid var(--bvm-border) !important; }
+
+/* ── Toast notifications ───────────────────────────────────────── */
+[data-testid="stToast"] {
+    border-radius: 10px !important;
+    font-size: 13.5px !important;
+    font-weight: 500 !important;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important;
+}
+
+/* ── Scrollbar custom ──────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #D3D1C7; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #B0AEA6; }
+
+/* ── Dividers ──────────────────────────────────────────────────── */
+hr { border-color: var(--bvm-border) !important; margin: 16px 0 !important; }
 </style>""", unsafe_allow_html=True)
 
 if not gestionar_auth():
@@ -813,9 +962,22 @@ _opciones_menu  = ["🪵 Cotizador", "♻️ Retazos", "📋 Historial", "⚙️
 _editando_algo  = st.session_state.get("edit_ctx") is not None
 
 # SIDEBAR
-st.sidebar.markdown("""<div style="padding:8px 4px 16px 4px;border-bottom:1px solid rgba(255,255,255,0.12);margin-bottom:12px;">
-<div style="font-size:22px;font-weight:500;color:white;">🪵 BVM</div>
-<div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:2px;">Sistema de carpintería</div></div>""", unsafe_allow_html=True)
+_user_email = st.session_state.get("user", None)
+_user_email = _user_email.email if _user_email and hasattr(_user_email, "email") else ""
+_user_initials = _user_email[:2].upper() if _user_email else "BV"
+st.sidebar.markdown(f"""<div style="padding:12px 4px 16px 4px;border-bottom:1px solid rgba(255,255,255,0.12);margin-bottom:16px;">
+<div style="display:flex;align-items:center;gap:10px;">
+  <div style="font-size:26px;line-height:1;">🪵</div>
+  <div>
+    <div style="font-size:19px;font-weight:700;color:white;letter-spacing:-0.3px;">BVM</div>
+    <div style="font-size:10px;color:rgba(255,255,255,0.45);letter-spacing:0.05em;text-transform:uppercase;">Carpintería Pro</div>
+  </div>
+</div>
+<div style="margin-top:14px;display:flex;align-items:center;gap:8px;">
+  <div style="width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white;">{_user_initials}</div>
+  <div style="font-size:11px;color:rgba(255,255,255,0.55);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px;">{_user_email}</div>
+</div>
+</div>""", unsafe_allow_html=True)
 
 if _editando_algo:
     menu = "🪵 Cotizador"
@@ -1082,6 +1244,22 @@ if menu == "🪵 Cotizador":
         esp_real      = st.number_input("Espesor real de placa (mm)", min_value=1.0, max_value=50.0, value=float(_v("esp_real", 18.0)), step=0.1)
         mat_fondo_sel = st.selectbox("Material del fondo", lista_fondos, index=idx_fondo)
         sin_fondo = mat_fondo_sel == "Sin fondo"
+
+        # Validaciones en tiempo real
+        if ancho_m > 0 and alto_m > 0:
+            _warns = []
+            if tipo_modulo == "Bajo Mesada" and alto_m > 950:
+                _warns.append(f"⚠️ Altura {int(alto_m)}mm es inusual para un Bajo Mesada (estándar: 700-900mm)")
+            if tipo_modulo == "Alacena" and alto_m > 1200:
+                _warns.append(f"⚠️ Altura {int(alto_m)}mm es inusual para una Alacena (estándar: 300-900mm)")
+            if ancho_m > 2400:
+                _warns.append(f"⚠️ Ancho {int(ancho_m)}mm supera una placa estándar (2440mm) — verificá si necesita módulos separados")
+            if prof_m > 700:
+                _warns.append(f"⚠️ Profundidad {int(prof_m)}mm es inusual — verificá la medida")
+            if prof_m > 0 and prof_m < 150:
+                _warns.append(f"⚠️ Profundidad {int(prof_m)}mm puede ser muy pequeña")
+            for w in _warns:
+                st.warning(w)
 
       _editando = modo in ("editar_modulo_obra", "editar_legacy")
       with st.expander("🏗️ Configuración del módulo", expanded=_editando):
@@ -1543,8 +1721,8 @@ Para piezas que no entran en ningún módulo automático:<br>
                                           logistica=_log_prev)
                   # Limpieza solo de edit_ctx — obra_modulos queda intacto
                   _limpiar_edicion()
-                  # Reseteamos tipo de módulo a Bajo Mesada para que el form quede limpio
                   st.session_state["_tipo_modulo_sel"] = "Bajo Mesada"
+                  st.toast(f"✅ {nombre_modulo} actualizado", icon="✏️")
                   st.rerun()
 
       # ── MODO: módulo nuevo → va al carrito de obra ──
@@ -1567,18 +1745,14 @@ Para piezas que no entran en ningún módulo automático:<br>
                   }
                   st.session_state["obra_modulos"].append(nuevo_mod)
                   st.session_state["ultimo_agregado"] = {"nombre": nombre_modulo, "precio": precio_a_usar}
-                  # Limpiamos edit_ctx pero CONSERVAMOS el tipo de módulo seleccionado
-                  # para que el carpintero pueda agregar el siguiente módulo igual
                   _tipo_actual = st.session_state.get("_tipo_modulo_sel", "Bajo Mesada")
                   _limpiar_edicion()
                   st.session_state["_tipo_modulo_sel"] = _tipo_actual
+                  st.toast(f"✅ {nombre_modulo} agregado — ${precio_a_usar:,.0f}", icon="🪵")
                   st.rerun()
 
       if st.session_state.get("ultimo_agregado"):
-          ua = st.session_state["ultimo_agregado"]
-          n  = len(st.session_state["obra_modulos"])
-          tot = sum(m["precio"] for m in st.session_state["obra_modulos"] if m is not None)
-          st.info(f"**✅ {ua['nombre']}** agregado — ${ua['precio']:,.0f}\n\n📋 Tenés **{n} módulo(s)** — Total: **${tot:,.0f}**\n\n👉 Configurá el siguiente módulo arriba o bajá al Resumen de Obra.")
+          # El toast ya se mostró al agregar — limpiamos el flag
           st.session_state["ultimo_agregado"] = None
 
 
@@ -1593,7 +1767,7 @@ Para piezas que no entran en ningún módulo automático:<br>
         subtotal_mods = sum(m["precio"] for m in _mods_obra)
 
         for i_m, mod in enumerate(_mods_obra):
-            col_mod, col_plan, col_edit, col_del = st.columns([5, 1, 1, 1])
+            col_mod, col_plan, col_dup, col_edit, col_del = st.columns([5, 1, 1, 1, 1])
             col_mod.write(f"**{i_m+1}. {mod['nombre']}** — {mod['ancho']}×{mod['alto']}×{mod['prof']} mm — {mod['material']} — `${mod['precio']:,.0f}`")
             # 📋 Planilla individual descargable (solo si tiene df_corte de sesión)
             if mod.get("df_corte") is not None and not mod["df_corte"].empty:
@@ -1609,6 +1783,14 @@ Para piezas que no entran en ningún módulo automático:<br>
                 col_plan.download_button("📋", data=_csv_dl,
                     file_name=f"Planilla_{mod['nombre'].replace(' ','_')}.csv",
                     mime="text/csv", key=f"dl_plan_{i_m}", help="Descargar planilla de corte")
+            if col_dup.button("⧉", key=f"dup_mod_{i_m}", help="Duplicar este módulo"):
+                import copy
+                mod_copia = copy.deepcopy(mod)
+                mod_copia["nombre"] = f"{mod['nombre']} (copia)"
+                mod_copia["df_corte"] = mod.get("df_corte")
+                st.session_state["obra_modulos"].insert(i_m + 1, mod_copia)
+                st.toast(f"⧉ {mod['nombre']} duplicado", icon="📋")
+                st.rerun()
             if col_edit.button("✏️", key=f"edit_mod_{i_m}", help="Editar este módulo"):
                 # Si la obra vino del historial, preservamos su ID para auto-guardado
                 _obra_id_ctx     = st.session_state.get("_obra_id_historial")
@@ -1696,6 +1878,7 @@ Para piezas que no entran en ningún módulo automático:<br>
                 _guardar_obra_nube(_mods_obra, cliente_obra, _id_a_guardar,
                                     total_con_logistica=total_obra,
                                     logistica=_log_data)
+                st.toast(f"💾 Obra de {cliente_obra} guardada — ${total_obra:,.0f}", icon="💾")
                 # Limpieza total — cotizador queda completamente en blanco
                 st.session_state["obra_modulos"]    = []
                 st.session_state["logistica_obra"]  = {}
@@ -1757,10 +1940,17 @@ elif menu == "📋 Historial":
             c2.metric("🟡 Señas cobradas",  f"${total_senas:,.0f}", f"{len(df_sen)} presupuestos")
             c3.metric("🟢 Pagados",         f"${total_pag:,.0f}",   f"{len(df_hist[df_hist['estado']=='Pagado'])} presupuestos")
             st.write("---")
-            filtro = st.radio("Mostrar", ["Todos","Pendiente","Señado","Pagado"], horizontal=True)
-            df_f = df_hist if filtro=="Todos" else df_hist[df_hist['estado']==filtro]
+            col_busq, col_filt = st.columns([2, 3])
+            busqueda = col_busq.text_input("🔍 Buscar cliente", placeholder="Nombre del cliente...", label_visibility="collapsed")
+            filtro   = col_filt.radio("Mostrar", ["Todos","Pendiente","Señado","Pagado"], horizontal=True)
+
+            df_f = df_hist if filtro == "Todos" else df_hist[df_hist['estado'] == filtro]
+            if busqueda.strip():
+                df_f = df_f[df_f['cliente'].str.contains(busqueda.strip(), case=False, na=False)]
             df_f = df_f.sort_values("fecha", ascending=False) if "fecha" in df_f.columns else df_f
-            st.write(f"**{len(df_f)} presupuesto(s)**")
+
+            _total_filtrado = df_f['precio_final'].sum() if not df_f.empty else 0
+            st.markdown(f"<div style='font-size:13px;color:#888;margin-bottom:8px;'><b>{len(df_f)}</b> presupuesto(s) {'· búsqueda: <b>' + busqueda + '</b>' if busqueda else ''} {'· total filtrado: <b>$' + f'{_total_filtrado:,.0f}' + '</b>' if len(df_f) > 1 else ''}</div>", unsafe_allow_html=True)
             st.write("---")
 
             for idx, row in df_f.iterrows():
