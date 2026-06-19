@@ -36,6 +36,125 @@ def _safe_float(val, default=0.0) -> float:
         return float(str(val).strip())
     except (ValueError, TypeError):
         return default
+
+
+# ===========================================================================
+# MODELOS DE DATOS (Pydantic) — single source of truth para un Módulo
+# ===========================================================================
+# Reemplaza la lógica defensiva dispersa de _params_desde_mod: en vez de
+# buscar cada campo en tres lugares posibles (raíz, params, aplanado),
+# el modelo normaliza UNA SOLA VEZ al construirse. Tolerante a JSON viejo
+# de Supabase gracias a los alias y defaults.
+from pydantic import BaseModel, Field, field_validator
+from typing import Optional, List, Dict, Any
+
+class ModuloBVM(BaseModel):
+    """Representa un módulo de mueble dentro de una obra. Valida y normaliza
+    los datos venga de donde venga: form nuevo, Supabase plano, o legacy."""
+    model_config = {"extra": "ignore"}  # tolera claves desconocidas sin crashear
+
+    tipo_modulo: str = "Bajo Mesada"
+    nombre: str = ""
+    ancho_m: float = 0.0
+    alto_m: float = 0.0
+    prof_m: float = 0.0
+    mat_principal: str = ""
+    mat_fondo_sel: str = "Fibroplus Blanco 3mm"
+    esp_real: float = 18.0
+    precio_guardado: float = 0.0
+
+    tipo_tapa: str = "Superpuesta"
+    cant_puertas: int = 2
+    cant_cajones: int = 0
+    tiene_parante: bool = False
+    tipo_parante: str = "Corto (100mm)"
+    tiene_parante_medio: bool = False
+    distancia_parante: float = 0.0
+
+    tipo_base: str = "Nada"
+    altura_base: float = 0.0
+
+    estantes_fijos: int = 0
+    estantes_moviles: int = 0
+    tipo_estante_manual: str = "Completo"
+    indices_estantes_fijos: List[int] = Field(default_factory=list)
+
+    sin_fondo: bool = False
+    luz_entre_tapas: float = 3.0
+    luz_perimetral_tapa: float = 4.0
+    alto_frentin_emb: float = 0.0
+    aire_trasero: float = 30.0
+    esp_corredera: float = 13.0
+    distribucion_tapas: str = "Iguales"
+    tiene_cenefa: bool = False
+    alto_cenefa: float = 0.0
+    dias_prod: float = 0.0
+    herrajes_extra: Dict[str, int] = Field(default_factory=dict)
+
+    # Placard
+    division_placard: str = "Sin división"
+    zona_izq: str = "Solo estantes"
+    zona_der: str = "Solo estantes"
+    zona_unica: str = "Solo estantes"
+    altura_tubo: float = 1200.0
+    cant_estantes_izq_fijos: int = 0
+    cant_estantes_izq_moviles: int = 0
+    cant_estantes_der_fijos: int = 0
+    cant_estantes_der_moviles: int = 0
+    cant_estantes_unica_fijos: int = 1
+    cant_estantes_unica_moviles: int = 0
+    cant_cajones_placard: int = 0
+    tiene_frentin_placard: bool = False
+
+    # Pieza Suelta
+    cant_paneles: int = 1
+    nota_pieza: str = ""
+
+    @field_validator("ancho_m", "alto_m", "prof_m", "esp_real", "precio_guardado",
+                      "distancia_parante", "altura_base", "luz_entre_tapas",
+                      "luz_perimetral_tapa", "alto_frentin_emb", "aire_trasero",
+                      "esp_corredera", "alto_cenefa", "dias_prod", "altura_tubo",
+                      mode="before")
+    @classmethod
+    def _coerce_float(cls, v):
+        return _safe_float(v, 0.0)
+
+    @field_validator("cant_puertas", "cant_cajones", "estantes_fijos", "estantes_moviles",
+                      "cant_estantes_izq_fijos", "cant_estantes_izq_moviles",
+                      "cant_estantes_der_fijos", "cant_estantes_der_moviles",
+                      "cant_estantes_unica_fijos", "cant_estantes_unica_moviles",
+                      "cant_cajones_placard", "cant_paneles",
+                      mode="before")
+    @classmethod
+    def _coerce_int(cls, v):
+        return _safe_int(v, 0)
+
+    @classmethod
+    def from_raw(cls, m: dict) -> "ModuloBVM":
+        """Construye el modelo tolerando el formato aplanado o anidado que
+        puede llegar desde Supabase, desde un módulo nuevo del form, o legacy."""
+        if not isinstance(m, dict):
+            return cls()
+        p = m.get("params") if isinstance(m.get("params"), dict) else {}
+        # Mezcla: params tiene prioridad sobre raíz aplanada, salvo los alias
+        merged = {**m, **p}
+        merged.setdefault("tipo_modulo", m.get("tipo_modulo") or m.get("tipo") or p.get("tipo_modulo", "Bajo Mesada"))
+        merged.setdefault("ancho_m", m.get("ancho_m", m.get("ancho", p.get("ancho_m", 0))))
+        merged.setdefault("alto_m",  m.get("alto_m",  m.get("alto",  p.get("alto_m",  0))))
+        merged.setdefault("prof_m",  m.get("prof_m",  m.get("prof",  p.get("prof_m",  0))))
+        merged.setdefault("mat_principal", m.get("mat_principal") or m.get("material") or p.get("mat_principal", ""))
+        merged.setdefault("precio_guardado", m.get("precio", p.get("precio_guardado", 0)))
+        merged.setdefault("nombre", m.get("nombre") or p.get("nombre") or "")
+        merged.setdefault("tipo_tapa", p.get("tipo_tapa", m.get("tipo_tapa", "Superpuesta")))
+        return cls(**merged)
+
+    def to_legacy_dict(self) -> dict:
+        """Serializa al formato plano que ya consume el resto del sistema
+        (_build_params_dict / _params_desde_mod), para no romper nada aguas
+        abajo: PDF, SVG, motor de despiece, exportadores."""
+        return self.model_dump()
+
+
 load_dotenv(dotenv_path=BASE_DIR / '.env')
 
 try:
@@ -1004,60 +1123,16 @@ if st.sidebar.button("Cerrar sesión"):
 # HELPERS DE SERIALIZACIÓN
 # ===========================================================================
 def _params_desde_mod(m):
-    """Extrae el dict de params de un módulo (compatible con formato viejo y nuevo)."""
-    p = m.get("params") or {}
-    return {
-        "tipo_modulo":          m.get("tipo_modulo", m.get("tipo", p.get("tipo_modulo", ""))),
-        "ancho_m":              _safe_float(m.get("ancho_m", m.get("ancho", p.get("ancho_m", 0)))),
-        "alto_m":               _safe_float(m.get("alto_m",  m.get("alto",  p.get("alto_m",  0)))),
-        "prof_m":               _safe_float(m.get("prof_m",  m.get("prof",  p.get("prof_m",  0)))),
-        "mat_principal":        m.get("mat_principal", m.get("material", p.get("mat_principal", ""))),
-        "precio_guardado":      _safe_float(m.get("precio", p.get("precio_guardado", 0))),
-        "nombre":               m.get("nombre") or p.get("nombre") or "",
-        "mat_fondo_sel":        p.get("mat_fondo_sel", "Fibroplus Blanco 3mm"),
-        "esp_real":             p.get("esp_real", 18.0),
-        "tipo_tapa":            p.get("tipo_tapa", m.get("tipo_tapa", "Superpuesta")),
-        "cant_puertas":         p.get("cant_puertas", 2),
-        "cant_cajones":         p.get("cant_cajones", 0),
-        "tiene_parante":        p.get("tiene_parante", False),
-        "tipo_parante":         p.get("tipo_parante", "Corto (100mm)"),
-        "tiene_parante_medio":  p.get("tiene_parante_medio", False),
-        "tipo_base":            p.get("tipo_base", "Nada"),
-        "altura_base":          p.get("altura_base", 0.0),
-        "estantes_fijos":       p.get("estantes_fijos", 0),
-        "estantes_moviles":     p.get("estantes_moviles", 0),
-        "tipo_estante_manual":  p.get("tipo_estante_manual", "Completo"),
-        "sin_fondo":            p.get("sin_fondo", False),
-        "luz_entre_tapas":      p.get("luz_entre_tapas", 3.0),
-        "luz_perimetral_tapa":  p.get("luz_perimetral_tapa", 4.0),
-        "alto_frentin_emb":     p.get("alto_frentin_emb", 0.0),
-        "aire_trasero":         p.get("aire_trasero", 30.0),
-        "esp_corredera":        p.get("esp_corredera", 13.0),
-        "distribucion_tapas":   p.get("distribucion_tapas", "Iguales"),
-        "tiene_cenefa":         p.get("tiene_cenefa", False),
-        "alto_cenefa":          p.get("alto_cenefa", 0.0),
-        "dias_prod":            p.get("dias_prod", 0.0),
-        "indices_estantes_fijos": p.get("indices_estantes_fijos", []),
-        "herrajes_extra":       p.get("herrajes_extra", {}),
-        "distancia_parante":    p.get("distancia_parante", 0.0),
-        # Placard
-        "division_placard":           p.get("division_placard", "Sin división"),
-        "zona_izq":                   p.get("zona_izq", "Solo estantes"),
-        "zona_der":                   p.get("zona_der", "Solo estantes"),
-        "zona_unica":                 p.get("zona_unica", "Solo estantes"),
-        "altura_tubo":                p.get("altura_tubo", 1200),
-        "cant_estantes_izq_fijos":    p.get("cant_estantes_izq_fijos", 0),
-        "cant_estantes_izq_moviles":  p.get("cant_estantes_izq_moviles", 0),
-        "cant_estantes_der_fijos":    p.get("cant_estantes_der_fijos", 0),
-        "cant_estantes_der_moviles":  p.get("cant_estantes_der_moviles", 0),
-        "cant_estantes_unica_fijos":  p.get("cant_estantes_unica_fijos", 1),
-        "cant_estantes_unica_moviles":p.get("cant_estantes_unica_moviles", 0),
-        "cant_cajones_placard":       p.get("cant_cajones_placard", 0),
-        "tiene_frentin_placard":      p.get("tiene_frentin_placard", False),
-        # Panel a Medida
-        "cant_paneles":               p.get("cant_paneles", 1),
-        "nota_pieza":                 p.get("nota_pieza", ""),
-    }
+    """Extrae el dict de params de un módulo (compatible con formato viejo y nuevo).
+    Internamente usa ModuloBVM.from_raw() para validar y normalizar — pero el
+    contrato de salida (un dict con estas claves exactas) no cambia, así que
+    nada aguas abajo (SVG, motor, PDF, exportadores) se ve afectado."""
+    try:
+        return ModuloBVM.from_raw(m).to_legacy_dict()
+    except Exception:
+        # Fallback ultra defensivo: si algo en el modelo falla, devolvemos
+        # un módulo en blanco en vez de crashear toda la pantalla.
+        return ModuloBVM().to_legacy_dict()
 
 def _serializar_obra_para_nube(mods):
     """Convierte lista de módulos al formato que se guarda en Supabase."""
