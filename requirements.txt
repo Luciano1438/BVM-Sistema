@@ -5,3 +5,4 @@ python-dotenv
 fpdf2
 ezdxf
 pydantic
+rectpack
