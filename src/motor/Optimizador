@@ -1,0 +1,164 @@
+# motor/optimizador.py
+# Motor de Optimización de Corte (Bin Packing) — BVM
+#
+# Resuelve el problema real que Lepton/Polyboard/Promob ya resuelven:
+# dado un listado de piezas (de uno o varios módulos de una obra),
+# calcular cuántas placas estándar se necesitan y cómo se distribuyen
+# las piezas dentro de cada placa, minimizando el desperdicio.
+#
+# Algoritmo: MaxRects (vía librería rectpack), que es el estándar de
+# la industria para 2D bin packing — el mismo enfoque que usan los
+# optimizadores de corte profesionales.
+
+from rectpack import newPacker, PackingMode, PackingBin
+from rectpack.maxrects import MaxRectsBssf
+
+PLACA_ANCHO_DEFAULT = 2440.0   # mm — estándar Argentina (Faplac/Melamina)
+PLACA_ALTO_DEFAULT  = 1830.0   # mm
+KERF_DEFAULT        = 4.0      # mm — espesor de la sierra/disco de corte
+
+
+def _piezas_desde_df(df_corte, kerf=KERF_DEFAULT):
+    """Convierte un DataFrame de planilla de corte en una lista plana de
+    rectángulos individuales (expandiendo la cantidad), sumando el kerf
+    a cada dimensión para que el corte real no quede ajustado al límite."""
+    piezas = []
+    if df_corte is None or df_corte.empty:
+        return piezas
+    for _, row in df_corte.iterrows():
+        # Fondos y pisos suelen ir en otra placa/material — se filtran aparte
+        tipo = str(row.get("Tipo", "Cuerpo"))
+        largo = float(row.get("L", 0)) + kerf
+        ancho = float(row.get("A", 0)) + kerf
+        cant  = int(row.get("Cant", 0))
+        nombre = str(row.get("Pieza", "Pieza"))
+        if largo <= 0 or ancho <= 0 or cant <= 0:
+            continue
+        for _ in range(cant):
+            piezas.append({"nombre": nombre, "largo": largo, "ancho": ancho, "tipo": tipo})
+    return piezas
+
+
+def optimizar_corte(piezas_por_material: dict, placa_ancho=PLACA_ANCHO_DEFAULT,
+                     placa_alto=PLACA_ALTO_DEFAULT, kerf=KERF_DEFAULT):
+    """
+    Recibe un dict {material: [piezas]} donde cada pieza es
+    {"nombre","largo","ancho","tipo"}, y devuelve por material:
+    - cantidad de placas necesarias
+    - % de desperdicio
+    - el layout de cada placa (qué pieza va dónde, para dibujar el diagrama)
+
+    Esto NO modifica el despiece existente — es una capa de optimización
+    que se ejecuta sobre el resultado ya calculado.
+    """
+    resultado = {}
+
+    for material, piezas in piezas_por_material.items():
+        if not piezas:
+            continue
+
+        packer = newPacker(mode=PackingMode.Offline, pack_algo=MaxRectsBssf, rotation=True)
+
+        # rectpack necesita rectángulos como (ancho, alto, rid)
+        for i, p in enumerate(piezas):
+            packer.add_rect(round(p["largo"]), round(p["ancho"]), rid=i)
+
+        # Agregamos placas "infinitas" (la librería va abriendo bins según necesite)
+        n_placas_max = len(piezas)  # cota superior conservadora
+        for _ in range(n_placas_max):
+            packer.add_bin(round(placa_ancho), round(placa_alto))
+
+        packer.pack()
+
+        placas_usadas = []
+        area_total_piezas = 0.0
+        for b_idx, abin in enumerate(packer):
+            rects_en_placa = []
+            for rect in abin:
+                idx_pieza = rect.rid
+                pieza_orig = piezas[idx_pieza]
+                rects_en_placa.append({
+                    "nombre": pieza_orig["nombre"],
+                    "tipo":   pieza_orig["tipo"],
+                    "x": rect.x, "y": rect.y,
+                    "w": rect.width, "h": rect.height,
+                })
+                area_total_piezas += rect.width * rect.height
+            if rects_en_placa:
+                placas_usadas.append(rects_en_placa)
+
+        area_placa = placa_ancho * placa_alto
+        area_total_disponible = area_placa * len(placas_usadas) if placas_usadas else 0
+        desperdicio_pct = (
+            round(100 * (1 - area_total_piezas / area_total_disponible), 1)
+            if area_total_disponible > 0 else 0.0
+        )
+
+        resultado[material] = {
+            "cant_placas": len(placas_usadas),
+            "desperdicio_pct": desperdicio_pct,
+            "placas": placas_usadas,
+            "placa_ancho": placa_ancho,
+            "placa_alto": placa_alto,
+        }
+
+    return resultado
+
+
+def optimizar_obra(modulos_con_df, placa_ancho=PLACA_ANCHO_DEFAULT,
+                    placa_alto=PLACA_ALTO_DEFAULT, kerf=KERF_DEFAULT,
+                    excluir_tipos=("Fondo", "Piso")):
+    """
+    Punto de entrada principal: recibe la lista de módulos de una obra
+    (cada uno con su df_corte y su material), agrupa todas las piezas
+    de cuerpo por material, y corre el optimizador.
+
+    excluir_tipos: piezas que no se optimizan acá porque van en otro
+    material (fondos/pisos suelen ser Fibroplus/Faplac, no la melamina
+    principal) — se filtran para no mezclar materiales en la misma placa.
+    """
+    piezas_por_material = {}
+
+    for mod in modulos_con_df:
+        df = mod.get("df_corte")
+        material = mod.get("material", "Sin material")
+        if df is None or df.empty:
+            continue
+        df_cuerpo = df[~df["Tipo"].isin(excluir_tipos)] if "Tipo" in df.columns else df
+        piezas = _piezas_desde_df(df_cuerpo, kerf=kerf)
+        if not piezas:
+            continue
+        piezas_por_material.setdefault(material, []).extend(piezas)
+
+    return optimizar_corte(piezas_por_material, placa_ancho, placa_alto, kerf)
+
+
+def generar_svg_placa(layout_placa, placa_ancho, placa_alto, max_width_px=600):
+    """Genera un SVG del diagrama de corte de UNA placa — para mostrar
+    visualmente al carpintero dónde va cada pieza antes de cortar."""
+    escala = max_width_px / placa_ancho
+    w_px = max_width_px
+    h_px = placa_alto * escala
+
+    colores = ["#1D9E75", "#0F6E56", "#5B7FD4", "#D4AF7A", "#A0522D",
+               "#7A6040", "#9B7D55", "#8B6F47", "#2A4099", "#6B8E23"]
+
+    svg = [f'<svg viewBox="0 0 {w_px} {h_px}" xmlns="http://www.w3.org/2000/svg" '
+           f'style="width:100%;max-width:{max_width_px}px;border:2px solid #5D4E37;border-radius:4px;background:#FAFAF8;">']
+
+    for i, pieza in enumerate(layout_placa):
+        x = pieza["x"] * escala
+        y = pieza["y"] * escala
+        w = pieza["w"] * escala
+        h = pieza["h"] * escala
+        color = colores[i % len(colores)]
+        svg.append(f'<rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" '
+                   f'fill="{color}" opacity="0.75" stroke="#333" stroke-width="0.5"/>')
+        # Etiqueta solo si la pieza es lo bastante grande para mostrar texto
+        if w > 40 and h > 18:
+            label = pieza["nombre"][:18]
+            svg.append(f'<text x="{x+w/2:.1f}" y="{y+h/2:.1f}" text-anchor="middle" '
+                       f'dominant-baseline="middle" font-size="9" fill="white" font-weight="600">{label}</text>')
+
+    svg.append('</svg>')
+    return '\n'.join(svg)
