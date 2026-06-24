@@ -5,7 +5,6 @@ from .exportadores import generar_pdf_presupuesto, generar_dxf_bvm, exportar_par
 try:
     from .optimizador import optimizar_obra, generar_svg_placa, PLACA_ANCHO_DEFAULT, PLACA_ALTO_DEFAULT
 except ImportError:
-    # rectpack no está instalado todavía — el resto del sistema sigue funcionando
     optimizar_obra = None
     generar_svg_placa = None
     PLACA_ANCHO_DEFAULT = 2440.0
