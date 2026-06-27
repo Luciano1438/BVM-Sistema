@@ -17,6 +17,11 @@ from motor import (
     calcular_medida_frente,
     calcular_ahorro_retazos,
 )
+try:
+    from motor.optimizador import optimizar_obra, generar_svg_placa, PLACA_ANCHO_DEFAULT, PLACA_ALTO_DEFAULT
+    _OPTIMIZADOR_DISPONIBLE = True
+except ImportError:
+    _OPTIMIZADOR_DISPONIBLE = False
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -422,14 +427,14 @@ def consultar_retazos_disponibles(material):
         token = get_token()
         if not token: return []
         supabase.postgrest.auth(token)
-        return _traer_retazos_db(st.session_state["user"].id)
+        return _traer_retazos_db(_scope_id())
     except Exception as e:
         err = str(e)
         if "JWT" in err or "expired" in err.lower() or "PGRST303" in err:
             if refrescar_sesion():
                 try:
                     _traer_retazos_db.clear()
-                    return _traer_retazos_db(st.session_state["user"].id)
+                    return _traer_retazos_db(_scope_id())
                 except Exception:
                     pass
         st.warning("Sesión expirada. Recargá la página si el problema persiste.")
@@ -438,13 +443,88 @@ def consultar_retazos_disponibles(material):
 def registrar_retazo(material, largo, ancho):
     try:
         if (largo >= 400 and ancho >= 150) or (largo >= 150 and ancho >= 400):
-            supabase.table("retazos").insert({"material": material, "largo": largo, "ancho": ancho, "user_id": st.session_state["user"].id}).execute()
+            supabase.table("retazos").insert({"material": material, "largo": largo, "ancho": ancho, "user_id": _scope_id()}).execute()
             _traer_retazos_db.clear()
             st.toast(f"Retazo guardado: {int(largo)}x{int(ancho)}")
         else:
             st.error(f"Error: {int(largo)}x{int(ancho)} inferior al mínimo 150x400.")
     except Exception as e:
         st.error(f"Error al registrar: {e}")
+
+# ===========================================================================
+# MULTI-USUARIO POR TALLER
+# ===========================================================================
+# Modelo: cada usuario de auth.users tiene un user_id (UUID) propio de
+# Supabase Auth. Para que dos personas (dueño + empleado) compartan el
+# mismo taller — misma configuración de precios, mismo historial, mismo
+# depósito de retazos — necesitás UNA tabla nueva en Supabase:
+#
+#   create table talleres (
+#     id uuid primary key default gen_random_uuid(),
+#     nombre text,
+#     owner_id uuid references auth.users(id)
+#   );
+#   create table miembros_taller (
+#     taller_id uuid references talleres(id),
+#     user_id uuid references auth.users(id),
+#     rol text default 'empleado',   -- 'dueño' | 'empleado'
+#     primary key (taller_id, user_id)
+#   );
+#
+# Con eso creado, _scope_id() devuelve automáticamente el taller_id
+# compartido si el usuario pertenece a uno. Si todavía no migraste las
+# tablas, sigue funcionando exactamente como hoy (scope = user_id propio),
+# así que esto es 100% retrocompatible — no rompe nada en producción.
+@st.cache_data(ttl=600, show_spinner=False)
+def _resolver_taller_id(user_id: str):
+    """Busca si el usuario pertenece a un taller compartido.
+    Si la tabla no existe todavía, devuelve None silenciosamente."""
+    try:
+        res = supabase.table("miembros_taller").select("taller_id").eq("user_id", user_id).limit(1).execute()
+        if res.data:
+            return res.data[0]["taller_id"]
+    except Exception:
+        pass  # tabla no existe aún → comportamiento individual, sin romper nada
+    return None
+
+def _scope_id() -> str:
+    """ID a usar en todas las consultas de configuracion/ventas/retazos.
+    Es el taller_id compartido si el usuario pertenece a uno, o su propio
+    user_id si todavía trabaja individual. Esto es lo único que hay que
+    cambiar en las queries para soportar equipos."""
+    if "user" not in st.session_state or not st.session_state["user"]:
+        return ""
+    uid = st.session_state["user"].id
+    taller_id = _resolver_taller_id(uid)
+    return taller_id or uid
+
+def invitar_a_taller(email_invitado: str) -> bool:
+    """Agrega a otro usuario (por email) al mismo taller del usuario actual.
+    Requiere que el invitado ya tenga cuenta creada en BVM (Registro).
+    Si el usuario actual no tiene taller todavía, lo crea automáticamente."""
+    try:
+        uid = st.session_state["user"].id
+        taller_id = _resolver_taller_id(uid)
+        if not taller_id:
+            # Crear taller nuevo con el usuario actual como dueño
+            nuevo = supabase.table("talleres").insert({"owner_id": uid, "nombre": "Mi Taller"}).execute()
+            taller_id = nuevo.data[0]["id"]
+            supabase.table("miembros_taller").insert({"taller_id": taller_id, "user_id": uid, "rol": "dueño"}).execute()
+
+        # Buscar el user_id del invitado por email (requiere tabla de perfiles
+        # o función RPC en Supabase — placeholder hasta que esa tabla exista)
+        res_user = supabase.table("perfiles").select("id").eq("email", email_invitado).limit(1).execute()
+        if not res_user.data:
+            st.error("Ese email no tiene cuenta en BVM todavía. Pedile que se registre primero.")
+            return False
+        invitado_id = res_user.data[0]["id"]
+        supabase.table("miembros_taller").insert({"taller_id": taller_id, "user_id": invitado_id, "rol": "empleado"}).execute()
+        _resolver_taller_id.clear()
+        return True
+    except Exception as e:
+        st.error(f"No se pudo invitar: {e}")
+        return False
+
 
 def gestionar_auth():
     if "autenticado" not in st.session_state:
@@ -492,7 +572,7 @@ def actualizar_precio_nube(clave, valor, categoria):
         if not token: return
         supabase.postgrest.auth(token)
         supabase.table("configuracion").upsert(
-            {"user_id": st.session_state["user"].id, "clave": clave, "valor": float(valor), "categoria": categoria},
+            {"user_id": _scope_id(), "clave": clave, "valor": float(valor), "categoria": categoria},
             on_conflict="user_id, clave"
         ).execute()
     except Exception as e:
@@ -504,7 +584,7 @@ def eliminar_precio_nube(clave, categoria):
         token = get_token()
         if not token: return
         supabase.postgrest.auth(token)
-        supabase.table("configuracion").delete().eq("user_id", st.session_state["user"].id).eq("clave", clave).eq("categoria", categoria).execute()
+        supabase.table("configuracion").delete().eq("user_id", _scope_id()).eq("clave", clave).eq("categoria", categoria).execute()
     except Exception as e:
         st.error(f"Error al eliminar {clave}: {e}")
 
@@ -530,7 +610,7 @@ def traer_datos():
     try:
         token = get_token()
         if not token: raise Exception("No token")
-        user_id = st.session_state["user"].id
+        user_id = _scope_id()
         maderas_db, config_db = _traer_datos_db(user_id, token)
         return {**MADERAS_DEFAULT, **maderas_db}, FONDOS, {**CONFIG_DEFAULT, **config_db}
     except Exception:
@@ -540,7 +620,7 @@ def traer_datos():
 def guardar_presupuesto_nube(cliente, mueble, total, parametros=None, id_editar=None):
     try:
         data = {"cliente": cliente, "mueble": mueble, "precio_final": float(total),
-                "user_id": st.session_state["user"].id,
+                "user_id": _scope_id(),
                 "fecha": datetime.now(timezone(timedelta(hours=-3))).strftime("%Y-%m-%d %H:%M"),
                 "parametros": json.dumps(parametros) if parametros else None}
         if id_editar:
@@ -570,7 +650,7 @@ def _traer_historial_db(user_id: str):
 
 def traer_datos_historial():
     try:
-        return _traer_historial_db(st.session_state["user"].id)
+        return _traer_historial_db(_scope_id())
     except Exception:
         return pd.DataFrame()
 
@@ -1938,6 +2018,42 @@ Para piezas que no entran en ningún módulo automático:<br>
             else:
                 st.warning("Calculá los módulos en esta sesión para exportar CNC.")
 
+        # ─────────────────────────────────────────────────────────────────
+        # OPTIMIZACIÓN DE CORTE (Bin Packing) — cuántas placas necesito
+        # y cómo se distribuyen las piezas, igual que Lepton/Polyboard.
+        # ─────────────────────────────────────────────────────────────────
+        if _OPTIMIZADOR_DISPONIBLE:
+            with st.expander("📐 Optimización de Corte — ¿Cuántas placas necesito?", expanded=False):
+                _mods_opt = [m for m in _mods_obra if m.get("df_corte") is not None]
+                if not _mods_opt:
+                    st.info("Calculá los módulos en esta sesión para optimizar el corte.")
+                else:
+                    col_pa, col_pb = st.columns(2)
+                    _placa_w = col_pa.number_input("Ancho de placa estándar (mm)", value=PLACA_ANCHO_DEFAULT, step=10.0, key="opt_placa_w")
+                    _placa_h = col_pb.number_input("Alto de placa estándar (mm)", value=PLACA_ALTO_DEFAULT, step=10.0, key="opt_placa_h")
+
+                    if st.button("🧩 Calcular optimización", use_container_width=True, key="btn_optimizar"):
+                        with st.spinner("Calculando la mejor distribución de piezas..."):
+                            try:
+                                _resultado_opt = optimizar_obra(_mods_opt, placa_ancho=_placa_w, placa_alto=_placa_h)
+                                st.session_state["_resultado_optimizacion"] = _resultado_opt
+                            except Exception as _e_opt:
+                                st.error(f"No se pudo calcular la optimización: {_e_opt}")
+                                st.session_state["_resultado_optimizacion"] = None
+
+                    _resultado_opt = st.session_state.get("_resultado_optimizacion")
+                    if _resultado_opt:
+                        for _mat, _data in _resultado_opt.items():
+                            st.markdown(f"#### {_mat}")
+                            c_o1, c_o2 = st.columns(2)
+                            c_o1.metric("Placas necesarias", f"{_data['cant_placas']}")
+                            c_o2.metric("Desperdicio", f"{_data['desperdicio_pct']}%")
+                            for i_p, _layout in enumerate(_data["placas"]):
+                                st.caption(f"Placa {i_p+1} de {_mat} — {len(_layout)} pieza(s)")
+                                _svg_placa = generar_svg_placa(_layout, _data["placa_ancho"], _data["placa_alto"])
+                                st.markdown(f'<div style="text-align:center;margin-bottom:12px;">{_svg_placa}</div>', unsafe_allow_html=True)
+                            st.write("---")
+
         if st.button("💾 Guardar obra en historial", use_container_width=True):
             if not cliente_obra:
                 st.warning("Ingresá el nombre del cliente arriba.")
@@ -1963,10 +2079,14 @@ Para piezas que no entran en ningún módulo automático:<br>
                 st.session_state.pop("_obra_id_historial",      None)
                 st.session_state.pop("_ctx_sig_prev",           None)
                 st.session_state["edit_ctx"] = None
-                # Resetear los campos de medidas a 0
+                # Resetear los campos de medidas a 0 — usamos `del` en vez de
+                # asignación directa porque el widget ya fue instanciado en
+                # este mismo run y Streamlit no permite sobreescribirlo
+                # (StreamlitAPIException). Al borrar la key, en el próximo
+                # rerun el number_input vuelve a su `value` por defecto (0.0).
                 for _k in ["inp_ancho", "inp_alto", "inp_prof"]:
                     if _k in st.session_state:
-                        st.session_state[_k] = 0.0
+                        del st.session_state[_k]
                 st.rerun()
 
   except Exception as e:
@@ -2220,6 +2340,19 @@ elif menu == "♻️ Retazos":
 
 elif menu == "⚙️ Precios":
     st.title("⚙️ Configuración de precios")
+
+    with st.expander("👥 Mi Equipo / Taller", expanded=False):
+        st.caption("Compartí tu configuración de precios, historial y depósito de retazos con un empleado o socio. Ambos van a ver y editar los mismos datos.")
+        col_inv1, col_inv2 = st.columns([3, 1])
+        email_inv = col_inv1.text_input("Email del empleado/socio", placeholder="empleado@email.com", label_visibility="collapsed")
+        if col_inv2.button("Invitar", use_container_width=True):
+            if email_inv:
+                if invitar_a_taller(email_inv):
+                    st.success(f"✅ {email_inv} ahora comparte tu taller en BVM.")
+                    st.rerun()
+            else:
+                st.warning("Ingresá un email.")
+        st.caption("⚠️ El invitado necesita tener cuenta creada en BVM (pestaña Registro) antes de invitarlo.")
 
     with st.expander("🪵 Precios de Placas (18mm)", expanded=True):
         for madera, precio in list(maderas.items()):
