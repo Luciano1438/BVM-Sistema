@@ -565,16 +565,35 @@ def gestionar_auth():
         return False
     return True
 
+# ===========================================================================
+# CORRECCIÓN DE NÚCLEO CRUD — MULTI-TENANT SEGURO
+# ===========================================================================
+
 def actualizar_precio_nube(clave, valor, categoria):
     if "session" not in st.session_state: return
     try:
         token = get_token()
         if not token: return
         supabase.postgrest.auth(token)
-        supabase.table("configuracion").upsert(
-            {"user_id": _scope_id(), "clave": clave, "valor": float(valor), "categoria": categoria},
-            on_conflict="user_id, clave"
-        ).execute()
+        
+        uid = st.session_state["user"].id
+        t_id = _resolver_taller_id(uid)
+        
+        # Guardamos la traza de quién edita, pero asociamos al taller si existe
+        payload = {
+            "clave": clave, 
+            "valor": float(valor), 
+            "categoria": categoria,
+            "user_id": uid
+        }
+        
+        if t_id:
+            payload["taller_id"] = t_id
+            # Upsert seguro bajo el índice del taller compartido
+            supabase.table("configuracion").upsert(payload, on_conflict="taller_id, clave").execute()
+        else:
+            supabase.table("configuracion").upsert(payload, on_conflict="user_id, clave").execute()
+            
     except Exception as e:
         st.error(f"Error guardando {clave}: {e}")
 
@@ -584,15 +603,28 @@ def eliminar_precio_nube(clave, categoria):
         token = get_token()
         if not token: return
         supabase.postgrest.auth(token)
-        supabase.table("configuracion").delete().eq("user_id", _scope_id()).eq("clave", clave).eq("categoria", categoria).execute()
+        
+        uid = st.session_state["user"].id
+        t_id = _resolver_taller_id(uid)
+        
+        query = supabase.table("configuracion").delete().eq("clave", clave).eq("categoria", categoria)
+        if t_id:
+            query.eq("taller_id", t_id).execute()
+        else:
+            query.eq("user_id", uid).execute()
     except Exception as e:
         st.error(f"Error al eliminar {clave}: {e}")
 
-@st.cache_data(ttl=300, show_spinner=False)
-def _traer_datos_db(user_id: str, token: str):
-    """Carga configuración desde Supabase. Cacheada 5 minutos por user_id."""
+@st.cache_data(ttl=30, show_spinner=False) # Reducido a 30s para evitar descalces de precios en el taller
+def _traer_datos_db(uid: str, t_id: Optional[str], token: str):
     supabase.postgrest.auth(token)
-    datos_db = supabase.table("configuracion").select("*").eq("user_id", user_id).execute().data
+    
+    # Si pertenece a un taller, lee la configuración del grupo; si no, la individual
+    if t_id:
+        datos_db = supabase.table("configuracion").select("*").eq("taller_id", t_id).execute().data
+    else:
+        datos_db = supabase.table("configuracion").select("*").eq("user_id", uid).execute().data
+        
     maderas_db = {d['clave']: d['valor'] for d in datos_db if str(d.get('categoria','')).lower().strip() == 'maderas'}
     config_db  = {d['clave']: d['valor'] for d in datos_db if str(d.get('categoria','')).lower().strip() in ['costos','margen','herrajes']}
     return maderas_db, config_db
@@ -610,8 +642,9 @@ def traer_datos():
     try:
         token = get_token()
         if not token: raise Exception("No token")
-        user_id = _scope_id()
-        maderas_db, config_db = _traer_datos_db(user_id, token)
+        uid = st.session_state["user"].id
+        t_id = _resolver_taller_id(uid)
+        maderas_db, config_db = _traer_datos_db(uid, t_id, token)
         return {**MADERAS_DEFAULT, **maderas_db}, FONDOS, {**CONFIG_DEFAULT, **config_db}
     except Exception:
         st.warning("La sesión se actualizó. Por favor, recargá la página.")
