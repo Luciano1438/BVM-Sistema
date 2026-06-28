@@ -2389,8 +2389,7 @@ elif menu == "♻️ Retazos":
 
 elif menu == "⚙️ Precios":
     st.title("⚙️ Configuración de precios")
-
-   with st.expander("👥 Mi Equipo / Taller", expanded=True):
+     with st.expander("👥 Mi Equipo / Taller", expanded=True):
         uid = st.session_state["user"].id
         taller_id = _resolver_taller_id(uid)
         
@@ -2432,6 +2431,8 @@ elif menu == "⚙️ Precios":
                 if email_inv and invitar_a_taller(email_inv):
                     st.success("✅ Taller creado y usuario vinculado.")
                     st.rerun()
+
+  
     with st.expander("🪵 Precios de Placas (18mm)", expanded=True):
         for madera, precio in list(maderas.items()):
             col_name, col_price, col_del = st.columns([5, 3, 1])
