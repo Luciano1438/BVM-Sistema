@@ -2390,18 +2390,35 @@ elif menu == "♻️ Retazos":
 elif menu == "⚙️ Precios":
     st.title("⚙️ Configuración de precios")
 
-    with st.expander("👥 Mi Equipo / Taller", expanded=False):
-        st.caption("Compartí tu configuración de precios, historial y depósito de retazos con un empleado o socio. Ambos van a ver y editar los mismos datos.")
-        col_inv1, col_inv2 = st.columns([3, 1])
-        email_inv = col_inv1.text_input("Email del empleado/socio", placeholder="empleado@email.com", label_visibility="collapsed")
-        if col_inv2.button("Invitar", use_container_width=True):
-            if email_inv:
-                if invitar_a_taller(email_inv):
-                    st.success(f"✅ {email_inv} ahora comparte tu taller en BVM.")
-                    st.rerun()
+    with st.expander("👥 Mi Equipo / Taller", expanded=True):
+        uid = st.session_state["user"].id
+        taller_id = _resolver_taller_id(uid)
+        
+        if taller_id:
+            # Vamos a la base de datos a ver qué rol tiene este usuario
+            res_rol = supabase.table("miembros_taller").select("rol").eq("user_id", uid).execute()
+            mi_rol = res_rol.data[0]["rol"] if res_rol.data else "empleado"
+            
+            if mi_rol == "dueño":
+                st.success("👑 Sos el administrador y dueño de este taller.")
+                st.write("Podés vincular a más instaladores/vendedores:")
+                col_inv1, col_inv2 = st.columns([3, 1])
+                email_inv = col_inv1.text_input("Email", placeholder="empleado@email.com", label_visibility="collapsed")
+                if col_inv2.button("Invitar", use_container_width=True):
+                    if email_inv and invitar_a_taller(email_inv):
+                        st.success(f"✅ {email_inv} vinculado a tu taller.")
+                        st.rerun()
             else:
-                st.warning("Ingresá un email.")
-        st.caption("⚠️ El invitado necesita tener cuenta creada en BVM (pestaña Registro) antes de invitarlo.")
+                st.info("🤝 Estás operando como Empleado/Vendedor.")
+                st.caption("Los precios de materiales y retazos están sincronizados con la cuenta central del dueño. No tenés permisos para editar los márgenes de ganancia.")
+        else:
+            st.caption("Convertí tu cuenta en un Taller Central. Compartí historial y retazos con un empleado.")
+            col_inv1, col_inv2 = st.columns([3, 1])
+            email_inv = col_inv1.text_input("Email del empleado", placeholder="empleado@email.com", label_visibility="collapsed")
+            if col_inv2.button("Crear Taller e Invitar", use_container_width=True):
+                if email_inv and invitar_a_taller(email_inv):
+                    st.success("✅ Taller creado y usuario vinculado.")
+                    st.rerun()
 
     with st.expander("🪵 Precios de Placas (18mm)", expanded=True):
         for madera, precio in list(maderas.items()):
