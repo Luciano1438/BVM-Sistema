@@ -2475,16 +2475,26 @@ elif menu == "⚙️ Precios":
                 _traer_datos_db.clear()
                 st.rerun()
 
-    with st.expander("🚛 Gastos Fijos y Logística", expanded=False):
-        f1, f2 = st.columns(2)
-        config['gastos_fijos_diarios'] = f1.number_input("Gasto Diario Taller", value=float(config.get('gastos_fijos_diarios', 25000)), step=5000.0)
-        config['flete_capital']        = f2.number_input("Flete Capital", value=float(config.get('flete_capital', 15000)), step=1000.0)
-        config['flete_norte']          = f1.number_input("Flete Zona Norte", value=float(config.get('flete_norte', 20000)), step=1000.0)
-        config['colocacion_dia']       = f2.number_input("Costo Día de Colocación", value=float(config.get('colocacion_dia', 45000)), step=5000.0)
+    # Chequeamos el rol antes de mostrar márgenes
+    es_dueno = True
+    t_id_actual = _resolver_taller_id(st.session_state["user"].id)
+    if t_id_actual:
+        _rol_check = supabase.table("miembros_taller").select("rol").eq("user_id", st.session_state["user"].id).execute()
+        if _rol_check.data and _rol_check.data[0]["rol"] != "dueño":
+            es_dueno = False
 
-    with st.expander("💰 Margen de Ganancia", expanded=False):
-        config['ganancia_taller_pct'] = st.slider("Porcentaje de Utilidad", 0.0, 1.0, float(config.get('ganancia_taller_pct', 0.3)), 0.05)
-        st.write(f"Margen actual: {config.get('ganancia_taller_pct', 0.3)*100:.0f}%")
+    # SOLO EL DUEÑO VE ESTO:
+    if es_dueno:
+        with st.expander("🚛 Gastos Fijos y Logística", expanded=False):
+            f1, f2 = st.columns(2)
+            config['gastos_fijos_diarios'] = f1.number_input("Gasto Diario Taller", value=float(config.get('gastos_fijos_diarios', 25000)), step=5000.0)
+            config['flete_capital']        = f2.number_input("Flete Capital", value=float(config.get('flete_capital', 15000)), step=1000.0)
+            config['flete_norte']          = f1.number_input("Flete Zona Norte", value=float(config.get('flete_norte', 20000)), step=1000.0)
+            config['colocacion_dia']       = f2.number_input("Costo Día de Colocación", value=float(config.get('colocacion_dia', 45000)), step=5000.0)
+
+        with st.expander("💰 Margen de Ganancia", expanded=False):
+            config['ganancia_taller_pct'] = st.slider("Porcentaje de Utilidad", 0.0, 1.0, float(config.get('ganancia_taller_pct', 0.3)), 0.05)
+            st.write(f"Margen actual: {config.get('ganancia_taller_pct', 0.3)*100:.0f}%")
 
     if st.button("💾 Guardar Configuración", type="primary", use_container_width=True):
         for madera, precio in maderas.items():
