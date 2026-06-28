@@ -501,25 +501,29 @@ def _scope_id() -> str:
 def invitar_a_taller(email_invitado: str) -> bool:
     """Agrega a otro usuario al mismo taller usando la tabla de perfiles."""
     try:
+        # 1. Destruimos espacios en blanco ocultos y forzamos minúsculas
+        email_limpio = str(email_invitado).strip().lower()
+        
         uid = st.session_state["user"].id
         taller_id = _resolver_taller_id(uid)
         
-        # 1. Si el dueño todavía no tiene taller creado en la BD, lo inicializamos
+        # 2. Si el dueño todavía no tiene taller creado en la BD, lo inicializamos
         if not taller_id:
             nuevo = supabase.table("talleres").insert({"owner_id": uid, "nombre": "Taller BVM"}).execute()
             taller_id = nuevo.data[0]["id"]
             supabase.table("miembros_taller").insert({"taller_id": taller_id, "user_id": uid, "rol": "dueño"}).execute()
 
-        # 2. Buscamos el ID del invitado en TU tabla de perfiles
-        res_user = supabase.table("perfiles").select("id").eq("email", email_invitado).limit(1).execute()
+        # 3. Buscamos el ID del invitado directo en TU tabla de perfiles
+        res_user = supabase.table("perfiles").select("id").eq("email", email_limpio).limit(1).execute()
         
+        # Si devuelve vacío, imprimimos exactamente qué buscó para auditar
         if not res_user.data:
-            st.error("Ese email no tiene cuenta en BVM todavía. Pedile que se registre primero.")
+            st.error(f"Fallo de lectura. La base de datos devolvió vacío al buscar: '{email_limpio}'. Revisá la política RLS (SELECT, authenticated, true) en la tabla perfiles.")
             return False
             
         invitado_id = res_user.data[0]["id"]
             
-        # 3. El usuario existe -> Lo insertamos en el equipo
+        # 4. El usuario existe -> Lo insertamos en el equipo
         supabase.table("miembros_taller").insert({
             "taller_id": taller_id, 
             "user_id": invitado_id, 
