@@ -2389,7 +2389,8 @@ elif menu == "♻️ Retazos":
 
 elif menu == "⚙️ Precios":
     st.title("⚙️ Configuración de precios")
-     with st.expander("👥 Mi Equipo / Taller", expanded=True):
+
+    with st.expander("👥 Mi Equipo / Taller", expanded=True):
         uid = st.session_state["user"].id
         taller_id = _resolver_taller_id(uid)
         
@@ -2432,6 +2433,12 @@ elif menu == "⚙️ Precios":
                     st.success("✅ Taller creado y usuario vinculado.")
                     st.rerun()
 
+    # Evaluamos el rol antes de dibujar el resto de la pantalla
+    es_dueno = True
+    if taller_id:
+        _rol_check = supabase.table("miembros_taller").select("rol").eq("user_id", uid).execute()
+        if _rol_check.data and _rol_check.data[0]["rol"] != "dueño":
+            es_dueno = False
   
     with st.expander("🪵 Precios de Placas (18mm)", expanded=True):
         for madera, precio in list(maderas.items()):
