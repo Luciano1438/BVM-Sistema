@@ -499,30 +499,42 @@ def _scope_id() -> str:
     return taller_id or uid
 
 def invitar_a_taller(email_invitado: str) -> bool:
-    """Agrega a otro usuario (por email) al mismo taller del usuario actual.
-    Requiere que el invitado ya tenga cuenta creada en BVM (Registro).
-    Si el usuario actual no tiene taller todavía, lo crea automáticamente."""
+    """Agrega a otro usuario al mismo taller usando la tabla de perfiles."""
     try:
         uid = st.session_state["user"].id
         taller_id = _resolver_taller_id(uid)
+        
+        # 1. Si el dueño todavía no tiene taller creado en la BD, lo inicializamos
         if not taller_id:
-            # Crear taller nuevo con el usuario actual como dueño
-            nuevo = supabase.table("talleres").insert({"owner_id": uid, "nombre": "Mi Taller"}).execute()
+            nuevo = supabase.table("talleres").insert({"owner_id": uid, "nombre": "Taller BVM"}).execute()
             taller_id = nuevo.data[0]["id"]
             supabase.table("miembros_taller").insert({"taller_id": taller_id, "user_id": uid, "rol": "dueño"}).execute()
 
-        # Buscar el user_id del invitado por email (requiere tabla de perfiles
-        # o función RPC en Supabase — placeholder hasta que esa tabla exista)
+        # 2. Buscamos el ID del invitado en TU tabla de perfiles
         res_user = supabase.table("perfiles").select("id").eq("email", email_invitado).limit(1).execute()
+        
         if not res_user.data:
             st.error("Ese email no tiene cuenta en BVM todavía. Pedile que se registre primero.")
             return False
+            
         invitado_id = res_user.data[0]["id"]
-        supabase.table("miembros_taller").insert({"taller_id": taller_id, "user_id": invitado_id, "rol": "empleado"}).execute()
-        _resolver_taller_id.clear()
+            
+        # 3. El usuario existe -> Lo insertamos en el equipo
+        supabase.table("miembros_taller").insert({
+            "taller_id": taller_id, 
+            "user_id": invitado_id, 
+            "rol": "empleado"
+        }).execute()
+        
+        _resolver_taller_id.clear() # Limpiamos caché para que refresque la UI
         return True
+        
     except Exception as e:
-        st.error(f"No se pudo invitar: {e}")
+        # Atrapamos si el dueño hace doble click o invita a alguien que ya está
+        if "duplicate" in str(e).lower() or "23505" in str(e):
+            st.warning("Ese usuario ya forma parte de tu equipo.")
+        else:
+            st.error(f"Error técnico al invitar: {e}")
         return False
 
 
