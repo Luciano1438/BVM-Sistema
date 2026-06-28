@@ -2390,7 +2390,7 @@ elif menu == "♻️ Retazos":
 elif menu == "⚙️ Precios":
     st.title("⚙️ Configuración de precios")
 
-    with st.expander("👥 Mi Equipo / Taller", expanded=True):
+   with st.expander("👥 Mi Equipo / Taller", expanded=True):
         uid = st.session_state["user"].id
         taller_id = _resolver_taller_id(uid)
         
@@ -2411,6 +2411,19 @@ elif menu == "⚙️ Precios":
             else:
                 st.info("🤝 Estás operando como Empleado/Vendedor.")
                 st.caption("Los precios de materiales y retazos están sincronizados con la cuenta central del dueño. No tenés permisos para editar los márgenes de ganancia.")
+                
+                # BOTÓN DE OFFBOARDING PARA EL EMPLEADO
+                st.write("---")
+                if st.button("🚪 Abandonar este taller", type="secondary"):
+                    try:
+                        # 1. Rompemos el enlace físico en la base de datos
+                        supabase.table("miembros_taller").delete().eq("user_id", uid).execute()
+                        # 2. Limpiamos la caché para que el sistema recalcule su scope individual
+                        _resolver_taller_id.clear() 
+                        st.success("Saliste del taller. Tu cuenta vuelve a ser individual y privada.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error al salir del taller: {e}")
         else:
             st.caption("Convertí tu cuenta en un Taller Central. Compartí historial y retazos con un empleado.")
             col_inv1, col_inv2 = st.columns([3, 1])
@@ -2419,7 +2432,6 @@ elif menu == "⚙️ Precios":
                 if email_inv and invitar_a_taller(email_inv):
                     st.success("✅ Taller creado y usuario vinculado.")
                     st.rerun()
-
     with st.expander("🪵 Precios de Placas (18mm)", expanded=True):
         for madera, precio in list(maderas.items()):
             col_name, col_price, col_del = st.columns([5, 3, 1])
