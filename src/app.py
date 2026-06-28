@@ -595,7 +595,6 @@ def actualizar_precio_nube(clave, valor, categoria):
         uid = st.session_state["user"].id
         t_id = _resolver_taller_id(uid)
         
-        # Guardamos la traza de quién edita, pero asociamos al taller si existe
         payload = {
             "clave": clave, 
             "valor": float(valor), 
@@ -603,16 +602,27 @@ def actualizar_precio_nube(clave, valor, categoria):
             "user_id": uid
         }
         
+        # BYPASS ANTIFALLOS: Eliminamos la dependencia del upsert y lo hacemos manual
         if t_id:
             payload["taller_id"] = t_id
-            # Upsert seguro bajo el índice del taller compartido
-            supabase.table("configuracion").upsert(payload, on_conflict="taller_id, clave").execute()
+            # 1. Miramos si el precio ya existe en el taller
+            existe = supabase.table("configuracion").select("clave").eq("taller_id", t_id).eq("clave", clave).execute()
+            if existe.data:
+                # Actualizamos
+                supabase.table("configuracion").update(payload).eq("taller_id", t_id).eq("clave", clave).execute()
+            else:
+                # Insertamos nuevo
+                supabase.table("configuracion").insert(payload).execute()
         else:
-            supabase.table("configuracion").upsert(payload, on_conflict="user_id, clave").execute()
-            
+            # Misma lógica para el usuario individual
+            existe = supabase.table("configuracion").select("clave").eq("user_id", uid).eq("clave", clave).execute()
+            if existe.data:
+                supabase.table("configuracion").update(payload).eq("user_id", uid).eq("clave", clave).execute()
+            else:
+                supabase.table("configuracion").insert(payload).execute()
+                
     except Exception as e:
         st.error(f"Error guardando {clave}: {e}")
-
 def eliminar_precio_nube(clave, categoria):
     if "session" not in st.session_state: return
     try:
