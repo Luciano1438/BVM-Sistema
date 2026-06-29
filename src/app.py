@@ -418,23 +418,37 @@ def get_token():
         return None
 
 @st.cache_data(ttl=120, show_spinner=False)
-def _traer_retazos_db(user_id: str):
-    """Carga retazos desde Supabase. Cacheado 2 minutos."""
-    return supabase.table("retazos").select("*").eq("user_id", user_id).execute().data
+def _traer_retazos_db(scope_id: str, usa_taller: bool):
+    """Carga retazos desde Supabase. Cacheado 2 minutos.
+    Filtra por taller_id si el usuario pertenece a uno (todos ven el mismo
+    depósito), o por user_id si trabaja individual."""
+    query = supabase.table("retazos").select("*")
+    query = query.eq("taller_id", scope_id) if usa_taller else query.eq("user_id", scope_id)
+    return query.execute().data
+
+def _scope_lectura():
+    """Devuelve (scope_id, usa_taller) listo para pasar a las funciones
+    cacheadas de lectura por taller_id."""
+    tid = _taller_id_actual()
+    if tid:
+        return tid, True
+    return _user_id(), False
 
 def consultar_retazos_disponibles(material):
     try:
         token = get_token()
         if not token: return []
         supabase.postgrest.auth(token)
-        return _traer_retazos_db(_scope_id())
+        _sid, _ut = _scope_lectura()
+        return _traer_retazos_db(_sid, _ut)
     except Exception as e:
         err = str(e)
         if "JWT" in err or "expired" in err.lower() or "PGRST303" in err:
             if refrescar_sesion():
                 try:
                     _traer_retazos_db.clear()
-                    return _traer_retazos_db(_scope_id())
+                    _sid, _ut = _scope_lectura()
+                    return _traer_retazos_db(_sid, _ut)
                 except Exception:
                     pass
         st.warning("Sesión expirada. Recargá la página si el problema persiste.")
@@ -443,7 +457,10 @@ def consultar_retazos_disponibles(material):
 def registrar_retazo(material, largo, ancho):
     try:
         if (largo >= 400 and ancho >= 150) or (largo >= 150 and ancho >= 400):
-            supabase.table("retazos").insert({"material": material, "largo": largo, "ancho": ancho, "user_id": _scope_id()}).execute()
+            supabase.table("retazos").insert({
+                "material": material, "largo": largo, "ancho": ancho,
+                "user_id": _user_id(), "taller_id": _taller_id_actual(),
+            }).execute()
             _traer_retazos_db.clear()
             st.toast(f"Retazo guardado: {int(largo)}x{int(ancho)}")
         else:
@@ -488,57 +505,83 @@ def _resolver_taller_id(user_id: str):
     return None
 
 def _scope_id() -> str:
-    """ID a usar en todas las consultas de configuracion/ventas/retazos.
+    """ID a usar para FILTRAR lecturas (select) de configuracion/ventas/retazos.
     Es el taller_id compartido si el usuario pertenece a uno, o su propio
-    user_id si todavía trabaja individual. Esto es lo único que hay que
-    cambiar en las queries para soportar equipos."""
+    user_id si todavía trabaja individual.
+    OJO: esto es solo para LEER. Para escribir, usar _user_id() + _taller_id()
+    por separado — la tabla tiene ambas columnas y user_id es NOT NULL."""
     if "user" not in st.session_state or not st.session_state["user"]:
         return ""
     uid = st.session_state["user"].id
     taller_id = _resolver_taller_id(uid)
     return taller_id or uid
 
-def invitar_a_taller(email_invitado: str) -> bool:
-    """Agrega a otro usuario al mismo taller usando la tabla de perfiles."""
+def _user_id() -> str:
+    """El user_id real del usuario logueado — siempre va en la columna user_id."""
+    if "user" not in st.session_state or not st.session_state["user"]:
+        return ""
+    return st.session_state["user"].id
+
+def _taller_id_actual():
+    """El taller_id del usuario logueado, o None si trabaja individual.
+    Va en la columna taller_id (que es NULLABLE)."""
+    uid = _user_id()
+    if not uid:
+        return None
+    return _resolver_taller_id(uid)
+
+@st.cache_data(ttl=600, show_spinner=False)
+def _resolver_owner_de_taller(taller_id: str):
+    """Dado un taller_id, devuelve el owner_id de ese taller.
+    Esto es clave para que dueño y empleados ESCRIBAN siempre bajo el
+    mismo user_id en `configuracion` — si no, cada uno generaría su propia
+    fila y chocarían contra el unique_user_clave (user_id, clave)."""
     try:
-        # 1. Destruimos espacios en blanco ocultos y forzamos minúsculas
-        email_limpio = str(email_invitado).strip().lower()
-        
+        res = supabase.table("talleres").select("owner_id").eq("id", taller_id).limit(1).execute()
+        if res.data:
+            return res.data[0]["owner_id"]
+    except Exception:
+        pass
+    return None
+
+def _owner_id_para_escritura() -> str:
+    """user_id a usar al ESCRIBIR en configuracion: si el usuario pertenece
+    a un taller, siempre es el owner del taller (para que todos los miembros
+    compartan la misma fila). Si no, es su propio user_id — comportamiento
+    idéntico al de antes de multi-usuario, cero breaking changes."""
+    uid = _user_id()
+    tid = _taller_id_actual()
+    if tid:
+        owner = _resolver_owner_de_taller(tid)
+        if owner:
+            return owner
+    return uid
+
+def invitar_a_taller(email_invitado: str) -> bool:
+    """Agrega a otro usuario (por email) al mismo taller del usuario actual.
+    Requiere que el invitado ya tenga cuenta creada en BVM (Registro).
+    Si el usuario actual no tiene taller todavía, lo crea automáticamente."""
+    try:
         uid = st.session_state["user"].id
         taller_id = _resolver_taller_id(uid)
-        
-        # 2. Si el dueño todavía no tiene taller creado en la BD, lo inicializamos
         if not taller_id:
-            nuevo = supabase.table("talleres").insert({"owner_id": uid, "nombre": "Taller BVM"}).execute()
+            # Crear taller nuevo con el usuario actual como dueño
+            nuevo = supabase.table("talleres").insert({"owner_id": uid, "nombre": "Mi Taller"}).execute()
             taller_id = nuevo.data[0]["id"]
             supabase.table("miembros_taller").insert({"taller_id": taller_id, "user_id": uid, "rol": "dueño"}).execute()
 
-        # 3. Buscamos el ID del invitado directo en TU tabla de perfiles
-        res_user = supabase.table("perfiles").select("id").eq("email", email_limpio).limit(1).execute()
-        
-        # Si devuelve vacío, imprimimos exactamente qué buscó para auditar
+        # Buscar el user_id del invitado por email (requiere tabla de perfiles
+        # o función RPC en Supabase — placeholder hasta que esa tabla exista)
+        res_user = supabase.table("perfiles").select("id").eq("email", email_invitado).limit(1).execute()
         if not res_user.data:
-            st.error(f"Fallo de lectura. La base de datos devolvió vacío al buscar: '{email_limpio}'. Revisá la política RLS (SELECT, authenticated, true) en la tabla perfiles.")
+            st.error("Ese email no tiene cuenta en BVM todavía. Pedile que se registre primero.")
             return False
-            
         invitado_id = res_user.data[0]["id"]
-            
-        # 4. El usuario existe -> Lo insertamos en el equipo
-        supabase.table("miembros_taller").insert({
-            "taller_id": taller_id, 
-            "user_id": invitado_id, 
-            "rol": "empleado"
-        }).execute()
-        
-        _resolver_taller_id.clear() # Limpiamos caché para que refresque la UI
+        supabase.table("miembros_taller").insert({"taller_id": taller_id, "user_id": invitado_id, "rol": "empleado"}).execute()
+        _resolver_taller_id.clear()
         return True
-        
     except Exception as e:
-        # Atrapamos si el dueño hace doble click o invita a alguien que ya está
-        if "duplicate" in str(e).lower() or "23505" in str(e):
-            st.warning("Ese usuario ya forma parte de tu equipo.")
-        else:
-            st.error(f"Error técnico al invitar: {e}")
+        st.error(f"No se pudo invitar: {e}")
         return False
 
 
@@ -581,76 +624,45 @@ def gestionar_auth():
         return False
     return True
 
-# ===========================================================================
-# CORRECCIÓN DE NÚCLEO CRUD — MULTI-TENANT SEGURO
-# ===========================================================================
-
 def actualizar_precio_nube(clave, valor, categoria):
     if "session" not in st.session_state: return
     try:
         token = get_token()
         if not token: return
         supabase.postgrest.auth(token)
-        
-        uid = st.session_state["user"].id
-        t_id = _resolver_taller_id(uid)
-        
-        payload = {
-            "clave": clave, 
-            "valor": float(valor), 
-            "categoria": categoria,
-            "user_id": uid
-        }
-        
-        # BYPASS ANTIFALLOS: Eliminamos la dependencia del upsert y lo hacemos manual
-        if t_id:
-            payload["taller_id"] = t_id
-            # 1. Miramos si el precio ya existe en el taller
-            existe = supabase.table("configuracion").select("clave").eq("taller_id", t_id).eq("clave", clave).execute()
-            if existe.data:
-                # Actualizamos
-                supabase.table("configuracion").update(payload).eq("taller_id", t_id).eq("clave", clave).execute()
-            else:
-                # Insertamos nuevo
-                supabase.table("configuracion").insert(payload).execute()
-        else:
-            # Misma lógica para el usuario individual
-            existe = supabase.table("configuracion").select("clave").eq("user_id", uid).eq("clave", clave).execute()
-            if existe.data:
-                supabase.table("configuracion").update(payload).eq("user_id", uid).eq("clave", clave).execute()
-            else:
-                supabase.table("configuracion").insert(payload).execute()
-                
+        # user_id SIEMPRE es el dueño del taller (o el propio usuario si
+        # trabaja individual) — así todos los miembros leen/escriben la
+        # MISMA fila en vez de chocar contra el unique_user_clave.
+        _owner_id = _owner_id_para_escritura()
+        _tid = _taller_id_actual()
+        supabase.table("configuracion").upsert(
+            {"user_id": _owner_id, "taller_id": _tid, "clave": clave, "valor": float(valor), "categoria": categoria},
+            on_conflict="user_id, clave"
+        ).execute()
     except Exception as e:
         st.error(f"Error guardando {clave}: {e}")
+
 def eliminar_precio_nube(clave, categoria):
     if "session" not in st.session_state: return
     try:
         token = get_token()
         if not token: return
         supabase.postgrest.auth(token)
-        
-        uid = st.session_state["user"].id
-        t_id = _resolver_taller_id(uid)
-        
-        query = supabase.table("configuracion").delete().eq("clave", clave).eq("categoria", categoria)
-        if t_id:
-            query.eq("taller_id", t_id).execute()
-        else:
-            query.eq("user_id", uid).execute()
+        _owner_id = _owner_id_para_escritura()
+        supabase.table("configuracion").delete().eq("user_id", _owner_id).eq("clave", clave).eq("categoria", categoria).execute()
     except Exception as e:
         st.error(f"Error al eliminar {clave}: {e}")
 
-@st.cache_data(ttl=30, show_spinner=False) # Reducido a 30s para evitar descalces de precios en el taller
-def _traer_datos_db(uid: str, t_id: Optional[str], token: str):
+@st.cache_data(ttl=300, show_spinner=False)
+def _traer_datos_db(scope_id: str, token: str, usa_taller: bool):
+    """Carga configuración desde Supabase. Cacheada 5 minutos por scope.
+    Si usa_taller=True, scope_id es un taller_id y filtramos por esa columna.
+    Si no, scope_id es el user_id propio y filtramos por user_id (comportamiento
+    original, retrocompatible con cuentas que nunca migraron a multi-usuario)."""
     supabase.postgrest.auth(token)
-    
-    # Si pertenece a un taller, lee la configuración del grupo; si no, la individual
-    if t_id:
-        datos_db = supabase.table("configuracion").select("*").eq("taller_id", t_id).execute().data
-    else:
-        datos_db = supabase.table("configuracion").select("*").eq("user_id", uid).execute().data
-        
+    query = supabase.table("configuracion").select("*")
+    query = query.eq("taller_id", scope_id) if usa_taller else query.eq("user_id", scope_id)
+    datos_db = query.execute().data
     maderas_db = {d['clave']: d['valor'] for d in datos_db if str(d.get('categoria','')).lower().strip() == 'maderas'}
     config_db  = {d['clave']: d['valor'] for d in datos_db if str(d.get('categoria','')).lower().strip() in ['costos','margen','herrajes']}
     return maderas_db, config_db
@@ -668,9 +680,11 @@ def traer_datos():
     try:
         token = get_token()
         if not token: raise Exception("No token")
-        uid = st.session_state["user"].id
-        t_id = _resolver_taller_id(uid)
-        maderas_db, config_db = _traer_datos_db(uid, t_id, token)
+        _tid = _taller_id_actual()
+        if _tid:
+            maderas_db, config_db = _traer_datos_db(_tid, token, usa_taller=True)
+        else:
+            maderas_db, config_db = _traer_datos_db(_user_id(), token, usa_taller=False)
         return {**MADERAS_DEFAULT, **maderas_db}, FONDOS, {**CONFIG_DEFAULT, **config_db}
     except Exception:
         st.warning("La sesión se actualizó. Por favor, recargá la página.")
@@ -679,7 +693,8 @@ def traer_datos():
 def guardar_presupuesto_nube(cliente, mueble, total, parametros=None, id_editar=None):
     try:
         data = {"cliente": cliente, "mueble": mueble, "precio_final": float(total),
-                "user_id": _scope_id(),
+                "user_id": _user_id(),
+                "taller_id": _taller_id_actual(),
                 "fecha": datetime.now(timezone(timedelta(hours=-3))).strftime("%Y-%m-%d %H:%M"),
                 "parametros": json.dumps(parametros) if parametros else None}
         if id_editar:
@@ -701,15 +716,18 @@ def guardar_presupuesto_nube(cliente, mueble, total, parametros=None, id_editar=
             st.error(f"Error al guardar: {err_msg}")
 
 @st.cache_data(ttl=60, show_spinner=False)
-def _traer_historial_db(user_id: str):
-    """Carga historial desde Supabase. Cacheado 60 segundos."""
-    return pd.DataFrame(
-        supabase.table("ventas").select("*").eq("user_id", user_id).execute().data
-    )
+def _traer_historial_db(scope_id: str, usa_taller: bool):
+    """Carga historial desde Supabase. Cacheado 60 segundos.
+    Filtra por taller_id si el usuario pertenece a uno (historial
+    compartido entre dueño y empleados), o por user_id si es individual."""
+    query = supabase.table("ventas").select("*")
+    query = query.eq("taller_id", scope_id) if usa_taller else query.eq("user_id", scope_id)
+    return pd.DataFrame(query.execute().data)
 
 def traer_datos_historial():
     try:
-        return _traer_historial_db(_scope_id())
+        _sid, _ut = _scope_lectura()
+        return _traer_historial_db(_sid, _ut)
     except Exception:
         return pd.DataFrame()
 
@@ -2400,56 +2418,19 @@ elif menu == "♻️ Retazos":
 elif menu == "⚙️ Precios":
     st.title("⚙️ Configuración de precios")
 
-    with st.expander("👥 Mi Equipo / Taller", expanded=True):
-        uid = st.session_state["user"].id
-        taller_id = _resolver_taller_id(uid)
-        
-        if taller_id:
-            # Vamos a la base de datos a ver qué rol tiene este usuario
-            res_rol = supabase.table("miembros_taller").select("rol").eq("user_id", uid).execute()
-            mi_rol = res_rol.data[0]["rol"] if res_rol.data else "empleado"
-            
-            if mi_rol == "dueño":
-                st.success("👑 Sos el administrador y dueño de este taller.")
-                st.write("Podés vincular a más instaladores/vendedores:")
-                col_inv1, col_inv2 = st.columns([3, 1])
-                email_inv = col_inv1.text_input("Email", placeholder="empleado@email.com", label_visibility="collapsed")
-                if col_inv2.button("Invitar", use_container_width=True):
-                    if email_inv and invitar_a_taller(email_inv):
-                        st.success(f"✅ {email_inv} vinculado a tu taller.")
-                        st.rerun()
-            else:
-                st.info("🤝 Estás operando como Empleado/Vendedor.")
-                st.caption("Los precios de materiales y retazos están sincronizados con la cuenta central del dueño. No tenés permisos para editar los márgenes de ganancia.")
-                
-                # BOTÓN DE OFFBOARDING PARA EL EMPLEADO
-                st.write("---")
-                if st.button("🚪 Abandonar este taller", type="secondary"):
-                    try:
-                        # 1. Rompemos el enlace físico en la base de datos
-                        supabase.table("miembros_taller").delete().eq("user_id", uid).execute()
-                        # 2. Limpiamos la caché para que el sistema recalcule su scope individual
-                        _resolver_taller_id.clear() 
-                        st.success("Saliste del taller. Tu cuenta vuelve a ser individual y privada.")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Error al salir del taller: {e}")
-        else:
-            st.caption("Convertí tu cuenta en un Taller Central. Compartí historial y retazos con un empleado.")
-            col_inv1, col_inv2 = st.columns([3, 1])
-            email_inv = col_inv1.text_input("Email del empleado", placeholder="empleado@email.com", label_visibility="collapsed")
-            if col_inv2.button("Crear Taller e Invitar", use_container_width=True):
-                if email_inv and invitar_a_taller(email_inv):
-                    st.success("✅ Taller creado y usuario vinculado.")
+    with st.expander("👥 Mi Equipo / Taller", expanded=False):
+        st.caption("Compartí tu configuración de precios, historial y depósito de retazos con un empleado o socio. Ambos van a ver y editar los mismos datos.")
+        col_inv1, col_inv2 = st.columns([3, 1])
+        email_inv = col_inv1.text_input("Email del empleado/socio", placeholder="empleado@email.com", label_visibility="collapsed")
+        if col_inv2.button("Invitar", use_container_width=True):
+            if email_inv:
+                if invitar_a_taller(email_inv):
+                    st.success(f"✅ {email_inv} ahora comparte tu taller en BVM.")
                     st.rerun()
+            else:
+                st.warning("Ingresá un email.")
+        st.caption("⚠️ El invitado necesita tener cuenta creada en BVM (pestaña Registro) antes de invitarlo.")
 
-    # Evaluamos el rol antes de dibujar el resto de la pantalla
-    es_dueno = True
-    if taller_id:
-        _rol_check = supabase.table("miembros_taller").select("rol").eq("user_id", uid).execute()
-        if _rol_check.data and _rol_check.data[0]["rol"] != "dueño":
-            es_dueno = False
-  
     with st.expander("🪵 Precios de Placas (18mm)", expanded=True):
         for madera, precio in list(maderas.items()):
             col_name, col_price, col_del = st.columns([5, 3, 1])
@@ -2505,26 +2486,16 @@ elif menu == "⚙️ Precios":
                 _traer_datos_db.clear()
                 st.rerun()
 
-    # Chequeamos el rol antes de mostrar márgenes
-    es_dueno = True
-    t_id_actual = _resolver_taller_id(st.session_state["user"].id)
-    if t_id_actual:
-        _rol_check = supabase.table("miembros_taller").select("rol").eq("user_id", st.session_state["user"].id).execute()
-        if _rol_check.data and _rol_check.data[0]["rol"] != "dueño":
-            es_dueno = False
+    with st.expander("🚛 Gastos Fijos y Logística", expanded=False):
+        f1, f2 = st.columns(2)
+        config['gastos_fijos_diarios'] = f1.number_input("Gasto Diario Taller", value=float(config.get('gastos_fijos_diarios', 25000)), step=5000.0)
+        config['flete_capital']        = f2.number_input("Flete Capital", value=float(config.get('flete_capital', 15000)), step=1000.0)
+        config['flete_norte']          = f1.number_input("Flete Zona Norte", value=float(config.get('flete_norte', 20000)), step=1000.0)
+        config['colocacion_dia']       = f2.number_input("Costo Día de Colocación", value=float(config.get('colocacion_dia', 45000)), step=5000.0)
 
-    # SOLO EL DUEÑO VE ESTO:
-    if es_dueno:
-        with st.expander("🚛 Gastos Fijos y Logística", expanded=False):
-            f1, f2 = st.columns(2)
-            config['gastos_fijos_diarios'] = f1.number_input("Gasto Diario Taller", value=float(config.get('gastos_fijos_diarios', 25000)), step=5000.0)
-            config['flete_capital']        = f2.number_input("Flete Capital", value=float(config.get('flete_capital', 15000)), step=1000.0)
-            config['flete_norte']          = f1.number_input("Flete Zona Norte", value=float(config.get('flete_norte', 20000)), step=1000.0)
-            config['colocacion_dia']       = f2.number_input("Costo Día de Colocación", value=float(config.get('colocacion_dia', 45000)), step=5000.0)
-
-        with st.expander("💰 Margen de Ganancia", expanded=False):
-            config['ganancia_taller_pct'] = st.slider("Porcentaje de Utilidad", 0.0, 1.0, float(config.get('ganancia_taller_pct', 0.3)), 0.05)
-            st.write(f"Margen actual: {config.get('ganancia_taller_pct', 0.3)*100:.0f}%")
+    with st.expander("💰 Margen de Ganancia", expanded=False):
+        config['ganancia_taller_pct'] = st.slider("Porcentaje de Utilidad", 0.0, 1.0, float(config.get('ganancia_taller_pct', 0.3)), 0.05)
+        st.write(f"Margen actual: {config.get('ganancia_taller_pct', 0.3)*100:.0f}%")
 
     if st.button("💾 Guardar Configuración", type="primary", use_container_width=True):
         for madera, precio in maderas.items():
