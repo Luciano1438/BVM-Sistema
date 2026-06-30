@@ -577,6 +577,14 @@ def invitar_a_taller(email_invitado: str) -> bool:
             st.error("Ese email no tiene cuenta en BVM todavía. Pedile que se registre primero.")
             return False
         invitado_id = res_user.data[0]["id"]
+
+        # Chequear si ya pertenece a ESTE taller — evita el duplicate key
+        ya_miembro = supabase.table("miembros_taller").select("user_id") \
+            .eq("taller_id", taller_id).eq("user_id", invitado_id).limit(1).execute()
+        if ya_miembro.data:
+            st.info(f"{email_invitado} ya forma parte de tu taller.")
+            return True  # no es un error real, simplemente ya estaba invitado
+
         supabase.table("miembros_taller").insert({"taller_id": taller_id, "user_id": invitado_id, "rol": "empleado"}).execute()
         _resolver_taller_id.clear()
         return True
