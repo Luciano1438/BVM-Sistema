@@ -1,3 +1,4 @@
+python
 import streamlit as st
 import pandas as pd
 import sqlite3
@@ -38,7 +39,7 @@ def _safe_float(val, default=0.0) -> float:
     """Convierte a float sin crashear — maneja None, '', strings."""
     try:
         if val is None or val == "": return default
-        return float(str(val).strip())
+        return float(str(val).strip()))
     except (ValueError, TypeError):
         return default
 
@@ -46,10 +47,6 @@ def _safe_float(val, default=0.0) -> float:
 # ===========================================================================
 # MODELOS DE DATOS (Pydantic) — single source of truth para un Módulo
 # ===========================================================================
-# Reemplaza la lógica defensiva dispersa de _params_desde_mod: en vez de
-# buscar cada campo en tres lugares posibles (raíz, params, aplanado),
-# el modelo normaliza UNA SOLA VEZ al construirse. Tolerante a JSON viejo
-# de Supabase gracias a los alias y defaults.
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List, Dict, Any
 
@@ -154,9 +151,7 @@ class ModuloBVM(BaseModel):
         return cls(**merged)
 
     def to_legacy_dict(self) -> dict:
-        """Serializa al formato plano que ya consume el resto del sistema
-        (_build_params_dict / _params_desde_mod), para no romper nada aguas
-        abajo: PDF, SVG, motor de despiece, exportadores."""
+        """Serializa al formato plano que ya consume el resto del sistema."""
         return self.model_dump()
 
 
@@ -377,7 +372,7 @@ def generar_link_whatsapp_obra(cliente, modulos, dias_entrega, pct_seña, costo_
         lineas.append(f"- Flete/Logistica: ${costo_logistica:,.0f}")
     if costo_col > 0:
         lineas.append(f"- Colocacion: ${costo_col:,.0f}")
-    lineas += ["", f"*TOTAL OBRA: ${total_obra:,.0f}*", f"Seña ({pct_seña}%): ${monto_seña:,.0f}", f"Entrega: {dias_entrega} dias habiles", "", "Precios validos 48hs."]
+    lineas += ["", f"*TOTAL OBRA: ${total_obra:,.0f}*", f"Seña ({pct_seña}%): ${monto_seña:,.0f}", f"Entrega: {dias_entrega} dias dias", "", "Precios validos 48hs."]
     return f"https://wa.me/?text={urllib.parse.quote(chr(10).join(lineas))}"
 
 
@@ -394,7 +389,6 @@ def refrescar_sesion():
             st.session_state["user"] = res.user
             return True
     except Exception as e:
-        # Loguear sin crashear — token expirado es el caso más común
         pass
     return False
 
@@ -419,16 +413,13 @@ def get_token():
 
 @st.cache_data(ttl=120, show_spinner=False)
 def _traer_retazos_db(scope_id: str, usa_taller: bool):
-    """Carga retazos desde Supabase. Cacheado 2 minutos.
-    Filtra por taller_id si el usuario pertenece a uno (todos ven el mismo
-    depósito), o por user_id si trabaja individual."""
+    """Carga retazos desde Supabase. Cacheado 2 minutos."""
     query = supabase.table("retazos").select("*")
     query = query.eq("taller_id", scope_id) if usa_taller else query.eq("user_id", scope_id)
     return query.execute().data
 
 def _scope_lectura():
-    """Devuelve (scope_id, usa_taller) listo para pasar a las funciones
-    cacheadas de lectura por taller_id."""
+    """Devuelve (scope_id, usa_taller) listo para pasar a las funciones cacheadas."""
     tid = _taller_id_actual()
     if tid:
         return tid, True
@@ -468,48 +459,45 @@ def registrar_retazo(material, largo, ancho):
     except Exception as e:
         st.error(f"Error al registrar: {e}")
 
+
 # ===========================================================================
 # MULTI-USUARIO POR TALLER
 # ===========================================================================
-# Modelo: cada usuario de auth.users tiene un user_id (UUID) propio de
-# Supabase Auth. Para que dos personas (dueño + empleado) compartan el
-# mismo taller — misma configuración de precios, mismo historial, mismo
-# depósito de retazos — necesitás UNA tabla nueva en Supabase:
-#
-#   create table talleres (
-#     id uuid primary key default gen_random_uuid(),
-#     nombre text,
-#     owner_id uuid references auth.users(id)
-#   );
-#   create table miembros_taller (
-#     taller_id uuid references talleres(id),
-#     user_id uuid references auth.users(id),
-#     rol text default 'empleado',   -- 'dueño' | 'empleado'
-#     primary key (taller_id, user_id)
-#   );
-#
-# Con eso creado, _scope_id() devuelve automáticamente el taller_id
-# compartido si el usuario pertenece a uno. Si todavía no migraste las
-# tablas, sigue funcionando exactamente como hoy (scope = user_id propio),
-# así que esto es 100% retrocompatible — no rompe nada en producción.
+
 @st.cache_data(ttl=600, show_spinner=False)
-def _resolver_taller_id(user_id: str):
-    """Busca si el usuario pertenece a un taller compartido.
-    Si la tabla no existe todavía, devuelve None silenciosamente."""
+def _resolver_datos_miembro(user_id: str):
+    """Busca el taller_id, rol y nombre del taller para el usuario actual.
+    Si las tablas no existen todavía, devuelve None."""
     try:
-        res = supabase.table("miembros_taller").select("taller_id").eq("user_id", user_id).limit(1).execute()
+        res = supabase.table("miembros_taller").select("taller_id, rol").eq("user_id", user_id).limit(1).execute()
         if res.data:
-            return res.data[0]["taller_id"]
+            t_id = res.data[0]["taller_id"]
+            rol = res.data[0]["rol"]
+            try:
+                res_taller = supabase.table("talleres").select("nombre").eq("id", t_id).limit(1).execute()
+                nombre_taller = res_taller.data[0]["nombre"] if res_taller.data else "Taller Compartido"
+            except Exception:
+                nombre_taller = "Taller Compartido"
+            return {"taller_id": t_id, "rol": rol, "nombre_taller": nombre_taller}
     except Exception:
-        pass  # tabla no existe aún → comportamiento individual, sin romper nada
+        pass
     return None
 
+def _resolver_taller_id(user_id: str):
+    """Busca si el usuario pertenece a un taller compartido."""
+    info = _resolver_datos_miembro(user_id)
+    return info["taller_id"] if info else None
+
+def _obtener_rol_actual() -> Optional[str]:
+    """Obtiene el rol del usuario actual en el taller ('dueño', 'empleado' o None)."""
+    uid = _user_id()
+    if not uid:
+        return None
+    info = _resolver_datos_miembro(uid)
+    return info["rol"] if info else None
+
 def _scope_id() -> str:
-    """ID a usar para FILTRAR lecturas (select) de configuracion/ventas/retazos.
-    Es el taller_id compartido si el usuario pertenece a uno, o su propio
-    user_id si todavía trabaja individual.
-    OJO: esto es solo para LEER. Para escribir, usar _user_id() + _taller_id()
-    por separado — la tabla tiene ambas columnas y user_id es NOT NULL."""
+    """ID a usar para FILTRAR lecturas (select) de configuracion/ventas/retazos."""
     if "user" not in st.session_state or not st.session_state["user"]:
         return ""
     uid = st.session_state["user"].id
@@ -523,8 +511,7 @@ def _user_id() -> str:
     return st.session_state["user"].id
 
 def _taller_id_actual():
-    """El taller_id del usuario logueado, o None si trabaja individual.
-    Va en la columna taller_id (que es NULLABLE)."""
+    """El taller_id del usuario logueado, o None si trabaja individual."""
     uid = _user_id()
     if not uid:
         return None
@@ -532,10 +519,7 @@ def _taller_id_actual():
 
 @st.cache_data(ttl=600, show_spinner=False)
 def _resolver_owner_de_taller(taller_id: str):
-    """Dado un taller_id, devuelve el owner_id de ese taller.
-    Esto es clave para que dueño y empleados ESCRIBAN siempre bajo el
-    mismo user_id en `configuracion` — si no, cada uno generaría su propia
-    fila y chocarían contra el unique_user_clave (user_id, clave)."""
+    """Dado un taller_id, devuelve el owner_id de ese taller."""
     try:
         res = supabase.table("talleres").select("owner_id").eq("id", taller_id).limit(1).execute()
         if res.data:
@@ -546,9 +530,7 @@ def _resolver_owner_de_taller(taller_id: str):
 
 def _owner_id_para_escritura() -> str:
     """user_id a usar al ESCRIBIR en configuracion: si el usuario pertenece
-    a un taller, siempre es el owner del taller (para que todos los miembros
-    compartan la misma fila). Si no, es su propio user_id — comportamiento
-    idéntico al de antes de multi-usuario, cero breaking changes."""
+    a un taller, siempre es el owner del taller."""
     uid = _user_id()
     tid = _taller_id_actual()
     if tid:
@@ -557,35 +539,80 @@ def _owner_id_para_escritura() -> str:
             return owner
     return uid
 
+def abandonar_taller() -> bool:
+    """Permite a un empleado desvincularse y abandonar el taller compartido actual."""
+    try:
+        uid = _user_id()
+        if not uid:
+            return False
+        info = _resolver_datos_miembro(uid)
+        if not info:
+            return False
+        
+        if info["rol"] == "dueño":
+            st.error("Como dueño del taller, no podés abandonarlo directamente. Debés transferir la propiedad o eliminarlo.")
+            return False
+        
+        # Eliminar el registro del miembro
+        supabase.table("miembros_taller").delete().eq("taller_id", info["taller_id"]).eq("user_id", uid).execute()
+        
+        # Invalidar la caché
+        _resolver_datos_miembro.clear()
+        _resolver_taller_id.clear()
+        _traer_datos_db.clear()
+        _traer_retazos_db.clear()
+        _traer_historial_db.clear()
+        return True
+    except Exception as e:
+        st.error(f"Error al abandonar el taller: {e}")
+        return False
+
 def invitar_a_taller(email_invitado: str) -> bool:
     """Agrega a otro usuario (por email) al mismo taller del usuario actual.
-    Requiere que el invitado ya tenga cuenta creada en BVM (Registro).
-    Si el usuario actual no tiene taller todavía, lo crea automáticamente."""
+    Previene auto-invitaciones, invitaciones redundantes y garantiza jerarquía."""
     try:
-        uid = st.session_state["user"].id
-        taller_id = _resolver_taller_id(uid)
-        if not taller_id:
-            # Crear taller nuevo con el usuario actual como dueño
-            nuevo = supabase.table("talleres").insert({"owner_id": uid, "nombre": "Mi Taller"}).execute()
-            taller_id = nuevo.data[0]["id"]
-            supabase.table("miembros_taller").insert({"taller_id": taller_id, "user_id": uid, "rol": "dueño"}).execute()
+        uid = _user_id()
+        if not uid:
+            return False
+            
+        # 1. Evitar que se auto-invite
+        email_actual = st.session_state.get("user", None)
+        email_actual = email_actual.email if email_actual and hasattr(email_actual, "email") else ""
+        if email_invitado.lower().strip() == email_actual.lower().strip():
+            st.error("No podés invitarte a vos mismo.")
+            return False
 
-        # Buscar el user_id del invitado por email (requiere tabla de perfiles
-        # o función RPC en Supabase — placeholder hasta que esa tabla exista)
+        # 2. Verificar que quien invita sea un Propietario o no sea empleado de otro
+        info_propia = _resolver_datos_miembro(uid)
+        if info_propia and info_propia["rol"] != "dueño":
+            st.error("Solo el dueño del taller puede realizar invitaciones.")
+            return False
+
+        # 3. Buscar el user_id del invitado por email
         res_user = supabase.table("perfiles").select("id").eq("email", email_invitado).limit(1).execute()
         if not res_user.data:
             st.error("Ese email no tiene cuenta en BVM todavía. Pedile que se registre primero.")
             return False
         invitado_id = res_user.data[0]["id"]
 
-        # Chequear si ya pertenece a ESTE taller — evita el duplicate key
-        ya_miembro = supabase.table("miembros_taller").select("user_id") \
-            .eq("taller_id", taller_id).eq("user_id", invitado_id).limit(1).execute()
-        if ya_miembro.data:
-            st.info(f"{email_invitado} ya forma parte de tu taller.")
-            return True  # no es un error real, simplemente ya estaba invitado
+        # 4. Verificar que el invitado no tenga ya un taller activo
+        info_invitado = _resolver_datos_miembro(invitado_id)
+        if info_invitado:
+            st.error("El usuario invitado ya pertenece a un taller activo. Debe abandonarlo para que puedas agregarlo.")
+            return False
 
+        taller_id = info_propia["taller_id"] if info_propia else None
+        if not taller_id:
+            # Crear taller nuevo con el usuario actual como dueño
+            nuevo = supabase.table("talleres").insert({"owner_id": uid, "nombre": "Mi Taller"}).execute()
+            taller_id = nuevo.data[0]["id"]
+            supabase.table("miembros_taller").insert({"taller_id": taller_id, "user_id": uid, "rol": "dueño"}).execute()
+
+        # Insertar al nuevo miembro de tipo empleado
         supabase.table("miembros_taller").insert({"taller_id": taller_id, "user_id": invitado_id, "rol": "empleado"}).execute()
+        
+        # Invalidar la caché de los datos vinculados
+        _resolver_datos_miembro.clear()
         _resolver_taller_id.clear()
         return True
     except Exception as e:
@@ -638,9 +665,6 @@ def actualizar_precio_nube(clave, valor, categoria):
         token = get_token()
         if not token: return
         supabase.postgrest.auth(token)
-        # user_id SIEMPRE es el dueño del taller (o el propio usuario si
-        # trabaja individual) — así todos los miembros leen/escriben la
-        # MISMA fila en vez de chocar contra el unique_user_clave.
         _owner_id = _owner_id_para_escritura()
         _tid = _taller_id_actual()
         supabase.table("configuracion").upsert(
@@ -663,10 +687,7 @@ def eliminar_precio_nube(clave, categoria):
 
 @st.cache_data(ttl=300, show_spinner=False)
 def _traer_datos_db(scope_id: str, token: str, usa_taller: bool):
-    """Carga configuración desde Supabase. Cacheada 5 minutos por scope.
-    Si usa_taller=True, scope_id es un taller_id y filtramos por esa columna.
-    Si no, scope_id es el user_id propio y filtramos por user_id (comportamiento
-    original, retrocompatible con cuentas que nunca migraron a multi-usuario)."""
+    """Carga configuración desde Supabase. Cacheada 5 minutos por scope."""
     supabase.postgrest.auth(token)
     query = supabase.table("configuracion").select("*")
     query = query.eq("taller_id", scope_id) if usa_taller else query.eq("user_id", scope_id)
@@ -725,9 +746,7 @@ def guardar_presupuesto_nube(cliente, mueble, total, parametros=None, id_editar=
 
 @st.cache_data(ttl=60, show_spinner=False)
 def _traer_historial_db(scope_id: str, usa_taller: bool):
-    """Carga historial desde Supabase. Cacheado 60 segundos.
-    Filtra por taller_id si el usuario pertenece a uno (historial
-    compartido entre dueño y empleados), o por user_id si es individual."""
+    """Carga historial desde Supabase. Cacheado 60 segundos."""
     query = supabase.table("ventas").select("*")
     query = query.eq("taller_id", scope_id) if usa_taller else query.eq("user_id", scope_id)
     return pd.DataFrame(query.execute().data)
@@ -745,7 +764,6 @@ def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_pue
     alto_m  = _safe_float(alto_m)
     if ancho_m <= 0 or alto_m <= 0:
         return ""
-    # Sanitizar para SVG — eliminar caracteres que podrían romper el markup
     ancho_m = min(ancho_m, 9999)
     alto_m  = min(alto_m,  9999)
 
@@ -753,12 +771,11 @@ def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_pue
     pad = 16
     esp = 10
 
-    # Altura proporcional al mueble, con espacio extra abajo para el soporte
     tiene_soporte = tipo_base not in ("Nada", "", None)
-    soporte_px    = 22 if tiene_soporte else 0   # píxeles que ocupa el soporte
+    soporte_px    = 22 if tiene_soporte else 0
     H_mueble = int(W * (alto_m / ancho_m))
     H_mueble = max(130, min(H_mueble, 370))
-    H = H_mueble + soporte_px + pad  # canvas total
+    H = H_mueble + soporte_px + pad
 
     es_embutida = "Embutida" in tipo_tapa
     es_gola     = "Gola"     in tipo_tapa
@@ -773,10 +790,8 @@ def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_pue
     c_texto      = "#4A3728"
     c_gola       = "#2A2A2A"
     c_soporte    = "#8B7355"
-    c_pata       = "#A0522D"
     c_metal      = "#B0B0B0"
 
-    # La caja del mueble ocupa desde pad hasta pad+H_mueble
     caja_y = pad
     caja_h = H_mueble
 
@@ -787,30 +802,25 @@ def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_pue
 
     lines = [f'<svg viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:320px;border-radius:8px;">']
 
-    # ── SOPORTE (se dibuja ANTES de la caja para que quede atrás) ──
     if tiene_soporte:
         sx     = pad
-        sy     = caja_y + caja_h          # justo debajo de la caja
+        sy     = caja_y + caja_h
         sw     = W - pad * 2
         sh     = soporte_px
 
         if tipo_base == "Zócalo de Madera":
-            # Rectángulo macizo de madera, mismo ancho que la caja
             lines.append(f'<rect x="{sx}" y="{sy}" width="{sw}" height="{sh}" rx="1" fill="{c_soporte}" stroke="{c_estructura}" stroke-width="1"/>')
             lines.append(f'<rect x="{sx+4}" y="{sy+3}" width="{sw-8}" height="{sh-6}" rx="1" fill="{c_soporte}" opacity="0.5" stroke="{c_estructura}" stroke-width="0.5"/>')
             lines.append(f'<text x="{W//2}" y="{sy+sh//2+4}" text-anchor="middle" font-size="7" fill="white" opacity="0.8">ZÓCALO</text>')
 
         elif tipo_base == "Banquina":
-            # Dos bloques laterales (tipo U invertida)
             bw = sw // 5
             lines.append(f'<rect x="{sx}"        y="{sy}" width="{bw}" height="{sh}" rx="1" fill="{c_soporte}" stroke="{c_estructura}" stroke-width="1"/>')
             lines.append(f'<rect x="{sx+sw-bw}"  y="{sy}" width="{bw}" height="{sh}" rx="1" fill="{c_soporte}" stroke="{c_estructura}" stroke-width="1"/>')
-            # Barra horizontal arriba
             lines.append(f'<rect x="{sx}" y="{sy}" width="{sw}" height="4" fill="{c_soporte}" opacity="0.6"/>')
             lines.append(f'<text x="{W//2}" y="{sy+sh//2+4}" text-anchor="middle" font-size="7" fill="{c_texto}" opacity="0.7">BANQUINA</text>')
 
         elif tipo_base == "Patas Plásticas":
-            # 4 patas cilíndricas
             pw2 = 10
             ph2 = sh - 2
             posiciones = [sx+6, sx+sw//3, sx+2*sw//3, sx+sw-pw2-6]
@@ -819,7 +829,6 @@ def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_pue
                 lines.append(f'<ellipse cx="{px2+pw2//2}" cy="{sy+2}" rx="{pw2//2}" ry="2.5" fill="{c_metal}" stroke="#888" stroke-width="0.8"/>')
             lines.append(f'<text x="{W//2}" y="{sy+sh+10}" text-anchor="middle" font-size="7" fill="{c_texto}" opacity="0.6">PATAS</text>')
 
-    # ── CAJA DEL MUEBLE ──
     lines.append(f'<rect x="{pad}" y="{caja_y}" width="{W-pad*2}" height="{caja_h}" rx="3" fill="{c_fondo_int}" stroke="{c_estructura}" stroke-width="2"/>')
     lines.append(f'<rect x="{pad}" y="{caja_y}" width="{esp}" height="{caja_h}" fill="{c_estructura}"/>')
     lines.append(f'<rect x="{W-pad-esp}" y="{caja_y}" width="{esp}" height="{caja_h}" fill="{c_estructura}"/>')
@@ -920,20 +929,15 @@ def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_pue
                 mx = px + pw - 12 if p % 2 == 0 else px + 6
                 lines.append(f'<rect x="{mx}" y="{py + ph - 30}" width="6" height="24" rx="2" fill="{c_manija}"/>')
 
-    # ── PLACARD ──────────────────────────────────────────────────────────
     elif tipo_modulo == "Placard":
-        # Usamos division_placard y zonas si se pasan como kwargs,
-        # sino dibujamos un placard genérico con división central
         _div = kwargs.get("division_placard", "Sin división")
         _z_izq   = kwargs.get("zona_izq",   "Solo estantes")
         _z_der   = kwargs.get("zona_der",   "Solo estantes")
         _z_unica = kwargs.get("zona_unica", "Solo estantes")
 
-        # Frentín superior
         frenin_h = int(ih * 0.07)
         lines.append(f'<rect x="{ix}" y="{iy}" width="{iw}" height="{frenin_h}" fill="{c_estructura}" opacity="0.5"/>')
 
-        # División(es) vertical(es)
         if _div == "Una división central":
             mid_x = ix + iw // 2
             lines.append(f'<rect x="{mid_x - 2}" y="{iy}" width="4" height="{ih}" fill="{c_estructura}"/>')
@@ -955,47 +959,37 @@ def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_pue
         else:  # Sin división
             zonas_svg = [(ix, iw, _z_unica)]
 
-        # Dibujamos el contenido de cada zona
         for zx, zw, ztipo in zonas_svg:
             zy_content = iy + frenin_h + 4
             zh_content = ih - frenin_h - 8
             if ztipo == "Solo estantes":
-                # 3 líneas de estante
                 paso = zh_content // 4
                 for k in range(1, 4):
                     sy = zy_content + paso * k
                     lines.append(f'<rect x="{zx+2}" y="{sy}" width="{zw-4}" height="3" rx="1" fill="{c_estante}" opacity="0.6"/>')
             elif ztipo == "Ropa colgada":
-                # Tubo horizontal a ~60% de la altura
                 tubo_y = zy_content + int(zh_content * 0.60)
                 lines.append(f'<rect x="{zx+4}" y="{tubo_y}" width="{zw-8}" height="4" rx="2" fill="{c_metal}" opacity="0.8"/>')
-                # Perchas (3 triángulos simples)
                 paso_p = (zw - 8) // 4
                 for k in range(1, 4):
                     px_p = zx + 4 + paso_p * k
                     lines.append(f'<line x1="{px_p}" y1="{tubo_y}" x2="{px_p - 6}" y2="{tubo_y + 12}" stroke="{c_metal}" stroke-width="1.5" opacity="0.6"/>')
                     lines.append(f'<line x1="{px_p}" y1="{tubo_y}" x2="{px_p + 6}" y2="{tubo_y + 12}" stroke="{c_metal}" stroke-width="1.5" opacity="0.6"/>')
-                # Estante superior
                 lines.append(f'<rect x="{zx+2}" y="{zy_content + 6}" width="{zw-4}" height="3" rx="1" fill="{c_estante}" opacity="0.6"/>')
             elif ztipo == "Cajones":
-                # 3 cajones
                 paso_c = zh_content // 3
                 for k in range(3):
                     cy = zy_content + paso_c * k + 2
                     lines.append(f'<rect x="{zx+3}" y="{cy}" width="{zw-6}" height="{paso_c - 4}" rx="1" fill="{c_cajon}" opacity="0.7" stroke="{c_estructura}" stroke-width="0.5"/>')
-                    # manija
                     lines.append(f'<rect x="{zx + zw//2 - 8}" y="{cy + (paso_c-4)//2 - 2}" width="16" height="4" rx="2" fill="{c_manija}" opacity="0.8"/>')
 
-    # ── PANEL A MEDIDA ────────────────────────────────────────────────────
     elif tipo_modulo == "Pieza Suelta":
-        # Rectángulo punteado con texto L×A centrado
         lines.append(f'<rect x="{ix}" y="{iy}" width="{iw}" height="{ih}" rx="3" fill="none" stroke="{c_estructura}" stroke-width="1.5" stroke-dasharray="6,4" opacity="0.5"/>')
         mid_x = ix + iw // 2
         mid_y = iy + ih // 2
         lines.append(f'<text x="{mid_x}" y="{mid_y - 8}" text-anchor="middle" font-size="14" fill="{c_texto}" opacity="0.5" font-weight="bold">{int(ancho_m)}</text>')
         lines.append(f'<text x="{mid_x}" y="{mid_y + 6}" text-anchor="middle" font-size="10" fill="{c_texto}" opacity="0.4">×</text>')
         lines.append(f'<text x="{mid_x}" y="{mid_y + 20}" text-anchor="middle" font-size="14" fill="{c_texto}" opacity="0.5" font-weight="bold">{int(alto_m)}</text>')
-        # Flechas de dimensión
         lines.append(f'<line x1="{ix+2}" y1="{iy + ih//2}" x2="{ix + iw - 2}" y2="{iy + ih//2}" stroke="{c_texto}" stroke-width="0.5" opacity="0.2"/>')
         lines.append(f'<line x1="{ix + iw//2}" y1="{iy + 2}" x2="{ix + iw//2}" y2="{iy + ih - 2}" stroke="{c_texto}" stroke-width="0.5" opacity="0.2"/>')
 
@@ -1223,16 +1217,6 @@ if not st.session_state["onboarding_visto"]:
 # ===========================================================================
 # SESSION STATE — un único dict edit_ctx maneja todo el estado de edición
 # ===========================================================================
-# edit_ctx puede tener estos modos:
-#   None                  → cotizador limpio (nuevo módulo)
-#   {"modo": "nuevo_modulo_obra"}           → agregando módulo a obra en curso
-#   {"modo": "editar_modulo_obra",
-#    "idx": int, "obra_id": str|None,
-#    "obra_cliente": str, "params": dict}   → editando un módulo de la obra
-#   {"modo": "editar_legacy",
-#    "id": str, "cliente": str,
-#    "params": dict}                        → editando presupuesto individual
-# ===========================================================================
 for k, v in {
     "obra_modulos":  [],
     "edit_ctx":      None,
@@ -1242,6 +1226,10 @@ for k, v in {
         st.session_state[k] = v
 
 maderas, fondos, config = traer_datos()
+
+# Identificadores de permisos y rol multi-usuario
+es_empleado = (_obtener_rol_actual() == "empleado")
+
 _opciones_menu  = ["🪵 Cotizador", "♻️ Retazos", "📋 Historial", "⚙️ Precios"]
 _editando_algo  = st.session_state.get("edit_ctx") is not None
 
@@ -1262,6 +1250,24 @@ st.sidebar.markdown(f"""<div style="padding:12px 4px 16px 4px;border-bottom:1px 
   <div style="font-size:11px;color:rgba(255,255,255,0.55);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px;">{_user_email}</div>
 </div>
 </div>""", unsafe_allow_html=True)
+
+# UX: Indicador visual del Taller Activo en la barra lateral
+_info_taller = _resolver_datos_miembro(_user_id())
+if _info_taller:
+    rol_label = "Propietario 👑" if _info_taller["rol"] == "dueño" else "Colaborador 🛠️"
+    st.sidebar.markdown(f"""
+    <div style="background:rgba(255,255,255,0.08);border-radius:8px;padding:10px 12px;margin: -8px 0 16px 0;border:1px solid rgba(255,255,255,0.15);">
+        <div style="font-size:10px;color:rgba(255,255,255,0.5);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">TALLER ACTIVO</div>
+        <div style="font-size:12px;font-weight:600;color:white;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{_info_taller["nombre_taller"]}</div>
+        <div style="font-size:11px;color:#1D9E75;margin-top:2px;font-weight:500;">{rol_label}</div>
+    </div>
+    """, unsafe_allow_html=True)
+else:
+    st.sidebar.markdown("""
+    <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:10px 12px;margin: -8px 0 16px 0;">
+        <div style="font-size:11px;color:rgba(255,255,255,0.5);font-weight:500;">Modo de Uso: Individual</div>
+    </div>
+    """, unsafe_allow_html=True)
 
 if _editando_algo:
     menu = "🪵 Cotizador"
@@ -1288,15 +1294,10 @@ if st.sidebar.button("Cerrar sesión"):
 # HELPERS DE SERIALIZACIÓN
 # ===========================================================================
 def _params_desde_mod(m):
-    """Extrae el dict de params de un módulo (compatible con formato viejo y nuevo).
-    Internamente usa ModuloBVM.from_raw() para validar y normalizar — pero el
-    contrato de salida (un dict con estas claves exactas) no cambia, así que
-    nada aguas abajo (SVG, motor, PDF, exportadores) se ve afectado."""
+    """Extrae el dict de params de un módulo."""
     try:
         return ModuloBVM.from_raw(m).to_legacy_dict()
     except Exception:
-        # Fallback ultra defensivo: si algo en el modelo falla, devolvemos
-        # un módulo en blanco en vez de crashear toda la pantalla.
         return ModuloBVM().to_legacy_dict()
 
 def _serializar_obra_para_nube(mods):
@@ -1333,7 +1334,6 @@ if menu == "🪵 Cotizador":
     # ───────────────────────────────────────────────────────────────────────
     # BANNER de edición activa
     # ───────────────────────────────────────────────────────────────────────
-    # ── MODO ESPECIAL: selector de módulo para obras con varios módulos ──
     if modo == "elegir_modulo_obra":
         _mods_elegir = [m for m in st.session_state.get("obra_modulos", []) if m is not None]
         _cli_elegir  = ctx.get("obra_cliente", "")
@@ -1359,7 +1359,6 @@ if menu == "🪵 Cotizador":
             st.session_state.pop("_obra_cliente_historial", None)
             _limpiar_edicion()
             st.rerun()
-        # No renderizamos el cotizador en este modo
         st.stop()
 
     elif modo == "editar_modulo_obra":
@@ -1383,18 +1382,14 @@ if menu == "🪵 Cotizador":
         return ep[key] if ep and key in ep else default
 
     # ───────────────────────────────────────────────────────────────────────
-    # Tipo de módulo: se persiste en session_state para que los botones
-    # de selección funcionen sin conflicto
+    # Tipo de módulo
     # ───────────────────────────────────────────────────────────────────────
     _tipo_default = _v("tipo_modulo", "Bajo Mesada")
-    # Hash estable: usamos el tipo_modulo + ancho + alto del contexto
-    # así el hash no cambia entre reruns del mismo contexto
     _ctx_sig = f"{_tipo_default}_{_v('ancho_m',0)}_{_v('alto_m',0)}_{_v('precio_guardado',0)}" if ep else "none"
     if "_tipo_modulo_sel" not in st.session_state or st.session_state.get("_ctx_sig_prev") != _ctx_sig:
         st.session_state["_tipo_modulo_sel"] = _tipo_default
         st.session_state["_ctx_sig_prev"]    = _ctx_sig
 
-    # Defaults de variables (se usan antes de renderizar los expanders)
     df_corte = pd.DataFrame()
     costo_madera = costo_fondo = costo_herrajes = precio_final = total_costo = 0.0
     m2_18mm = m2_fondo = costo_operativo = utilidad = 0.0
@@ -1420,7 +1415,7 @@ if menu == "🪵 Cotizador":
     altura_base         = _v("altura_base", 0.0)
     sin_fondo           = _v("sin_fondo", False)
     indices_fijos       = []
-    # Defaults Placard y Panel (se sobreescriben en el expander si aplica)
+    
     division_placard            = _v("division_placard", "Sin división")
     zona_izq                    = _v("zona_izq",   "Solo estantes")
     zona_der                    = _v("zona_der",   "Solo estantes")
@@ -1485,7 +1480,6 @@ if menu == "🪵 Cotizador":
         mat_fondo_sel = st.selectbox("Material del fondo", lista_fondos, index=idx_fondo)
         sin_fondo = mat_fondo_sel == "Sin fondo"
 
-        # Validaciones en tiempo real
         if ancho_m > 0 and alto_m > 0:
             _warns = []
             if tipo_modulo == "Bajo Mesada" and alto_m > 950:
@@ -1563,7 +1557,6 @@ if menu == "🪵 Cotizador":
             cant_cajones = 0
 
         elif tipo_modulo == "Placard":
-            # Defaults específicos de placard
             division_placard = _v("division_placard", "Sin división")
             zona_izq         = _v("zona_izq",   "Solo estantes")
             zona_der         = _v("zona_der",   "Solo estantes")
@@ -1583,7 +1576,6 @@ if menu == "🪵 Cotizador":
                                          index=_div_opts.index(division_placard) if division_placard in _div_opts else 0)
             tiene_frentin_placard = st.checkbox("¿Lleva frentín superior?", value=tiene_frentin_placard)
 
-            # Opciones de zona según la división elegida
             _zona_opts = ["Solo estantes", "Ropa colgada", "Cajones"]
             if division_placard == "Sin división":
                 st.markdown("**Contenido del placard**")
@@ -1601,7 +1593,6 @@ if menu == "🪵 Cotizador":
                     cant_cajones_placard = st.number_input("Cantidad de cajones", value=max(1,cant_cajones_placard), min_value=1, max_value=8)
 
             else:
-                # Dos zonas o tres zonas
                 _zonas_config = [("Zona izquierda", "zona_izq", "izq"),
                                   ("Zona derecha",   "zona_der", "der")]
                 if division_placard == "Dos divisiones":
@@ -1633,7 +1624,7 @@ if menu == "🪵 Cotizador":
                     if _nueva_zona == "Cajones":
                         cant_cajones_placard = st.number_input(f"Cajones — {label_z}", value=max(1,cant_cajones_placard), min_value=1, max_value=8, key=f"caj_{sufijo_z}")
 
-            cant_cajones = 0  # no aplica para placard
+            cant_cajones = 0
 
         elif tipo_modulo == "Pieza Suelta":
             st.markdown("""
@@ -1688,7 +1679,7 @@ Para piezas que no entran en ningún módulo automático:<br>
         tipo_base = "Nada"; altura_base = 0.0; costo_base = 0
 
       st.markdown("---")
-      st.markdown("#### 🔩 Herrajes y Accesorios")  # siempre visible (no expander)
+      st.markdown("#### 🔩 Herrajes y Accesorios")
       if tipo_modulo in ["Bajo Mesada","Alacena"] and cant_puertas > 0:
           st.info(f"💡 Sugerencia: {cant_puertas * 2} bisagras.")
       elif tipo_modulo == "Cajonera" and cant_cajones > 0:
@@ -1727,7 +1718,6 @@ Para piezas que no entran en ningún módulo automático:<br>
                                          cant_puertas, cant_cajones, estantes_fijos, estantes_moviles,
                                          tiene_parante, sin_fondo, distribucion_tapas,
                                          tipo_base=tipo_base, altura_base=altura_base,
-                                         # Placard — datos de zonas para el SVG dinámico
                                          division_placard=division_placard,
                                          zona_izq=zona_izq, zona_der=zona_der, zona_unica=zona_unica)
           if svg_prev:
@@ -1740,7 +1730,6 @@ Para piezas que no entran en ningún módulo automático:<br>
 
       nombre_modulo = _v("nombre", f"{tipo_modulo} {ancho_m:.0f}mm")
       if alto_m > 0 and ancho_m > 0 and cliente:
-          # Variables de Placard con defaults seguros para otros tipos
           _div_pl   = division_placard            if tipo_modulo == "Placard" else "Sin división"
           _z_izq    = zona_izq                    if tipo_modulo == "Placard" else "Solo estantes"
           _z_der    = zona_der                    if tipo_modulo == "Placard" else "Solo estantes"
@@ -1769,14 +1758,12 @@ Para piezas que no entran en ningún módulo automático:<br>
               estantes_fijos=estantes_fijos, estantes_moviles=estantes_moviles,
               tipo_estante_manual=tipo_estante_manual, sin_fondo=sin_fondo,
               tiene_parante_medio=tiene_parante_medio,
-              # Placard
               division_placard=_div_pl, zona_izq=_z_izq, zona_der=_z_der, zona_unica=_z_unica,
               altura_tubo=_h_tubo,
               cant_estantes_izq_fijos=_ef_izq,   cant_estantes_izq_moviles=_em_izq,
               cant_estantes_der_fijos=_ef_der,   cant_estantes_der_moviles=_em_der,
               cant_estantes_unica_fijos=_ef_uni, cant_estantes_unica_moviles=_em_uni,
               cant_cajones_placard=_caj_pl,
-              # Panel
               cant_paneles=_cant_pan,
               nota_pieza=nota_pieza if tipo_modulo == 'Pieza Suelta' else '',
           )
@@ -1800,7 +1787,6 @@ Para piezas que no entran en ningún módulo automático:<br>
               costo_operativo = dias_prod * config.get("gastos_fijos_diarios", 0)
               total_costo     = costo_madera + costo_fondo + costo_herrajes + costo_operativo + costo_base
 
-              # Terminal CNC — solo se muestra cuando hay datos calculados en esta sesión
               st.write("---")
               with st.expander("⚙️ Terminal CNC — Este módulo"):
                   import io as _io, ezdxf as _ezdxf
@@ -1823,7 +1809,7 @@ Para piezas que no entran en ningún módulo automático:<br>
           st.warning("Esperando medidas para calcular...")
 
       st.write("---")
-      esp_real = esp_real if "esp_real" in dir() else 18.0  # guard por si no se calculó
+      esp_real = esp_real if "esp_real" in dir() else 18.0
       retazos_stock = consultar_retazos_disponibles(mat_principal)
       if not df_corte.empty:
           ahorro_madera, matches = calcular_ahorro_retazos(df_corte, retazos_stock, maderas.get(mat_principal, 0.0))
@@ -1834,33 +1820,43 @@ Para piezas que no entran en ningún módulo automático:<br>
       precio_final = total_costo_real + utilidad
       pct_margen   = (utilidad / precio_final * 100) if precio_final > 0 else 0.0
 
-      # Precio a usar: recálculo si hubo, o precio guardado en edición
       _precio_guardado = float(_v("precio_guardado", 0))
       precio_a_usar = precio_final if precio_final > 0 else _precio_guardado
 
       if precio_a_usar > 0:
-          _color  = "#0F6E56" if pct_margen >= 12 else "#A32D2D"
-          _alerta = "Operación rentable" if pct_margen >= 12 else "Margen bajo — revisá los costos"
-          _icono  = "✅" if pct_margen >= 12 else "⚠️"
           _nota   = " (precio guardado — recalculá si cambiaste medidas)" if precio_final == 0 and _precio_guardado > 0 else ""
-          st.markdown(f'''<div style="background:{_color};border-radius:10px;padding:20px 24px;margin:8px 0 16px 0;text-align:center;">
-          <div style="color:white;font-size:12px;opacity:0.8;margin-bottom:6px;">VALOR DEL MUEBLE{_nota}</div>
-          <div style="color:white;font-size:44px;font-weight:700;letter-spacing:-1px;">${precio_a_usar:,.0f}</div>
-          <div style="color:white;font-size:12px;opacity:0.8;margin-top:8px;">{_icono} Margen: {pct_margen:.1f}% — {_alerta}</div>
-          </div>''', unsafe_allow_html=True)
+          if es_empleado:
+              # UX/Seguridad: Banner sin margen porcentual ni alertas financieras para el empleado
+              st.markdown(f'''<div style="background:#0F6E56;border-radius:10px;padding:20px 24px;margin:8px 0 16px 0;text-align:center;">
+              <div style="color:white;font-size:12px;opacity:0.8;margin-bottom:6px;">VALOR DEL MUEBLE{_nota}</div>
+              <div style="color:white;font-size:44px;font-weight:700;letter-spacing:-1px;">${precio_a_usar:,.0f}</div>
+              </div>''', unsafe_allow_html=True)
+          else:
+              _color  = "#0F6E56" if pct_margen >= 12 else "#A32D2D"
+              _alerta = "Operación rentable" if pct_margen >= 12 else "Margen bajo — revisá los costos"
+              _icono  = "✅" if pct_margen >= 12 else "⚠️"
+              st.markdown(f'''<div style="background:{_color};border-radius:10px;padding:20px 24px;margin:8px 0 16px 0;text-align:center;">
+              <div style="color:white;font-size:12px;opacity:0.8;margin-bottom:6px;">VALOR DEL MUEBLE{_nota}</div>
+              <div style="color:white;font-size:44px;font-weight:700;letter-spacing:-1px;">${precio_a_usar:,.0f}</div>
+              <div style="color:white;font-size:12px;opacity:0.8;margin-top:8px;">{_icono} Margen: {pct_margen:.1f}% — {_alerta}</div>
+              </div>''', unsafe_allow_html=True)
 
+      # UX/Seguridad: Métricas limitadas para empleados (oculta Costo y Ganancia Neta)
       c1, c2, c3 = st.columns(3)
-      c1.metric("Costo real",    f"${total_costo_real:,.0f}")
-      c2.metric("M² de placa",   f"{m2_18mm:.2f}")
-      c3.metric("Ganancia neta", f"${utilidad:,.0f}")
+      if es_empleado:
+          c1.metric("M² de placa", f"{m2_18mm:.2f}")
+      else:
+          c1.metric("Costo real",    f"${total_costo_real:,.0f}")
+          c2.metric("M² de placa",   f"{m2_18mm:.2f}")
+          c3.metric("Ganancia neta", f"${utilidad:,.0f}")
 
-      if matches:
+      if matches and not es_empleado:
           st.success(f"♻️ **¡Ahorro por retazos!** {len(matches)} pieza(s) — **${ahorro_madera:,.0f}**")
           with st.expander("Ver detalle"):
               for m_r in matches:
                   st.write(f"• **{m_r['pieza']}** → Retazo ID-{m_r['retazo_id']} — ${m_r['ahorro']:,.0f}")
 
-      if precio_final > 0:
+      if precio_final > 0 and not es_empleado:
           with st.expander("📊 Desglose de costos"):
               st.bar_chart(pd.DataFrame({
                   "Categoría": ["Madera/Fondo","Herrajes","Operativo","Ganancia"],
@@ -1871,8 +1867,6 @@ Para piezas que no entran en ningún módulo automático:<br>
       # SECCIÓN: botones de acción
       # ─────────────────────────────────────────────────────────────────────
       st.write("---")
-
-      # nombre_modulo tiene default aquí para que el Terminal CNC siempre lo tenga
 
       def _build_params_dict():
           return {
@@ -1894,7 +1888,6 @@ Para piezas que no entran en ningún módulo automático:<br>
               "herrajes_extra": herrajes_extra_sel,
               "distancia_parante": distancia_parante,
               "precio_guardado": precio_a_usar,
-              # Placard
               "division_placard":            division_placard           if tipo_modulo == "Placard" else "Sin división",
               "zona_izq":                    zona_izq                   if tipo_modulo == "Placard" else "Solo estantes",
               "zona_der":                    zona_der                   if tipo_modulo == "Placard" else "Solo estantes",
@@ -1908,12 +1901,10 @@ Para piezas que no entran en ningún módulo automático:<br>
               "cant_estantes_unica_moviles": cant_estantes_unica_moviles if tipo_modulo == "Placard" else 0,
               "cant_cajones_placard":        cant_cajones_placard       if tipo_modulo == "Placard" else 0,
               "tiene_frentin_placard":       tiene_frentin_placard      if tipo_modulo == "Placard" else False,
-              # Panel a Medida
               "cant_paneles": cant_paneles if tipo_modulo == "Pieza Suelta" else 1,
               "nota_pieza":   nota_pieza   if tipo_modulo == "Pieza Suelta" else "",
           }
 
-      # ── MODO: edición de presupuesto individual legacy ──
       if modo == "editar_legacy":
           st.subheader("💾 Guardar cambios")
           if st.button("Guardar cambios en el Historial", use_container_width=True, type="primary"):
@@ -1928,7 +1919,6 @@ Para piezas que no entran en ningún módulo automático:<br>
                   _limpiar_edicion()
                   st.rerun()
 
-      # ── MODO: edición de módulo dentro de obra ──
       elif modo == "editar_modulo_obra":
           st.subheader("✅ Confirmar cambios en el módulo")
           nombre_modulo = st.text_input("Nombre del módulo", value=_v("nombre", f"{tipo_modulo} {ancho_m:.0f}mm"))
@@ -1950,7 +1940,6 @@ Para piezas que no entran en ningún módulo automático:<br>
                   mods = [m for m in mods if m is not None]
                   st.session_state["obra_modulos"] = mods
 
-                  # Auto-guardado en nube preservando logística guardada
                   _oid = ctx.get("obra_id")
                   _cli = ctx.get("obra_cliente") or cliente
                   if _oid and _cli:
@@ -1959,13 +1948,11 @@ Para piezas que no entran en ningún módulo automático:<br>
                       _guardar_obra_nube(mods, _cli, _oid,
                                           total_con_logistica=_tot_prev,
                                           logistica=_log_prev)
-                  # Limpieza solo de edit_ctx — obra_modulos queda intacto
                   _limpiar_edicion()
                   st.session_state["_tipo_modulo_sel"] = "Bajo Mesada"
                   st.toast(f"✅ {nombre_modulo} actualizado", icon="✏️")
                   st.rerun()
 
-      # ── MODO: módulo nuevo → va al carrito de obra ──
       else:
           st.subheader("🛒 Agregar al Resumen de Obra")
           st.markdown("<span style='color:#666;font-size:14px;'>Cada módulo se suma al presupuesto total de la obra.</span>", unsafe_allow_html=True)
@@ -1992,7 +1979,6 @@ Para piezas que no entran en ningún módulo automático:<br>
                   st.rerun()
 
       if st.session_state.get("ultimo_agregado"):
-          # El toast ya se mostró al agregar — limpiamos el flag
           st.session_state["ultimo_agregado"] = None
 
 
@@ -2009,7 +1995,6 @@ Para piezas que no entran en ningún módulo automático:<br>
         for i_m, mod in enumerate(_mods_obra):
             col_mod, col_plan, col_dup, col_edit, col_del = st.columns([5, 1, 1, 1, 1])
             col_mod.write(f"**{i_m+1}. {mod['nombre']}** — {mod['ancho']}×{mod['alto']}×{mod['prof']} mm — {mod['material']} — `${mod['precio']:,.0f}`")
-            # 📋 Planilla individual descargable (solo si tiene df_corte de sesión)
             if mod.get("df_corte") is not None and not mod["df_corte"].empty:
                 _df_dl = mod["df_corte"].copy()
                 _esp_m  = mod.get("params", {}).get("esp_real", 18.0)
@@ -2032,7 +2017,6 @@ Para piezas que no entran en ningún módulo automático:<br>
                 st.toast(f"⧉ {mod['nombre']} duplicado", icon="📋")
                 st.rerun()
             if col_edit.button("✏️", key=f"edit_mod_{i_m}", help="Editar este módulo"):
-                # Si la obra vino del historial, preservamos su ID para auto-guardado
                 _obra_id_ctx     = st.session_state.get("_obra_id_historial")
                 _obra_cli_ctx    = st.session_state.get("_obra_cliente_historial") or (cliente if cliente else "")
                 st.session_state["edit_ctx"] = {
@@ -2103,10 +2087,6 @@ Para piezas que no entran en ningún módulo automático:<br>
             else:
                 st.warning("Calculá los módulos en esta sesión para exportar CNC.")
 
-        # ─────────────────────────────────────────────────────────────────
-        # OPTIMIZACIÓN DE CORTE (Bin Packing) — cuántas placas necesito
-        # y cómo se distribuyen las piezas, igual que Lepton/Polyboard.
-        # ─────────────────────────────────────────────────────────────────
         if _OPTIMIZADOR_DISPONIBLE:
             with st.expander("📐 Optimización de Corte — ¿Cuántas placas necesito?", expanded=False):
                 _mods_opt = [m for m in _mods_obra if m.get("df_corte") is not None]
@@ -2143,7 +2123,6 @@ Para piezas que no entran en ningún módulo automático:<br>
             if not cliente_obra:
                 st.warning("Ingresá el nombre del cliente arriba.")
             else:
-                # Usamos el obra_id del historial si estamos editando una obra existente
                 _id_a_guardar = st.session_state.pop("_obra_id_historial", None)
                 _log_data = {
                     "flete_sel": flete_sel, "costo_flete": costo_flete,
@@ -2155,7 +2134,6 @@ Para piezas que no entran en ningún módulo automático:<br>
                                     total_con_logistica=total_obra,
                                     logistica=_log_data)
                 st.toast(f"💾 Obra de {cliente_obra} guardada — ${total_obra:,.0f}", icon="💾")
-                # Limpieza total — cotizador queda completamente en blanco
                 st.session_state["obra_modulos"]    = []
                 st.session_state["logistica_obra"]  = {}
                 st.session_state["ultimo_agregado"] = None
@@ -2164,11 +2142,6 @@ Para piezas que no entran en ningún módulo automático:<br>
                 st.session_state.pop("_obra_id_historial",      None)
                 st.session_state.pop("_ctx_sig_prev",           None)
                 st.session_state["edit_ctx"] = None
-                # Resetear los campos de medidas a 0 — usamos `del` en vez de
-                # asignación directa porque el widget ya fue instanciado en
-                # este mismo run y Streamlit no permite sobreescribirlo
-                # (StreamlitAPIException). Al borrar la key, en el próximo
-                # rerun el number_input vuelve a su `value` por defecto (0.0).
                 for _k in ["inp_ancho", "inp_alto", "inp_prof"]:
                     if _k in st.session_state:
                         del st.session_state[_k]
@@ -2201,7 +2174,6 @@ elif menu == "📋 Historial":
             total_pend = df_hist[df_hist['estado']=='Pendiente']['precio_final'].sum()
             total_pag  = df_hist[df_hist['estado']=='Pagado']['precio_final'].sum()
 
-            # Señados: mostrar solo la suma de las señas (no el total de la obra)
             total_senas = 0.0
             df_sen = df_hist[df_hist['estado']=='Señado']
             for _, row_s in df_sen.iterrows():
@@ -2239,7 +2211,6 @@ elif menu == "📋 Historial":
                 icono, bg, tc = COLORES[estado_actual]
                 id_venta = row.get('id')
 
-                # Lógica financiera: seña y saldo
                 precio_total = float(row.get('precio_final', 0))
                 pct_sena = 50
                 try:
@@ -2290,7 +2261,6 @@ elif menu == "📋 Historial":
                                 mods      = params.get("modulos", [])
                                 cliente_h = row.get('cliente','')
 
-                                # Convertimos al formato interno de obra_modulos
                                 mods_internos = []
                                 for m in mods:
                                     p = _params_desde_mod(m)
@@ -2315,7 +2285,6 @@ elif menu == "📋 Historial":
                                 st.session_state["menu_idx"] = 0
 
                                 if len(mods_internos) == 1:
-                                    # Un solo módulo: cargarlo directo en el cotizador
                                     st.session_state["edit_ctx"] = {
                                         "modo":        "editar_modulo_obra",
                                         "idx":         0,
@@ -2324,14 +2293,12 @@ elif menu == "📋 Historial":
                                         "params":      mods_internos[0]["params"],
                                     }
                                 else:
-                                    # Varios módulos: ir al cotizador y mostrar selector arriba
                                     st.session_state["edit_ctx"] = {
                                         "modo":        "elegir_modulo_obra",
                                         "obra_id":     id_venta,
                                         "obra_cliente": cliente_h,
                                     }
                             else:
-                                # Presupuesto individual
                                 params["precio_guardado"] = float(row.get("precio_final", 0))
                                 st.session_state["edit_ctx"] = {
                                     "modo":    "editar_legacy",
@@ -2423,44 +2390,63 @@ elif menu == "♻️ Retazos":
                             st.error(f"Error: {e}")
 
 
+# ===========================================================================
+# RETAZOS / CONFIGURACIÓN DE PRECIOS
+# ===========================================================================
 elif menu == "⚙️ Precios":
     st.title("⚙️ Configuración de precios")
 
-    with st.expander("👥 Mi Equipo / Taller", expanded=False):
-        st.caption("Compartí tu configuración de precios, historial y depósito de retazos con un empleado o socio. Ambos van a ver y editar los mismos datos.")
-        col_inv1, col_inv2 = st.columns([3, 1])
-        email_inv = col_inv1.text_input("Email del empleado/socio", placeholder="empleado@email.com", label_visibility="collapsed")
-        if col_inv2.button("Invitar", use_container_width=True):
-            if email_inv:
-                if invitar_a_taller(email_inv):
-                    st.success(f"✅ {email_inv} ahora comparte tu taller en BVM.")
+    # 1. Gestión de Equipo o Taller (adaptado según rol del usuario)
+    if es_empleado:
+        with st.expander("👥 Mi Equipo / Taller", expanded=True):
+            st.markdown(f"Formás parte del taller **{_info_taller['nombre_taller']}** como colaborador (🛠️ Rol: Empleado).")
+            st.caption("No tenés permisos para invitar a otros usuarios ni editar tarifas de costo del taller.")
+            st.write("")
+            if st.button("🚪 Abandonar Taller", type="primary", use_container_width=True):
+                if abandonar_taller():
+                    st.toast("Has abandonado el taller. Volviendo al modo individual.", icon="🚪")
                     st.rerun()
-            else:
-                st.warning("Ingresá un email.")
-        st.caption("⚠️ El invitado necesita tener cuenta creada en BVM (pestaña Registro) antes de invitarlo.")
+    else:
+        with st.expander("👥 Mi Equipo / Taller", expanded=False):
+            st.caption("Compartí tu configuración de precios, historial y depósito de retazos con un empleado o socio. Ambos van a ver y editar los mismos datos.")
+            col_inv1, col_inv2 = st.columns([3, 1])
+            email_inv = col_inv1.text_input("Email del empleado/socio", placeholder="empleado@email.com", label_visibility="collapsed")
+            if col_inv2.button("Invitar", use_container_width=True):
+                if email_inv:
+                    if invitar_a_taller(email_inv):
+                        st.success(f"✅ {email_inv} ahora comparte tu taller en BVM.")
+                        st.rerun()
+                else:
+                    st.warning("Ingresá un email.")
+            st.caption("⚠️ El invitado necesita tener cuenta creada en BVM (pestaña Registro) antes de invitarlo.")
 
+    # 2. Precios de Placas (Modo Lectura para Empleados)
     with st.expander("🪵 Precios de Placas (18mm)", expanded=True):
         for madera, precio in list(maderas.items()):
-            col_name, col_price, col_del = st.columns([5, 3, 1])
+            # Si es empleado, no mostramos el botón de borrar (col_del) para evitar modificaciones accidentales
+            col_name, col_price, col_del = st.columns([5, 3, 1] if not es_empleado else [7, 3])
             col_name.markdown(f"<div style='padding-top: 8px; font-weight: 500;'>{madera}</div>", unsafe_allow_html=True)
-            maderas[madera] = col_price.number_input("Precio", value=float(precio), step=1000.0, key=f"p_{madera}", label_visibility="collapsed")
-            if col_del.button("🗑️", key=f"del_{madera}", help=f"Eliminar {madera}"):
-                eliminar_precio_nube(madera, 'maderas')
-                _traer_datos_db.clear()
-                st.rerun()
+            # Deshabilitamos el input para el empleado
+            maderas[madera] = col_price.number_input("Precio", value=float(precio), step=1000.0, key=f"p_{madera}", label_visibility="collapsed", disabled=es_empleado)
+            if not es_empleado:
+                if col_del.button("🗑️", key=f"del_{madera}", help=f"Eliminar {madera}"):
+                    eliminar_precio_nube(madera, 'maderas')
+                    _traer_datos_db.clear()
+                    st.rerun()
 
-        st.write("---")
-        st.markdown("**➕ Agregar nueva placa**")
-        c_nm, c_np, c_nb = st.columns([5, 3, 1])
-        nueva_mad_n = c_nm.text_input("Nombre", key="new_mad_n", label_visibility="collapsed", placeholder="Ej: Enchapado Nogal 18mm")
-        nueva_mad_p = c_np.number_input("Precio", min_value=0.0, step=1000.0, key="new_mad_p", label_visibility="collapsed")
-        if c_nb.button("Agregar", key="add_mad", use_container_width=True):
-            if nueva_mad_n and nueva_mad_p > 0:
-                actualizar_precio_nube(nueva_mad_n, nueva_mad_p, 'maderas')
-                _traer_datos_db.clear()
-                st.rerun()
+        if not es_empleado:
+            st.write("---")
+            st.markdown("**➕ Agregar nueva placa**")
+            c_nm, c_np, c_nb = st.columns([5, 3, 1])
+            nueva_mad_n = c_nm.text_input("Nombre", key="new_mad_n", label_visibility="collapsed", placeholder="Ej: Enchapado Nogal 18mm")
+            nueva_mad_p = c_np.number_input("Precio", min_value=0.0, step=1000.0, key="new_mad_p", label_visibility="collapsed")
+            if c_nb.button("Agregar", key="add_mad", use_container_width=True):
+                if nueva_mad_n and nueva_mad_p > 0:
+                    actualizar_precio_nube(nueva_mad_n, nueva_mad_p, 'maderas')
+                    _traer_datos_db.clear()
+                    st.rerun()
 
-    # Todos los herrajes: base + custom, misma estructura que placas
+    # 3. Herrajes (Modo Lectura para Empleados)
     _nombres_herraje = {
         'bisagra_cazoleta': 'Bisagra Cazoleta',
         'telescopica_45':   'Guía Telescópica 45cm',
@@ -2471,46 +2457,49 @@ elif menu == "⚙️ Precios":
 
     with st.expander("🔩 Herrajes, Cerraduras y Extras", expanded=False):
         for h_clave, h_precio in list(_todos_herrajes.items()):
-            col_name, col_price, col_del = st.columns([5, 3, 1])
+            col_name, col_price, col_del = st.columns([5, 3, 1] if not es_empleado else [7, 3])
             label = _nombres_herraje.get(h_clave, h_clave)
             col_name.markdown(f"<div style='padding-top: 8px; font-weight: 500;'>{label}</div>", unsafe_allow_html=True)
             config[h_clave] = col_price.number_input("Precio", value=float(h_precio), step=100.0,
-                                                      key=f"p_{h_clave}", label_visibility="collapsed")
-            if col_del.button("🗑️", key=f"del_{h_clave}", help=f"Eliminar {label}"):
-                eliminar_precio_nube(h_clave, 'herrajes')
-                _traer_datos_db.clear()
-                st.rerun()
+                                                      key=f"p_{h_clave}", label_visibility="collapsed", disabled=es_empleado)
+            if not es_empleado:
+                if col_del.button("🗑️", key=f"del_{h_clave}", help=f"Eliminar {label}"):
+                    eliminar_precio_nube(h_clave, 'herrajes')
+                    _traer_datos_db.clear()
+                    st.rerun()
 
-        st.write("---")
-        st.markdown("**➕ Agregar nuevo herraje**")
-        ch_nm, ch_np, ch_nb = st.columns([5, 3, 1])
-        nuevo_herr_n = ch_nm.text_input("Nombre", key="new_herr_n", label_visibility="collapsed",
-                                         placeholder="Ej: Cerradura cajón Hafele")
-        nuevo_herr_p = ch_np.number_input("Precio", min_value=0.0, step=100.0, key="new_herr_p",
-                                           label_visibility="collapsed")
-        if ch_nb.button("Agregar", key="add_herr", use_container_width=True):
-            if nuevo_herr_n and nuevo_herr_p > 0:
-                actualizar_precio_nube(nuevo_herr_n, nuevo_herr_p, 'herrajes')
-                _traer_datos_db.clear()
-                st.rerun()
+        if not es_empleado:
+            st.write("---")
+            st.markdown("**➕ Agregar nuevo herraje**")
+            ch_nm, ch_np, ch_nb = st.columns([5, 3, 1])
+            nuevo_herr_n = ch_nm.text_input("Nombre", key="new_herr_n", label_visibility="collapsed",
+                                             placeholder="Ej: Cerradura cajón Hafele")
+            nuevo_herr_p = ch_np.number_input("Precio", min_value=0.0, step=100.0, key="new_herr_p",
+                                               label_visibility="collapsed")
+            if ch_nb.button("Agregar", key="add_herr", use_container_width=True):
+                if nuevo_herr_n and nuevo_herr_p > 0:
+                    actualizar_precio_nube(nuevo_herr_n, nuevo_herr_p, 'herrajes')
+                    _traer_datos_db.clear()
+                    st.rerun()
 
-    with st.expander("🚛 Gastos Fijos y Logística", expanded=False):
-        f1, f2 = st.columns(2)
-        config['gastos_fijos_diarios'] = f1.number_input("Gasto Diario Taller", value=float(config.get('gastos_fijos_diarios', 25000)), step=5000.0)
-        config['flete_capital']        = f2.number_input("Flete Capital", value=float(config.get('flete_capital', 15000)), step=1000.0)
-        config['flete_norte']          = f1.number_input("Flete Zona Norte", value=float(config.get('flete_norte', 20000)), step=1000.0)
-        config['colocacion_dia']       = f2.number_input("Costo Día de Colocación", value=float(config.get('colocacion_dia', 45000)), step=5000.0)
+    # 4. Datos Financieros Sensibles (Ocultos por completo para Empleados)
+    if not es_empleado:
+        with st.expander("🚛 Gastos Fijos y Logística", expanded=False):
+            f1, f2 = st.columns(2)
+            config['gastos_fijos_diarios'] = f1.number_input("Gasto Diario Taller", value=float(config.get('gastos_fijos_diarios', 25000)), step=5000.0)
+            config['flete_capital']        = f2.number_input("Flete Capital", value=float(config.get('flete_capital', 15000)), step=1000.0)
+            config['flete_norte']          = f1.number_input("Flete Zona Norte", value=float(config.get('flete_norte', 20000)), step=1000.0)
+            config['colocacion_dia']       = f2.number_input("Costo Día de Colocación", value=float(config.get('colocacion_dia', 45000)), step=5000.0)
 
-    with st.expander("💰 Margen de Ganancia", expanded=False):
-        config['ganancia_taller_pct'] = st.slider("Porcentaje de Utilidad", 0.0, 1.0, float(config.get('ganancia_taller_pct', 0.3)), 0.05)
-        st.write(f"Margen actual: {config.get('ganancia_taller_pct', 0.3)*100:.0f}%")
+        with st.expander("💰 Margen de Ganancia", expanded=False):
+            config['ganancia_taller_pct'] = st.slider("Porcentaje de Utilidad", 0.0, 1.0, float(config.get('ganancia_taller_pct', 0.3)), 0.05)
+            st.write(f"Margen actual: {config.get('ganancia_taller_pct', 0.3)*100:.0f}%")
 
-    if st.button("💾 Guardar Configuración", type="primary", use_container_width=True):
-        for madera, precio in maderas.items():
-            actualizar_precio_nube(madera, precio, 'maderas')
-        for k, v in config.items():
-            cat = 'costos' if k in ['gastos_fijos_diarios', 'flete_capital', 'flete_norte', 'colocacion_dia', 'ganancia_taller_pct'] else 'herrajes'
-            actualizar_precio_nube(k, v, cat)
-        # Invalidar cache para que el cotizador vea los precios nuevos inmediatamente
-        _traer_datos_db.clear()
-        st.success("✅ Configuración guardada")
+        if st.button("💾 Guardar Configuración", type="primary", use_container_width=True):
+            for madera, precio in maderas.items():
+                actualizar_precio_nube(madera, precio, 'maderas')
+            for k, v in config.items():
+                cat = 'costos' if k in ['gastos_fijos_diarios', 'flete_capital', 'flete_norte', 'colocacion_dia', 'ganancia_taller_pct'] else 'herrajes'
+                actualizar_precio_nube(k, v, cat)
+            _traer_datos_db.clear()
+            st.success("✅ Configuración guardada")
