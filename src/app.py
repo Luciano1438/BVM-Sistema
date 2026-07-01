@@ -687,9 +687,10 @@ def eliminar_precio_nube(clave, categoria):
     except Exception as e:
         st.error(f"Error al eliminar {clave}: {e}")
 
-@st.cache_data(ttl=300, show_spinner=False)
+# Sincronización: Reducimos TTL a 5s para garantizar actualización en tiempo real en la pantalla del empleado
+@st.cache_data(ttl=5, show_spinner=False)
 def _traer_datos_db(scope_id: str, token: str, usa_taller: bool):
-    """Carga configuración desde Supabase. Cacheada 5 minutos por scope."""
+    """Carga configuración desde Supabase. Cacheada 5 segundos por scope."""
     supabase.postgrest.auth(token)
     query = supabase.table("configuracion").select("*")
     query = query.eq("taller_id", scope_id) if usa_taller else query.eq("user_id", scope_id)
@@ -1250,6 +1251,7 @@ for k, v in {
     "obra_modulos":  [],
     "edit_ctx":      None,
     "ultimo_agregado": None,
+    "cliente_actual": "",
 }.items():
     if k not in st.session_state:
         st.session_state[k] = v
@@ -1382,11 +1384,30 @@ if menu == "🪵 Cotizador":
                 st.session_state.pop("_tipo_modulo_sel", None)
                 st.session_state.pop("_ctx_sig_prev",    None)
                 st.rerun()
-        if st.button("✕ Cancelar", key="btn_cancel_elegir"):
+        
+        st.write("---")
+        c_fin, c_can = st.columns(2)
+        if c_fin.button("💾 Finalizar Edición (Guardar y Volver al Historial)", type="primary", use_container_width=True):
+            # Guardamos la obra entera de forma limpia
+            _log_prev = st.session_state.get("logistica_obra", {})
+            _tot_prev = sum(m["precio"] for m in _mods_elegir) + _log_prev.get("costo_log_total", 0.0)
+            _guardar_obra_nube(_mods_elegir, _cli_elegir, _oid_elegir,
+                                total_con_logistica=_tot_prev,
+                                logistica=_log_prev)
+            st.session_state["obra_modulos"] = []
+            st.session_state["cliente_actual"] = ""
+            _limpiar_edicion()
+            st.session_state["menu_idx"] = 2  # Redirigir al historial
+            st.toast("✅ Cambios en la obra guardados de forma definitiva.", icon="💾")
+            st.rerun()
+
+        if c_can.button("✕ Cancelar edición (Sin guardar cambios)", use_container_width=True):
             st.session_state["obra_modulos"] = []
             st.session_state.pop("_obra_id_historial",      None)
             st.session_state.pop("_obra_cliente_historial", None)
+            st.session_state["cliente_actual"] = ""
             _limpiar_edicion()
+            st.session_state["menu_idx"] = 2
             st.rerun()
         st.stop()
 
@@ -1445,11 +1466,11 @@ if menu == "🪵 Cotizador":
     sin_fondo           = _v("sin_fondo", False)
     indices_fijos       = []
     
-    division_placard            = _v("division_placard", "Sin división")
-    zona_izq                    = _v("zona_izq",   "Solo estantes")
-    zona_der                    = _v("zona_der",   "Solo estantes")
-    zona_unica                  = _v("zona_unica", "Solo estantes")
-    altura_tubo                 = int(_v("altura_tubo", 1200))
+    division_placard = _v("division_placard", "Sin división")
+    zona_izq         = _v("zona_izq",   "Solo estantes")
+    zona_der         = _v("zona_der",   "Solo estantes")
+    zona_unica       = _v("zona_unica", "Solo estantes")
+    altura_tubo      = int(_v("altura_tubo", 1200))
     tiene_frentin_placard       = bool(_v("tiene_frentin_placard", False))
     cant_cajones_placard        = int(_v("cant_cajones_placard", 0))
     cant_estantes_izq_fijos     = int(_v("cant_estantes_izq_fijos",    0))
@@ -1473,10 +1494,12 @@ if menu == "🪵 Cotizador":
     # ═══════════════════════════════════════════════════════════════════════
     with col_in:
       with st.expander("🛠️ Definición de estructura", expanded=True):
-        _cliente_default = ""
+        _cliente_default = st.session_state["cliente_actual"]
         if modo == "editar_modulo_obra": _cliente_default = ctx.get("obra_cliente", "")
         elif modo == "editar_legacy":    _cliente_default = ctx.get("cliente", "")
+        
         cliente = st.text_input("Cliente", _cliente_default)
+        st.session_state["cliente_actual"] = cliente
 
         st.markdown("**Tipo de mueble**")
         _svgs = {
@@ -1943,6 +1966,8 @@ Para piezas que no entran en ningún módulo automático:<br>
                                             parametros=_build_params_dict(),
                                             id_editar=ctx["id"])
                   _limpiar_edicion()
+                  st.session_state["_tipo_modulo_sel"] = "Bajo Mesada"
+                  st.session_state["menu_idx"] = 2
                   st.rerun()
 
       elif modo == "editar_modulo_obra":
@@ -1969,15 +1994,33 @@ Para piezas que no entran en ningún módulo automático:<br>
                   _oid = ctx.get("obra_id")
                   _cli = ctx.get("obra_cliente") or cliente
                   if _oid and _cli:
+                      # Sincronización: Auto-guardar la obra entera en la nube inmediatamente al editar
                       _log_prev = st.session_state.get("logistica_obra", {})
                       _tot_prev = sum(m["precio"] for m in mods) + _log_prev.get("costo_log_total", 0.0)
                       _guardar_obra_nube(mods, _cli, _oid,
                                           total_con_logistica=_tot_prev,
                                           logistica=_log_prev)
-                  _limpiar_edicion()
-                  st.session_state["_tipo_modulo_sel"] = "Bajo Mesada"
-                  st.toast(f"✅ {nombre_modulo} actualizado", icon="✏️")
-                  st.rerun()
+                      
+                      # Redirección inteligente según el tamaño de la obra
+                      if len(mods) > 1:
+                          st.session_state["edit_ctx"] = {
+                              "modo":        "elegir_modulo_obra",
+                              "obra_id":     _oid,
+                              "obra_cliente": _cli,
+                          }
+                          st.toast("✅ Módulo actualizado. Podés seguir editando la obra.", icon="✏️")
+                          st.rerun()
+                      else:
+                          st.session_state["obra_modulos"] = []
+                          st.session_state["cliente_actual"] = ""
+                          _limpiar_edicion()
+                          st.session_state["menu_idx"] = 2  # Redirige a Historial
+                          st.toast("✅ Presupuesto actualizado y guardado de forma definitiva.", icon="💾")
+                          st.rerun()
+                  else:
+                      _limpiar_edicion()
+                      st.toast(f"✅ {nombre_modulo} actualizado en el resumen local", icon="✏️")
+                      st.rerun()
 
       else:
           st.subheader("🛒 Agregar al Resumen de Obra")
@@ -2168,6 +2211,7 @@ Para piezas que no entran en ningún módulo automático:<br>
                 st.session_state.pop("_obra_id_historial",      None)
                 st.session_state.pop("_ctx_sig_prev",           None)
                 st.session_state["edit_ctx"] = None
+                st.session_state["cliente_actual"] = ""
                 for _k in ["inp_ancho", "inp_alto", "inp_prof"]:
                     if _k in st.session_state:
                         del st.session_state[_k]
@@ -2331,6 +2375,7 @@ elif menu == "📋 Historial":
                                 st.session_state["obra_modulos"]            = mods_internos
                                 st.session_state["_obra_id_historial"]      = id_venta
                                 st.session_state["_obra_cliente_historial"] = cliente_h
+                                st.session_state["cliente_actual"]          = cliente_h
                                 st.session_state.pop("_tipo_modulo_sel", None)
                                 st.session_state.pop("_ctx_sig_prev",    None)
                                 st.session_state["menu_idx"] = 0
@@ -2357,6 +2402,7 @@ elif menu == "📋 Historial":
                                     "cliente": row.get('cliente',''),
                                     "params":  params,
                                 }
+                                st.session_state["cliente_actual"] = row.get('cliente','')
                                 st.session_state.pop("_tipo_modulo_sel", None)
                                 st.session_state.pop("_ctx_sig_prev",    None)
                                 st.session_state["menu_idx"] = 0
@@ -2560,4 +2606,3 @@ elif menu == "⚙️ Precios":
                 actualizar_precio_nube(k, v, cat)
             _traer_datos_db.clear()
             st.success("✅ Configuración guardada")
-            
