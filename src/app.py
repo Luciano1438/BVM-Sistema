@@ -705,6 +705,7 @@ def actualizar_precio_nube(clave, valor, categoria):
         token = get_token()
         if not token: return
         supabase.postgrest.auth(token)
+        _owner_id, _tid = _scope_escritura_config()
         try:
             supabase.rpc("guardar_configuracion_bvm", {
                 "p_clave": clave,
@@ -713,10 +714,11 @@ def actualizar_precio_nube(clave, valor, categoria):
             }).execute()
             _traer_datos_db.clear()
             return
-        except Exception:
-            pass
+        except Exception as rpc_error:
+            if _tid:
+                st.error(f"Error RPC guardando {clave}: {rpc_error}")
+                return
 
-        _owner_id, _tid = _scope_escritura_config()
         data = {"user_id": _owner_id, "taller_id": _tid, "clave": clave, "valor": float(valor), "categoria": categoria}
 
         buscar = supabase.table("configuracion").select("clave").eq("user_id", _owner_id).eq("clave", clave)

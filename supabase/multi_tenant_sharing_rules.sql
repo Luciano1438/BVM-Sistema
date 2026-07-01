@@ -144,6 +144,14 @@ begin
   where mt.user_id = v_uid
   limit 1;
 
+  if v_taller_id is null then
+    select t.id
+      into v_taller_id
+    from public.talleres t
+    where t.owner_id = v_uid
+    limit 1;
+  end if;
+
   if v_taller_id is not null then
     select t.owner_id
       into v_owner_id
