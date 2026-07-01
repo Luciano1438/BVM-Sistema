@@ -669,6 +669,8 @@ def actualizar_precio_nube(clave, valor, categoria):
             {"user_id": _owner_id, "taller_id": _tid, "clave": clave, "valor": float(valor), "categoria": categoria},
             on_conflict="user_id, clave"
         ).execute()
+        # Sincronización: Limpia la caché para que el cambio se propague instantáneamente a los empleados
+        _traer_datos_db.clear()
     except Exception as e:
         st.error(f"Error guardando {clave}: {e}")
 
@@ -680,6 +682,8 @@ def eliminar_precio_nube(clave, categoria):
         supabase.postgrest.auth(token)
         _owner_id = _owner_id_para_escritura()
         supabase.table("configuracion").delete().eq("user_id", _owner_id).eq("clave", clave).eq("categoria", categoria).execute()
+        # Sincronización: Limpia la caché para que el cambio se propague instantáneamente a los empleados
+        _traer_datos_db.clear()
     except Exception as e:
         st.error(f"Error al eliminar {clave}: {e}")
 
@@ -719,11 +723,38 @@ def traer_datos():
 
 def guardar_presupuesto_nube(cliente, mueble, total, parametros=None, id_editar=None):
     try:
+        # Obtener datos del autor para auditoría
+        user_email = st.session_state.get("user", None)
+        user_email = user_email.email if user_email and hasattr(user_email, "email") else "Usuario desconocido"
+        fecha_actual = datetime.now(timezone(timedelta(hours=-3))).strftime("%Y-%m-%d %H:%M")
+        
+        if parametros is None:
+            parametros = {}
+        
+        if id_editar:
+            # Al editar, leemos el registro viejo para conservar el creador original
+            try:
+                old_record = supabase.table("ventas").select("parametros").eq("id", id_editar).limit(1).execute()
+                if old_record.data and old_record.data[0].get("parametros"):
+                    old_params = json.loads(old_record.data[0]["parametros"])
+                    if isinstance(old_params, dict):
+                        parametros["creado_por"] = old_params.get("creado_por", "Desconocido")
+                        parametros["fecha_creacion"] = old_params.get("fecha_creacion", "Desconocida")
+            except Exception:
+                pass
+            parametros["editado_por"] = user_email
+            parametros["fecha_edicion"] = fecha_actual
+        else:
+            # Nuevo registro
+            parametros["creado_por"] = user_email
+            parametros["fecha_creacion"] = fecha_actual
+
         data = {"cliente": cliente, "mueble": mueble, "precio_final": float(total),
                 "user_id": _user_id(),
                 "taller_id": _taller_id_actual(),
-                "fecha": datetime.now(timezone(timedelta(hours=-3))).strftime("%Y-%m-%d %H:%M"),
-                "parametros": json.dumps(parametros) if parametros else None}
+                "fecha": fecha_actual,
+                "parametros": json.dumps(parametros)}
+        
         if id_editar:
             supabase.table("ventas").update(data).eq("id", id_editar).execute()
             _traer_historial_db.clear()
@@ -1414,11 +1445,11 @@ if menu == "🪵 Cotizador":
     sin_fondo           = _v("sin_fondo", False)
     indices_fijos       = []
     
-    division_placard = _v("division_placard", "Sin división")
-    zona_izq         = _v("zona_izq",   "Solo estantes")
-    zona_der         = _v("zona_der",   "Solo estantes")
-    zona_unica       = _v("zona_unica", "Solo estantes")
-    altura_tubo      = int(_v("altura_tubo", 1200))
+    division_placard            = _v("division_placard", "Sin división")
+    zona_izq                    = _v("zona_izq",   "Solo estantes")
+    zona_der                    = _v("zona_der",   "Solo estantes")
+    zona_unica                  = _v("zona_unica", "Solo estantes")
+    altura_tubo                 = int(_v("altura_tubo", 1200))
     tiene_frentin_placard       = bool(_v("tiene_frentin_placard", False))
     cant_cajones_placard        = int(_v("cant_cajones_placard", 0))
     cant_estantes_izq_fijos     = int(_v("cant_estantes_izq_fijos",    0))
@@ -1568,6 +1599,8 @@ if menu == "🪵 Cotizador":
             cant_estantes_der_moviles   = int(_v("cant_estantes_der_moviles",  0))
             cant_estantes_unica_fijos   = int(_v("cant_estantes_unica_fijos",  1))
             cant_estantes_unica_moviles = int(_v("cant_estantes_unica_moviles",0))
+            cant_paneles                = int(_v("cant_paneles", 1))
+            nota_pieza                  = _v("nota_pieza", "")
 
             _div_opts = ["Sin división", "Una división central", "Dos divisiones"]
             division_placard = st.radio("División interna", _div_opts,
@@ -2204,6 +2237,7 @@ elif menu == "📋 Historial":
                 icono, bg, tc = COLORES[estado_actual]
                 id_venta = row.get('id')
 
+                # Lógica financiera: seña y saldo
                 precio_total = float(row.get('precio_final', 0))
                 pct_sena = 50
                 try:
@@ -2228,7 +2262,31 @@ elif menu == "📋 Historial":
 
                 col_fecha, col_estado, col_b1, col_b2, col_b3 = st.columns([2,2,1,1,1])
                 fecha_str = str(row.get('fecha',''))[:16] if row.get('fecha') else 'Sin fecha'
+                
+                # --- Extracción y formateo de auditoría ---
+                auditoria_str = ""
+                _raw_params = row.get('parametros')
+                if _raw_params and _raw_params not in ('null', 'None', ''):
+                    try:
+                        p_json = json.loads(_raw_params)
+                        if isinstance(p_json, dict):
+                            creado_por = p_json.get("creado_por")
+                            editado_por = p_json.get("editado_por")
+                            fecha_edicion = p_json.get("fecha_edicion")
+                            
+                            if editado_por:
+                                user_display = editado_por.split('@')[0] if '@' in editado_por else editado_por
+                                auditoria_str = f"📝 Edic.: {user_display} ({fecha_edicion})"
+                            elif creado_por:
+                                user_display = creado_por.split('@')[0] if '@' in creado_por else creado_por
+                                auditoria_str = f"👤 Creado por: {user_display}"
+                    except:
+                        pass
+
                 col_fecha.caption(f"📅 {fecha_str}")
+                if auditoria_str:
+                    col_fecha.caption(auditoria_str)
+
                 nuevo_estado = col_estado.selectbox("Estado", ESTADOS, index=ESTADOS.index(estado_actual),
                                                      key=f"estado_{id_venta}_{idx}", label_visibility="collapsed")
 
@@ -2502,3 +2560,4 @@ elif menu == "⚙️ Precios":
                 actualizar_precio_nube(k, v, cat)
             _traer_datos_db.clear()
             st.success("✅ Configuración guardada")
+            
