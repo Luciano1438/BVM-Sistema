@@ -716,14 +716,27 @@ def actualizar_precio_nube(clave, valor, categoria):
         supabase.postgrest.auth(token)
         _owner_id, _tid = _scope_escritura_config()
         try:
-            supabase.rpc("guardar_configuracion_bvm", {
+            supabase.rpc("guardar_configuracion_bvm_v2", {
                 "p_clave": clave,
                 "p_valor": float(valor),
                 "p_categoria": categoria,
+                "p_owner_id": _owner_id,
+                "p_taller_id": _tid,
             }).execute()
             _traer_datos_db.clear()
             return
         except Exception as rpc_error:
+            try:
+                supabase.rpc("guardar_configuracion_bvm", {
+                    "p_clave": clave,
+                    "p_valor": float(valor),
+                    "p_categoria": categoria,
+                }).execute()
+                _traer_datos_db.clear()
+                return
+            except Exception:
+                pass
+
             if _tid:
                 st.error(f"Error RPC guardando {clave}: {rpc_error}")
                 return
@@ -2702,4 +2715,5 @@ elif menu == "⚙️ Precios":
                 cat = 'costos' if k in ['gastos_fijos_diarios', 'flete_capital', 'flete_norte', 'colocacion_dia', 'ganancia_taller_pct'] else 'herrajes'
                 actualizar_precio_nube(k, v, cat)
             _traer_datos_db.clear()
+            st.rerun()
             st.success("✅ Configuración guardada")
