@@ -537,6 +537,35 @@ def _owner_id_para_escritura() -> str:
             return owner
     return uid
 
+def _scope_escritura_config():
+    """Configuracion compartida: dentro de taller pertenece al dueño."""
+    tid = _taller_id_actual()
+    if tid:
+        return _resolver_owner_de_taller(tid) or _user_id(), tid
+    return _user_id(), None
+
+def _migrar_datos_dueno_a_taller(owner_id: str, taller_id: str):
+    """Al crear un taller, comparte los datos personales existentes del dueño.
+    No toca datos personales del colaborador invitado."""
+    if not owner_id or not taller_id:
+        return
+    for tabla in ("configuracion", "ventas", "retazos"):
+        try:
+            supabase.table(tabla).update({"taller_id": taller_id}) \
+                .eq("user_id", owner_id).is_("taller_id", "null").execute()
+        except Exception:
+            pass
+    _traer_datos_db.clear()
+    _traer_historial_db.clear()
+    _traer_retazos_db.clear()
+
+def _aplicar_scope_mutacion(query):
+    """Filtro defensivo para update/delete: RLS sigue siendo la seguridad real."""
+    tid = _taller_id_actual()
+    if tid:
+        return query.eq("taller_id", tid)
+    return query.eq("user_id", _user_id())
+
 def abandonar_taller() -> bool:
     """Permite a un empleado desvincularse y abandonar el taller compartido actual."""
     try:
@@ -605,6 +634,7 @@ def invitar_a_taller(email_invitado: str) -> bool:
             nuevo = supabase.table("talleres").insert({"owner_id": uid, "nombre": "Mi Taller"}).execute()
             taller_id = nuevo.data[0]["id"]
             supabase.table("miembros_taller").insert({"taller_id": taller_id, "user_id": uid, "rol": "dueño"}).execute()
+            _migrar_datos_dueno_a_taller(uid, taller_id)
 
         # Insertar al nuevo miembro de tipo empleado
         supabase.table("miembros_taller").insert({"taller_id": taller_id, "user_id": invitado_id, "rol": "empleado"}).execute()
@@ -663,8 +693,7 @@ def actualizar_precio_nube(clave, valor, categoria):
         token = get_token()
         if not token: return
         supabase.postgrest.auth(token)
-        _owner_id = _owner_id_para_escritura()
-        _tid = _taller_id_actual()
+        _owner_id, _tid = _scope_escritura_config()
         supabase.table("configuracion").upsert(
             {"user_id": _owner_id, "taller_id": _tid, "clave": clave, "valor": float(valor), "categoria": categoria},
             on_conflict="user_id, clave"
@@ -680,8 +709,10 @@ def eliminar_precio_nube(clave, categoria):
         token = get_token()
         if not token: return
         supabase.postgrest.auth(token)
-        _owner_id = _owner_id_para_escritura()
-        supabase.table("configuracion").delete().eq("user_id", _owner_id).eq("clave", clave).eq("categoria", categoria).execute()
+        _owner_id, _tid = _scope_escritura_config()
+        query = supabase.table("configuracion").delete().eq("user_id", _owner_id).eq("clave", clave).eq("categoria", categoria)
+        query = query.eq("taller_id", _tid) if _tid else query.is_("taller_id", "null")
+        query.execute()
         # Sincronización: Limpia la caché para que el cambio se propague instantáneamente a los empleados
         _traer_datos_db.clear()
     except Exception as e:
@@ -769,7 +800,7 @@ def guardar_presupuesto_nube(cliente, mueble, total, parametros=None, id_editar=
                 "parametros": json.dumps(parametros)}
         
         if id_editar:
-            supabase.table("ventas").update(data).eq("id", id_editar).execute()
+            _aplicar_scope_mutacion(supabase.table("ventas").update(data).eq("id", id_editar)).execute()
             _traer_historial_db.clear()
             st.success("✅ Presupuesto actualizado.")
         else:
@@ -2254,7 +2285,7 @@ elif menu == "📋 Historial":
     def actualizar_estado(id_venta, nuevo_estado):
         try:
             supabase.postgrest.auth(st.session_state["session"].access_token)
-            supabase.table("ventas").update({"estado": nuevo_estado}).eq("id", id_venta).execute()
+            _aplicar_scope_mutacion(supabase.table("ventas").update({"estado": nuevo_estado}).eq("id", id_venta)).execute()
             _traer_historial_db.clear()
         except Exception as e:
             st.error(f"Error: {e}")
@@ -2438,7 +2469,7 @@ elif menu == "📋 Historial":
                         try:
                             token = get_token()
                             if token: supabase.postgrest.auth(token)
-                            supabase.table("ventas").delete().eq("id", id_venta).execute()
+                            _aplicar_scope_mutacion(supabase.table("ventas").delete().eq("id", id_venta)).execute()
                             _traer_historial_db.clear()
                             st.rerun()
                         except Exception as e:
@@ -2503,7 +2534,7 @@ elif menu == "♻️ Retazos":
                         try:
                             token = get_token()
                             if token: supabase.postgrest.auth(token)
-                            supabase.table("retazos").delete().eq("id", ret_id).execute()
+                            _aplicar_scope_mutacion(supabase.table("retazos").delete().eq("id", ret_id)).execute()
                             _traer_retazos_db.clear()
                             st.rerun()
                         except Exception as e:
