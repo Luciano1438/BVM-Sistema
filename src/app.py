@@ -706,10 +706,19 @@ def actualizar_precio_nube(clave, valor, categoria):
         if not token: return
         supabase.postgrest.auth(token)
         _owner_id, _tid = _scope_escritura_config()
-        supabase.table("configuracion").upsert(
-            {"user_id": _owner_id, "taller_id": _tid, "clave": clave, "valor": float(valor), "categoria": categoria},
-            on_conflict="user_id, clave"
-        ).execute()
+        data = {"user_id": _owner_id, "taller_id": _tid, "clave": clave, "valor": float(valor), "categoria": categoria}
+
+        buscar = supabase.table("configuracion").select("clave").eq("clave", clave).eq("categoria", categoria)
+        buscar = buscar.eq("taller_id", _tid) if _tid else buscar.eq("user_id", _owner_id).is_("taller_id", "null")
+        existe = buscar.limit(1).execute()
+
+        if existe.data:
+            actualizar = supabase.table("configuracion").update(data).eq("clave", clave).eq("categoria", categoria)
+            actualizar = actualizar.eq("taller_id", _tid) if _tid else actualizar.eq("user_id", _owner_id).is_("taller_id", "null")
+            actualizar.execute()
+        else:
+            supabase.table("configuracion").insert(data).execute()
+
         # Sincronización: Limpia la caché para que el cambio se propague instantáneamente a los empleados
         _traer_datos_db.clear()
     except Exception as e:
