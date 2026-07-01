@@ -39,7 +39,7 @@ def _safe_float(val, default=0.0) -> float:
     """Convierte a float sin crashear — maneja None, '', strings."""
     try:
         if val is None or val == "": return default
-        return float(str(val).strip()))
+        return float(str(val).strip())
     except (ValueError, TypeError):
         return default
 
@@ -372,7 +372,7 @@ def generar_link_whatsapp_obra(cliente, modulos, dias_entrega, pct_seña, costo_
         lineas.append(f"- Flete/Logistica: ${costo_logistica:,.0f}")
     if costo_col > 0:
         lineas.append(f"- Colocacion: ${costo_col:,.0f}")
-    lineas += ["", f"*TOTAL OBRA: ${total_obra:,.0f}*", f"Seña ({pct_seña}%): ${monto_seña:,.0f}", f"Entrega: {dias_entrega} dias dias", "", "Precios validos 48hs."]
+    lineas += ["", f"*TOTAL OBRA: ${total_obra:,.0f}*", f"Seña ({pct_seña}%): ${monto_seña:,.0f}", f"Entrega: {dias_entrega} dias habiles", "", "Precios validos 48hs."]
     return f"https://wa.me/?text={urllib.parse.quote(chr(10).join(lineas))}"
 
 
@@ -466,8 +466,7 @@ def registrar_retazo(material, largo, ancho):
 
 @st.cache_data(ttl=600, show_spinner=False)
 def _resolver_datos_miembro(user_id: str):
-    """Busca el taller_id, rol y nombre del taller para el usuario actual.
-    Si las tablas no existen todavía, devuelve None."""
+    """Busca el taller_id, rol y nombre del taller para el usuario actual."""
     try:
         res = supabase.table("miembros_taller").select("taller_id, rol").eq("user_id", user_id).limit(1).execute()
         if res.data:
@@ -505,7 +504,7 @@ def _scope_id() -> str:
     return taller_id or uid
 
 def _user_id() -> str:
-    """El user_id real del usuario logueado — siempre va en la columna user_id."""
+    """El user_id real del usuario logueado."""
     if "user" not in st.session_state or not st.session_state["user"]:
         return ""
     return st.session_state["user"].id
@@ -1826,7 +1825,6 @@ Para piezas que no entran en ningún módulo automático:<br>
       if precio_a_usar > 0:
           _nota   = " (precio guardado — recalculá si cambiaste medidas)" if precio_final == 0 and _precio_guardado > 0 else ""
           if es_empleado:
-              # UX/Seguridad: Banner sin margen porcentual ni alertas financieras para el empleado
               st.markdown(f'''<div style="background:#0F6E56;border-radius:10px;padding:20px 24px;margin:8px 0 16px 0;text-align:center;">
               <div style="color:white;font-size:12px;opacity:0.8;margin-bottom:6px;">VALOR DEL MUEBLE{_nota}</div>
               <div style="color:white;font-size:44px;font-weight:700;letter-spacing:-1px;">${precio_a_usar:,.0f}</div>
@@ -1841,7 +1839,6 @@ Para piezas que no entran en ningún módulo automático:<br>
               <div style="color:white;font-size:12px;opacity:0.8;margin-top:8px;">{_icono} Margen: {pct_margen:.1f}% — {_alerta}</div>
               </div>''', unsafe_allow_html=True)
 
-      # UX/Seguridad: Métricas limitadas para empleados (oculta Costo y Ganancia Neta)
       c1, c2, c3 = st.columns(3)
       if es_empleado:
           c1.metric("M² de placa", f"{m2_18mm:.2f}")
@@ -1863,9 +1860,6 @@ Para piezas que no entran en ningún módulo automático:<br>
                   "Monto":     [costo_madera+costo_fondo, costo_herrajes, costo_operativo+costo_base, utilidad],
               }), x="Categoría", y="Monto", color="#2e7d32")
 
-      # ─────────────────────────────────────────────────────────────────────
-      # SECCIÓN: botones de acción
-      # ─────────────────────────────────────────────────────────────────────
       st.write("---")
 
       def _build_params_dict():
@@ -2391,7 +2385,7 @@ elif menu == "♻️ Retazos":
 
 
 # ===========================================================================
-# RETAZOS / CONFIGURACIÓN DE PRECIOS
+# CONFIGURACIÓN DE PRECIOS
 # ===========================================================================
 elif menu == "⚙️ Precios":
     st.title("⚙️ Configuración de precios")
@@ -2423,10 +2417,8 @@ elif menu == "⚙️ Precios":
     # 2. Precios de Placas (Modo Lectura para Empleados)
     with st.expander("🪵 Precios de Placas (18mm)", expanded=True):
         for madera, precio in list(maderas.items()):
-            # Si es empleado, no mostramos el botón de borrar (col_del) para evitar modificaciones accidentales
             col_name, col_price, col_del = st.columns([5, 3, 1] if not es_empleado else [7, 3])
             col_name.markdown(f"<div style='padding-top: 8px; font-weight: 500;'>{madera}</div>", unsafe_allow_html=True)
-            # Deshabilitamos el input para el empleado
             maderas[madera] = col_price.number_input("Precio", value=float(precio), step=1000.0, key=f"p_{madera}", label_visibility="collapsed", disabled=es_empleado)
             if not es_empleado:
                 if col_del.button("🗑️", key=f"del_{madera}", help=f"Eliminar {madera}"):
