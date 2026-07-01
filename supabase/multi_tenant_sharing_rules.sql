@@ -44,3 +44,182 @@ set taller_id = t.id
 from public.talleres t
 where r.taller_id is null
   and r.user_id = t.owner_id;
+
+-- Policies RLS para compartir dentro del taller sin exponer historiales personales.
+alter table public.ventas enable row level security;
+alter table public.configuracion enable row level security;
+alter table public.retazos enable row level security;
+
+drop policy if exists ventas_select_scope on public.ventas;
+create policy ventas_select_scope
+on public.ventas for select
+to authenticated
+using (
+  user_id = auth.uid()
+  or (
+    taller_id is not null
+    and exists (
+      select 1
+      from public.miembros_taller mt
+      where mt.taller_id = ventas.taller_id
+        and mt.user_id = auth.uid()
+    )
+  )
+);
+
+drop policy if exists ventas_insert_scope on public.ventas;
+create policy ventas_insert_scope
+on public.ventas for insert
+to authenticated
+with check (
+  user_id = auth.uid()
+  and (
+    taller_id is null
+    or exists (
+      select 1
+      from public.miembros_taller mt
+      where mt.taller_id = ventas.taller_id
+        and mt.user_id = auth.uid()
+    )
+  )
+);
+
+drop policy if exists ventas_update_scope on public.ventas;
+create policy ventas_update_scope
+on public.ventas for update
+to authenticated
+using (
+  user_id = auth.uid()
+  or (
+    taller_id is not null
+    and exists (
+      select 1
+      from public.miembros_taller mt
+      where mt.taller_id = ventas.taller_id
+        and mt.user_id = auth.uid()
+    )
+  )
+)
+with check (
+  user_id = auth.uid()
+  or (
+    taller_id is not null
+    and exists (
+      select 1
+      from public.miembros_taller mt
+      where mt.taller_id = ventas.taller_id
+        and mt.user_id = auth.uid()
+    )
+  )
+);
+
+drop policy if exists ventas_delete_scope on public.ventas;
+create policy ventas_delete_scope
+on public.ventas for delete
+to authenticated
+using (
+  user_id = auth.uid()
+  or (
+    taller_id is not null
+    and exists (
+      select 1
+      from public.miembros_taller mt
+      where mt.taller_id = ventas.taller_id
+        and mt.user_id = auth.uid()
+    )
+  )
+);
+
+drop policy if exists configuracion_select_scope on public.configuracion;
+create policy configuracion_select_scope
+on public.configuracion for select
+to authenticated
+using (
+  user_id = auth.uid()
+  or (
+    taller_id is not null
+    and exists (
+      select 1
+      from public.miembros_taller mt
+      where mt.taller_id = configuracion.taller_id
+        and mt.user_id = auth.uid()
+    )
+  )
+);
+
+drop policy if exists configuracion_write_scope on public.configuracion;
+create policy configuracion_write_scope
+on public.configuracion for all
+to authenticated
+using (
+  user_id = auth.uid()
+  or (
+    taller_id is not null
+    and exists (
+      select 1
+      from public.miembros_taller mt
+      where mt.taller_id = configuracion.taller_id
+        and mt.user_id = auth.uid()
+        and mt.rol = 'dueño'
+    )
+  )
+)
+with check (
+  user_id = auth.uid()
+  or (
+    taller_id is not null
+    and exists (
+      select 1
+      from public.miembros_taller mt
+      where mt.taller_id = configuracion.taller_id
+        and mt.user_id = auth.uid()
+        and mt.rol = 'dueño'
+    )
+  )
+);
+
+drop policy if exists retazos_select_scope on public.retazos;
+create policy retazos_select_scope
+on public.retazos for select
+to authenticated
+using (
+  user_id = auth.uid()
+  or (
+    taller_id is not null
+    and exists (
+      select 1
+      from public.miembros_taller mt
+      where mt.taller_id = retazos.taller_id
+        and mt.user_id = auth.uid()
+    )
+  )
+);
+
+drop policy if exists retazos_write_scope on public.retazos;
+create policy retazos_write_scope
+on public.retazos for all
+to authenticated
+using (
+  user_id = auth.uid()
+  or (
+    taller_id is not null
+    and exists (
+      select 1
+      from public.miembros_taller mt
+      where mt.taller_id = retazos.taller_id
+        and mt.user_id = auth.uid()
+    )
+  )
+)
+with check (
+  user_id = auth.uid()
+  or (
+    taller_id is not null
+    and exists (
+      select 1
+      from public.miembros_taller mt
+      where mt.taller_id = retazos.taller_id
+        and mt.user_id = auth.uid()
+    )
+  )
+);

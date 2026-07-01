@@ -540,9 +540,9 @@ def _owner_id_para_escritura() -> str:
 
 def _scope_escritura_config():
     """Configuracion compartida: dentro de taller pertenece al dueño."""
-    tid = _taller_id_actual()
+    _owner_id, tid = _asegurar_datos_taller()
     if tid:
-        return _resolver_owner_de_taller(tid) or _user_id(), tid
+        return _owner_id or _user_id(), tid
     return _user_id(), None
 
 def _asegurar_datos_taller():
@@ -777,12 +777,13 @@ def guardar_presupuesto_nube(cliente, mueble, total, parametros=None, id_editar=
         
         if id_editar:
             # Al editar, leemos el registro viejo para conservar de forma estricta los propietarios originales
+            current_taller_id = _taller_id_actual()
             try:
                 old_record = supabase.table("ventas").select("parametros, user_id, taller_id").eq("id", id_editar).limit(1).execute()
                 if old_record.data:
                     # Conservamos el creador y el taller original en la tabla para evitar que RLS bloquee la fila o que desaparezca de la vista del taller
                     data_user_id = old_record.data[0].get("user_id") or _user_id()
-                    data_taller_id = old_record.data[0].get("taller_id") or _taller_id_actual()
+                    data_taller_id = old_record.data[0].get("taller_id") or current_taller_id
                     
                     if old_record.data[0].get("parametros"):
                         old_params = json.loads(old_record.data[0]["parametros"])
@@ -791,10 +792,10 @@ def guardar_presupuesto_nube(cliente, mueble, total, parametros=None, id_editar=
                             parametros["fecha_creacion"] = old_params.get("fecha_creacion", "Desconocida")
                 else:
                     data_user_id = _user_id()
-                    data_taller_id = _taller_id_actual()
+                    data_taller_id = current_taller_id
             except Exception:
                 data_user_id = _user_id()
-                data_taller_id = _taller_id_actual()
+                data_taller_id = current_taller_id
             
             parametros["editado_por"] = user_email
             parametros["fecha_edicion"] = fecha_actual
@@ -803,7 +804,7 @@ def guardar_presupuesto_nube(cliente, mueble, total, parametros=None, id_editar=
             parametros["creado_por"] = user_email
             parametros["fecha_creacion"] = fecha_actual
             data_user_id = _user_id()
-            data_taller_id = _taller_id_actual()
+            _owner_id, data_taller_id = _asegurar_datos_taller()
 
         data = {"cliente": cliente, "mueble": mueble, "precio_final": float(total),
                 "user_id": data_user_id,
