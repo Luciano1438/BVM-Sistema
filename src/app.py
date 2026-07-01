@@ -1429,7 +1429,7 @@ maderas, fondos, config = traer_datos()
 _rol_actual = _obtener_rol_actual()
 es_empleado = (_rol_actual is not None and _rol_actual != "dueño")
 
-_opciones_menu  = ["🪵 Cotizador", "♻️ Retazos", "📋 Historial", "⚙️ Precios"]
+_opciones_menu  = ["🪵 Cotizador", "♻️ Retazos", "📋 Historial", "🏭 Producción", "⚙️ Precios"]
 _editando_algo  = st.session_state.get("edit_ctx") is not None
 
 # SIDEBAR
@@ -1518,6 +1518,89 @@ def _guardar_obra_nube(mods, cliente, obra_id=None, total_con_logistica=None, lo
     }
     guardar_presupuesto_nube(cliente, f"Obra ({len(mods)} módulos)", total,
                               parametros=params, id_editar=obra_id)
+
+def _codigo_tipo_pieza(nombre_pieza: str) -> str:
+    nombre = str(nombre_pieza or "").lower()
+    for patron, codigo in [
+        ("lateral", "LT"), ("base", "BS"), ("techo", "TC"),
+        ("puerta", "PT"), ("tapa", "TP"), ("frente", "FR"),
+        ("frentin", "FR"), ("travesa", "TR"), ("estante", "ES"),
+        ("fondo", "FD"), ("piso", "PS"), ("cajon", "CJ"),
+        ("cenefa", "CN"), ("panel", "PN"),
+    ]:
+        if patron in nombre:
+            return codigo
+    return "PZ"
+
+def _args_despiece_desde_params(params: dict) -> dict:
+    tipo_modulo = params.get("tipo_modulo", params.get("tipo", "Bajo Mesada"))
+    return {
+        "tipo": tipo_modulo,
+        "ancho_m": _safe_float(params.get("ancho_m", params.get("ancho", 0))),
+        "alto_m": _safe_float(params.get("alto_m", params.get("alto", 0))),
+        "prof_m": _safe_float(params.get("prof_m", params.get("prof", 0))),
+        "esp_real": _safe_float(params.get("esp_real", 18)),
+        "tiene_parante": bool(params.get("tiene_frentin_placard", params.get("tiene_parante", False))) if tipo_modulo == "Placard" else bool(params.get("tiene_parante", False)),
+        "tipo_parante": params.get("tipo_parante", "Corto (100mm)"),
+        "distancia_parante": _safe_float(params.get("distancia_parante", 0)),
+        "cant_cajones": _safe_int(params.get("cant_cajones", 0)),
+        "tipo_tapa": params.get("tipo_tapa", "Superpuesta"),
+        "tipo_base": params.get("tipo_base", "Nada"),
+        "altura_base": _safe_float(params.get("altura_base", 0)),
+        "luz_entre_tapas": _safe_float(params.get("luz_entre_tapas", 3.0)),
+        "luz_perimetral_tapa": _safe_float(params.get("luz_perimetral_tapa", 4.0)),
+        "alto_frentin_emb": _safe_float(params.get("alto_frentin_emb", 0)),
+        "aire_trasero": _safe_float(params.get("aire_trasero", 30)),
+        "esp_corredera": _safe_float(params.get("esp_corredera", 13)),
+        "distribucion_tapas": params.get("distribucion_tapas", "Iguales"),
+        "cant_puertas": _safe_int(params.get("cant_puertas", 2)),
+        "tiene_cenefa": bool(params.get("tiene_cenefa", False)),
+        "alto_cenefa": _safe_float(params.get("alto_cenefa", 0)),
+        "estantes_fijos": _safe_int(params.get("estantes_fijos", 0)),
+        "estantes_moviles": _safe_int(params.get("estantes_moviles", 0)),
+        "tipo_estante_manual": params.get("tipo_estante_manual", "Completo"),
+        "sin_fondo": bool(params.get("sin_fondo", False)),
+        "tiene_parante_medio": bool(params.get("tiene_parante_medio", False)),
+        "division_placard": params.get("division_placard", "Sin division"),
+        "zona_izq": params.get("zona_izq", "Solo estantes"),
+        "zona_der": params.get("zona_der", "Solo estantes"),
+        "zona_unica": params.get("zona_unica", "Solo estantes"),
+        "altura_tubo": _safe_float(params.get("altura_tubo", 1200)),
+        "cant_estantes_izq_fijos": _safe_int(params.get("cant_estantes_izq_fijos", 0)),
+        "cant_estantes_izq_moviles": _safe_int(params.get("cant_estantes_izq_moviles", 0)),
+        "cant_estantes_der_fijos": _safe_int(params.get("cant_estantes_der_fijos", 0)),
+        "cant_estantes_der_moviles": _safe_int(params.get("cant_estantes_der_moviles", 0)),
+        "cant_estantes_unica_fijos": _safe_int(params.get("cant_estantes_unica_fijos", 1)),
+        "cant_estantes_unica_moviles": _safe_int(params.get("cant_estantes_unica_moviles", 0)),
+        "cant_cajones_placard": _safe_int(params.get("cant_cajones_placard", 0)),
+        "cant_paneles": _safe_int(params.get("cant_paneles", 1)),
+        "nota_pieza": params.get("nota_pieza", "") if tipo_modulo == "Pieza Suelta" else "",
+    }
+
+def _generar_orden_produccion(mods):
+    filas = []
+    for idx_mod, mod in enumerate([m for m in mods if m is not None], start=1):
+        params = _params_desde_mod(mod)
+        material = params.get("mat_principal") or mod.get("material", "")
+        nombre_modulo = mod.get("nombre") or params.get("nombre") or f"Modulo {idx_mod}"
+        codigo_modulo = f"M{idx_mod:03d}"
+        piezas = _generar_despiece_cached(json.dumps(_args_despiece_desde_params(params), sort_keys=True))
+        for idx_pieza, pieza in enumerate(piezas, start=1):
+            nombre_pieza = pieza.get("Pieza", "Pieza")
+            tipo_codigo = _codigo_tipo_pieza(nombre_pieza)
+            filas.append({
+                "Codigo": f"BV-{codigo_modulo}-{tipo_codigo}-{idx_pieza:02d}-V1",
+                "Modulo": nombre_modulo,
+                "Tipo modulo": params.get("tipo_modulo", mod.get("tipo", "")),
+                "Pieza": nombre_pieza,
+                "Material": material,
+                "Largo": _safe_float(pieza.get("L", 0)),
+                "Ancho": _safe_float(pieza.get("A", 0)),
+                "Cantidad": _safe_int(pieza.get("Cant", 1)),
+                "Tipo": pieza.get("Tipo", "Cuerpo"),
+                "Veta": obtener_veta_automatica(nombre_pieza, material),
+            })
+    return pd.DataFrame(filas)
 
 
 # ===========================================================================
@@ -2692,6 +2775,50 @@ elif menu == "♻️ Retazos":
 # ===========================================================================
 # CONFIGURACIÓN DE PRECIOS
 # ===========================================================================
+elif menu == "🏭 Producción":
+    st.title("🏭 Producción")
+    mods_prod = [m for m in st.session_state.get("obra_modulos", []) if m is not None]
+
+    if not mods_prod:
+        st.info("No hay una obra en curso para producir.")
+    else:
+        df_prod = _generar_orden_produccion(mods_prod)
+        total_piezas = int(df_prod["Cantidad"].sum()) if not df_prod.empty else 0
+        total_modulos = len(mods_prod)
+        m2_cuerpo = 0.0
+        if not df_prod.empty:
+            df_area = df_prod.copy()
+            df_area["Area"] = (df_area["Largo"] * df_area["Ancho"] * df_area["Cantidad"]) / 1_000_000
+            m2_cuerpo = float(df_area[~df_area["Tipo"].isin(["Fondo", "Piso"])]["Area"].sum())
+
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Modulos", total_modulos)
+        c2.metric("Piezas", total_piezas)
+        c3.metric("m2 cuerpo", f"{m2_cuerpo:.2f}")
+
+        st.write("---")
+        st.dataframe(df_prod, use_container_width=True, hide_index=True)
+
+        csv_prod = df_prod.to_csv(index=False).encode("utf-8")
+        st.download_button(
+            "Descargar orden de produccion CSV",
+            data=csv_prod,
+            file_name="BVM_orden_produccion.csv",
+            mime="text/csv",
+            use_container_width=True,
+        )
+
+        st.write("---")
+        st.subheader("Etiquetas preliminares")
+        for _, row in df_prod.head(24).iterrows():
+            c_code, c_piece, c_dim = st.columns([2, 4, 2])
+            c_code.code(row["Codigo"])
+            c_piece.markdown(f"**{row['Pieza']}**")
+            c_piece.caption(f"{row['Modulo']} · {row['Material']} · {row['Veta']}")
+            c_dim.markdown(f"**{int(row['Largo'])} x {int(row['Ancho'])}**")
+            c_dim.caption(f"Cantidad: {int(row['Cantidad'])}")
+
+
 elif menu == "⚙️ Precios":
     st.title("⚙️ Configuración de precios")
 
