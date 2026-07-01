@@ -1414,11 +1414,11 @@ if menu == "🪵 Cotizador":
     sin_fondo           = _v("sin_fondo", False)
     indices_fijos       = []
     
-    division_placard            = _v("division_placard", "Sin división")
-    zona_izq                    = _v("zona_izq",   "Solo estantes")
-    zona_der                    = _v("zona_der",   "Solo estantes")
-    zona_unica                  = _v("zona_unica", "Solo estantes")
-    altura_tubo                 = int(_v("altura_tubo", 1200))
+    division_placard = _v("division_placard", "Sin división")
+    zona_izq         = _v("zona_izq",   "Solo estantes")
+    zona_der         = _v("zona_der",   "Solo estantes")
+    zona_unica       = _v("zona_unica", "Solo estantes")
+    altura_tubo      = int(_v("altura_tubo", 1200))
     tiene_frentin_placard       = bool(_v("tiene_frentin_placard", False))
     cant_cajones_placard        = int(_v("cant_cajones_placard", 0))
     cant_estantes_izq_fijos     = int(_v("cant_estantes_izq_fijos",    0))
@@ -1562,12 +1562,12 @@ if menu == "🪵 Cotizador":
             altura_tubo      = int(_v("altura_tubo", 1200))
             tiene_frentin_placard = bool(_v("tiene_frentin_placard", False))
             cant_cajones_placard  = int(_v("cant_cajones_placard", 0))
-            cant_estantes_izq_fijos    = int(_v("cant_estantes_izq_fijos",    0))
-            cant_estantes_izq_moviles  = int(_v("cant_estantes_izq_moviles",  0))
-            cant_estantes_der_fijos    = int(_v("cant_estantes_der_fijos",    0))
-            cant_estantes_der_moviles  = int(_v("cant_estantes_der_moviles",  0))
-            cant_estantes_unica_fijos  = int(_v("cant_estantes_unica_fijos",  1))
-            cant_estantes_unica_moviles= int(_v("cant_estantes_unica_moviles",0))
+            cant_estantes_izq_fijos     = int(_v("cant_estantes_izq_fijos",    0))
+            cant_estantes_izq_moviles   = int(_v("cant_estantes_izq_moviles",  0))
+            cant_estantes_der_fijos     = int(_v("cant_estantes_der_fijos",    0))
+            cant_estantes_der_moviles   = int(_v("cant_estantes_der_moviles",  0))
+            cant_estantes_unica_fijos   = int(_v("cant_estantes_unica_fijos",  1))
+            cant_estantes_unica_moviles = int(_v("cant_estantes_unica_moviles",0))
 
             _div_opts = ["Sin división", "Una división central", "Dos divisiones"]
             division_placard = st.radio("División interna", _div_opts,
@@ -2416,7 +2416,11 @@ elif menu == "⚙️ Precios":
     # 2. Precios de Placas (Modo Lectura para Empleados)
     with st.expander("🪵 Precios de Placas (18mm)", expanded=True):
         for madera, precio in list(maderas.items()):
-            col_name, col_price, col_del = st.columns([5, 3, 1] if not es_empleado else [7, 3])
+            if es_empleado:
+                col_name, col_price = st.columns([7, 3])
+            else:
+                col_name, col_price, col_del = st.columns([5, 3, 1])
+
             col_name.markdown(f"<div style='padding-top: 8px; font-weight: 500;'>{madera}</div>", unsafe_allow_html=True)
             maderas[madera] = col_price.number_input("Precio", value=float(precio), step=1000.0, key=f"p_{madera}", label_visibility="collapsed", disabled=es_empleado)
             if not es_empleado:
@@ -2448,7 +2452,11 @@ elif menu == "⚙️ Precios":
 
     with st.expander("🔩 Herrajes, Cerraduras y Extras", expanded=False):
         for h_clave, h_precio in list(_todos_herrajes.items()):
-            col_name, col_price, col_del = st.columns([5, 3, 1] if not es_empleado else [7, 3])
+            if es_empleado:
+                col_name, col_price = st.columns([7, 3])
+            else:
+                col_name, col_price, col_del = st.columns([5, 3, 1])
+
             label = _nombres_herraje.get(h_clave, h_clave)
             col_name.markdown(f"<div style='padding-top: 8px; font-weight: 500;'>{label}</div>", unsafe_allow_html=True)
             config[h_clave] = col_price.number_input("Precio", value=float(h_precio), step=100.0,
