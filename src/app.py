@@ -421,6 +421,7 @@ def _scope_lectura():
     """Devuelve (scope_id, usa_taller) listo para pasar a las funciones cacheadas."""
     tid = _taller_id_actual()
     if tid:
+        _asegurar_datos_taller()
         return tid, True
     return _user_id(), False
 
@@ -544,8 +545,19 @@ def _scope_escritura_config():
         return _resolver_owner_de_taller(tid) or _user_id(), tid
     return _user_id(), None
 
+def _asegurar_datos_taller():
+    """Si el usuario pertenece a un taller, asegura que los datos viejos del dueño
+    queden asociados al taller. Nunca migra datos personales del colaborador."""
+    tid = _taller_id_actual()
+    if not tid:
+        return None, None
+    owner_id = _resolver_owner_de_taller(tid) or _user_id()
+    if owner_id == _user_id():
+        _migrar_datos_dueno_a_taller(owner_id, tid)
+    return owner_id, tid
+
 def _migrar_datos_dueno_a_taller(owner_id: str, taller_id: str):
-    """Al crear un taller, comparte los datos personales existentes del dueño.
+    """Comparte datos personales existentes del dueño con su taller.
     No toca datos personales del colaborador invitado."""
     if not owner_id or not taller_id:
         return
@@ -800,7 +812,9 @@ def guardar_presupuesto_nube(cliente, mueble, total, parametros=None, id_editar=
                 "parametros": json.dumps(parametros)}
         
         if id_editar:
-            _aplicar_scope_mutacion(supabase.table("ventas").update(data).eq("id", id_editar)).execute()
+            res_update = supabase.table("ventas").update(data).eq("id", id_editar).execute()
+            if hasattr(res_update, "data") and res_update.data == []:
+                st.warning("No se actualizó ninguna fila. Revisá las políticas RLS de ventas en Supabase.")
             _traer_historial_db.clear()
             st.success("✅ Presupuesto actualizado.")
         else:
@@ -2285,7 +2299,7 @@ elif menu == "📋 Historial":
     def actualizar_estado(id_venta, nuevo_estado):
         try:
             supabase.postgrest.auth(st.session_state["session"].access_token)
-            _aplicar_scope_mutacion(supabase.table("ventas").update({"estado": nuevo_estado}).eq("id", id_venta)).execute()
+            supabase.table("ventas").update({"estado": nuevo_estado}).eq("id", id_venta).execute()
             _traer_historial_db.clear()
         except Exception as e:
             st.error(f"Error: {e}")

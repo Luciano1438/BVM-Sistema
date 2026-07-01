@@ -24,3 +24,23 @@ create index if not exists idx_retazos_user_id on public.retazos(user_id);
 -- Si el dueño crea un taller, sus datos viejos pueden asociarse al taller
 -- desde la app. No hacer esto para colaboradores.
 
+-- Migracion puntual para talleres ya creados:
+-- comparte con el taller solo los datos personales viejos del dueño.
+-- No toca presupuestos/precios/retazos personales de colaboradores.
+update public.ventas v
+set taller_id = t.id
+from public.talleres t
+where v.taller_id is null
+  and v.user_id = t.owner_id;
+
+update public.configuracion c
+set taller_id = t.id
+from public.talleres t
+where c.taller_id is null
+  and c.user_id = t.owner_id;
+
+update public.retazos r
+set taller_id = t.id
+from public.talleres t
+where r.taller_id is null
+  and r.user_id = t.owner_id;
