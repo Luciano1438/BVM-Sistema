@@ -711,6 +711,15 @@ def gestionar_auth():
     return True
 
 def _config_valor_guardado(owner_id, taller_id, clave):
+    try:
+        rpc = supabase.rpc("bvm_configuracion_actual").execute()
+        if rpc.data:
+            for row in rpc.data:
+                if row.get("clave") == clave:
+                    return float(row.get("valor", 0))
+    except Exception:
+        pass
+
     query = supabase.table("configuracion").select("valor").eq("user_id", owner_id).eq("clave", clave)
     query = query.eq("taller_id", taller_id) if taller_id else query.is_("taller_id", "null")
     res = query.limit(1).execute()
@@ -725,40 +734,49 @@ def actualizar_precio_nube(clave, valor, categoria):
         if not token: return False
         supabase.postgrest.auth(token)
         _owner_id, _tid = _scope_escritura_config()
-        try:
-            supabase.rpc("guardar_configuracion_bvm_v2", {
+        rpc_errors = []
+        rpc_intentos = [
+            ("bvm_guardar_configuracion_actual", {
+                "p_clave": clave,
+                "p_valor": float(valor),
+                "p_categoria": categoria,
+            }),
+            ("guardar_configuracion_bvm_v2", {
                 "p_clave": clave,
                 "p_valor": float(valor),
                 "p_categoria": categoria,
                 "p_owner_id": _owner_id,
                 "p_taller_id": _tid,
+            }),
+        ]
+        for rpc_name, rpc_payload in rpc_intentos:
+            try:
+                supabase.rpc(rpc_name, rpc_payload).execute()
+                _traer_datos_db.clear()
+                guardado = _config_valor_guardado(_owner_id, _tid, clave)
+                if guardado is not None and abs(guardado - float(valor)) < 0.0001:
+                    return True
+                st.error(f"No se confirmo el guardado de {clave}. Esperado: {valor}. Leido: {guardado}.")
+                return False
+            except Exception as rpc_error:
+                rpc_errors.append(f"{rpc_name}: {rpc_error}")
+
+        if _tid:
+            st.error(f"Error guardando {clave} en taller: {' | '.join(rpc_errors)}")
+            return False
+
+        try:
+            supabase.rpc("guardar_configuracion_bvm", {
+                "p_clave": clave,
+                "p_valor": float(valor),
+                "p_categoria": categoria,
             }).execute()
             _traer_datos_db.clear()
             guardado = _config_valor_guardado(_owner_id, _tid, clave)
-            if guardado is not None and abs(guardado - float(valor)) < 0.0001:
-                return True
-            st.error(f"No se confirmo el guardado de {clave}. Esperado: {valor}. Leido: {guardado}.")
-            return False
-        except Exception as rpc_error:
-            if _tid:
-                st.error(f"Error guardando {clave} en taller: {rpc_error}")
-                return False
+            return guardado is not None and abs(guardado - float(valor)) < 0.0001
+        except Exception:
+            pass
 
-            try:
-                supabase.rpc("guardar_configuracion_bvm", {
-                    "p_clave": clave,
-                    "p_valor": float(valor),
-                    "p_categoria": categoria,
-                }).execute()
-                _traer_datos_db.clear()
-                guardado = _config_valor_guardado(_owner_id, _tid, clave)
-                return guardado is not None and abs(guardado - float(valor)) < 0.0001
-            except Exception:
-                pass
-
-            if _tid:
-                st.error(f"Error RPC guardando {clave}: {rpc_error}")
-                return False
 
         data = {"user_id": _owner_id, "taller_id": _tid, "clave": clave, "valor": float(valor), "categoria": categoria}
 

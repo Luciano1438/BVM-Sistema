@@ -204,6 +204,59 @@ $$;
 
 grant execute on function public.bvm_configuracion_actual() to authenticated;
 
+create or replace function public.bvm_guardar_configuracion_actual(
+  p_clave text,
+  p_valor double precision,
+  p_categoria text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_taller_id uuid;
+  v_owner_id uuid;
+begin
+  if v_uid is null then
+    raise exception 'Usuario no autenticado';
+  end if;
+
+  select t.id, t.owner_id
+    into v_taller_id, v_owner_id
+  from public.talleres t
+  where t.owner_id = v_uid
+  limit 1;
+
+  if v_taller_id is null then
+    if exists (
+      select 1
+      from public.miembros_taller mt
+      where mt.user_id = v_uid
+    ) then
+      raise exception 'Solo el dueno del taller puede modificar precios';
+    end if;
+
+    v_owner_id := v_uid;
+  end if;
+
+  update public.configuracion c
+  set valor = p_valor,
+      categoria = p_categoria,
+      taller_id = v_taller_id
+  where c.user_id = v_owner_id
+    and c.clave = p_clave;
+
+  if not found then
+    insert into public.configuracion (user_id, taller_id, clave, valor, categoria)
+    values (v_owner_id, v_taller_id, p_clave, p_valor, p_categoria);
+  end if;
+end;
+$$;
+
+grant execute on function public.bvm_guardar_configuracion_actual(text, double precision, text) to authenticated;
+
 create or replace function public.guardar_configuracion_bvm_v2(
   p_clave text,
   p_valor double precision,
