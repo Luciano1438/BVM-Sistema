@@ -49,6 +49,10 @@ def _safe_float(val, default=0.0) -> float:
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List, Dict, Any
 
+@st.cache_data(ttl=900, show_spinner=False)
+def _generar_despiece_cached(args_json: str):
+    return generar_despiece_bvm(**json.loads(args_json))
+
 class ModuloBVM(BaseModel):
     """Representa un módulo de mueble dentro de una obra. Valida y normaliza
     los datos venga de donde venga: form nuevo, Supabase plano, o legacy."""
@@ -815,7 +819,7 @@ def eliminar_precio_nube(clave, categoria):
         st.error(f"Error al eliminar {clave}: {e}")
 
 # Sincronización: Reducimos TTL a 5s para garantizar actualización en tiempo real en la pantalla del empleado
-@st.cache_data(ttl=5, show_spinner=False)
+@st.cache_data(ttl=60, show_spinner=False)
 def _traer_datos_db(scope_id: str, token: str, usa_taller: bool, owner_id: Optional[str] = None):
     """Carga configuración desde Supabase. Cacheada 5 segundos por scope."""
     supabase.postgrest.auth(token)
@@ -950,6 +954,7 @@ def traer_datos_historial():
     except Exception:
         return pd.DataFrame()
 
+@st.cache_data(ttl=900, show_spinner=False)
 def generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa, cant_puertas, cant_cajones, estantes_fijos, estantes_moviles, tiene_parante, sin_fondo, distribucion_tapas="Iguales", tipo_base="Nada", altura_base=0, **kwargs):
     """Genera un SVG esquemático del mueble con proporciones reales."""
     ancho_m = _safe_float(ancho_m)
@@ -1962,28 +1967,29 @@ Para piezas que no entran en ningún módulo automático:<br>
           _frent_pl = tiene_frentin_placard        if tipo_modulo == "Placard" else False
           _cant_pan = cant_paneles                 if tipo_modulo == "Pieza Suelta" else 1
 
-          piezas = generar_despiece_bvm(
-              tipo=tipo_modulo, ancho_m=ancho_m, alto_m=alto_m, prof_m=prof_m,
-              esp_real=esp_real, tiene_parante=(_frent_pl if tipo_modulo=="Placard" else tiene_parante),
-              tipo_parante=tipo_parante,
-              distancia_parante=distancia_parante, cant_cajones=cant_cajones,
-              tipo_tapa=tipo_tapa, tipo_base=tipo_base, altura_base=altura_base,
-              luz_entre_tapas=luz_entre_tapas, luz_perimetral_tapa=luz_perimetral_tapa,
-              alto_frentin_emb=alto_frentin_emb, aire_trasero=aire_trasero,
-              esp_corredera=esp_corredera, distribucion_tapas=distribucion_tapas,
-              cant_puertas=cant_puertas, tiene_cenefa=tiene_cenefa, alto_cenefa=alto_cenefa,
-              estantes_fijos=estantes_fijos, estantes_moviles=estantes_moviles,
-              tipo_estante_manual=tipo_estante_manual, sin_fondo=sin_fondo,
-              tiene_parante_medio=tiene_parante_medio,
-              division_placard=_div_pl, zona_izq=_z_izq, zona_der=_z_der, zona_unica=_z_unica,
-              altura_tubo=_h_tubo,
-              cant_estantes_izq_fijos=_ef_izq,   cant_estantes_izq_moviles=_em_izq,
-              cant_estantes_der_fijos=_ef_der,   cant_estantes_der_moviles=_em_der,
-              cant_estantes_unica_fijos=_ef_uni, cant_estantes_unica_moviles=_em_uni,
-              cant_cajones_placard=_caj_pl,
-              cant_paneles=_cant_pan,
-              nota_pieza=nota_pieza if tipo_modulo == 'Pieza Suelta' else '',
-          )
+          _despiece_args = {
+              "tipo": tipo_modulo, "ancho_m": ancho_m, "alto_m": alto_m, "prof_m": prof_m,
+              "esp_real": esp_real, "tiene_parante": (_frent_pl if tipo_modulo=="Placard" else tiene_parante),
+              "tipo_parante": tipo_parante,
+              "distancia_parante": distancia_parante, "cant_cajones": cant_cajones,
+              "tipo_tapa": tipo_tapa, "tipo_base": tipo_base, "altura_base": altura_base,
+              "luz_entre_tapas": luz_entre_tapas, "luz_perimetral_tapa": luz_perimetral_tapa,
+              "alto_frentin_emb": alto_frentin_emb, "aire_trasero": aire_trasero,
+              "esp_corredera": esp_corredera, "distribucion_tapas": distribucion_tapas,
+              "cant_puertas": cant_puertas, "tiene_cenefa": tiene_cenefa, "alto_cenefa": alto_cenefa,
+              "estantes_fijos": estantes_fijos, "estantes_moviles": estantes_moviles,
+              "tipo_estante_manual": tipo_estante_manual, "sin_fondo": sin_fondo,
+              "tiene_parante_medio": tiene_parante_medio,
+              "division_placard": _div_pl, "zona_izq": _z_izq, "zona_der": _z_der, "zona_unica": _z_unica,
+              "altura_tubo": _h_tubo,
+              "cant_estantes_izq_fijos": _ef_izq, "cant_estantes_izq_moviles": _em_izq,
+              "cant_estantes_der_fijos": _ef_der, "cant_estantes_der_moviles": _em_der,
+              "cant_estantes_unica_fijos": _ef_uni, "cant_estantes_unica_moviles": _em_uni,
+              "cant_cajones_placard": _caj_pl,
+              "cant_paneles": _cant_pan,
+              "nota_pieza": nota_pieza if tipo_modulo == 'Pieza Suelta' else '',
+          }
+          piezas = _generar_despiece_cached(json.dumps(_despiece_args, sort_keys=True))
           df_corte = pd.DataFrame(piezas)
           if not df_corte.empty and "L" in df_corte.columns:
               for col_n in ["Tipo","L","A","Cant"]:
