@@ -708,11 +708,19 @@ def gestionar_auth():
         return False
     return True
 
+def _config_valor_guardado(owner_id, taller_id, clave):
+    query = supabase.table("configuracion").select("valor").eq("user_id", owner_id).eq("clave", clave)
+    query = query.eq("taller_id", taller_id) if taller_id else query.is_("taller_id", "null")
+    res = query.limit(1).execute()
+    if res.data:
+        return float(res.data[0].get("valor", 0))
+    return None
+
 def actualizar_precio_nube(clave, valor, categoria):
-    if "session" not in st.session_state: return
+    if "session" not in st.session_state: return False
     try:
         token = get_token()
-        if not token: return
+        if not token: return False
         supabase.postgrest.auth(token)
         _owner_id, _tid = _scope_escritura_config()
         try:
@@ -724,8 +732,16 @@ def actualizar_precio_nube(clave, valor, categoria):
                 "p_taller_id": _tid,
             }).execute()
             _traer_datos_db.clear()
-            return
+            guardado = _config_valor_guardado(_owner_id, _tid, clave)
+            if guardado is not None and abs(guardado - float(valor)) < 0.0001:
+                return True
+            st.error(f"No se confirmo el guardado de {clave}. Esperado: {valor}. Leido: {guardado}.")
+            return False
         except Exception as rpc_error:
+            if _tid:
+                st.error(f"Error guardando {clave} en taller: {rpc_error}")
+                return False
+
             try:
                 supabase.rpc("guardar_configuracion_bvm", {
                     "p_clave": clave,
@@ -733,13 +749,14 @@ def actualizar_precio_nube(clave, valor, categoria):
                     "p_categoria": categoria,
                 }).execute()
                 _traer_datos_db.clear()
-                return
+                guardado = _config_valor_guardado(_owner_id, _tid, clave)
+                return guardado is not None and abs(guardado - float(valor)) < 0.0001
             except Exception:
                 pass
 
             if _tid:
                 st.error(f"Error RPC guardando {clave}: {rpc_error}")
-                return
+                return False
 
         data = {"user_id": _owner_id, "taller_id": _tid, "clave": clave, "valor": float(valor), "categoria": categoria}
 
@@ -753,8 +770,14 @@ def actualizar_precio_nube(clave, valor, categoria):
 
         # Sincronización: Limpia la caché para que el cambio se propague instantáneamente a los empleados
         _traer_datos_db.clear()
+        guardado = _config_valor_guardado(_owner_id, _tid, clave)
+        if guardado is not None and abs(guardado - float(valor)) < 0.0001:
+            return True
+        st.error(f"No se confirmo el guardado de {clave}. Esperado: {valor}. Leido: {guardado}.")
+        return False
     except Exception as e:
         st.error(f"Error guardando {clave}: {e}")
+        return False
 
 def eliminar_precio_nube(clave, categoria):
     if "session" not in st.session_state: return
@@ -2709,11 +2732,13 @@ elif menu == "⚙️ Precios":
             st.write(f"Margen actual: {config.get('ganancia_taller_pct', 0.3)*100:.0f}%")
 
         if st.button("💾 Guardar Configuración", type="primary", use_container_width=True):
+            guardado_ok = True
             for madera, precio in maderas.items():
-                actualizar_precio_nube(madera, precio, 'maderas')
+                guardado_ok = actualizar_precio_nube(madera, precio, 'maderas') and guardado_ok
             for k, v in config.items():
                 cat = 'costos' if k in ['gastos_fijos_diarios', 'flete_capital', 'flete_norte', 'colocacion_dia', 'ganancia_taller_pct'] else 'herrajes'
-                actualizar_precio_nube(k, v, cat)
+                guardado_ok = actualizar_precio_nube(k, v, cat) and guardado_ok
             _traer_datos_db.clear()
-            st.rerun()
+            if not guardado_ok:
+                st.stop()
             st.success("✅ Configuración guardada")
