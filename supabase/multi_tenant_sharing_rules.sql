@@ -39,6 +39,10 @@ from public.talleres t
 where c.taller_id is null
   and c.user_id = t.owner_id;
 
+-- La app respeta la constraint existente unique_user_clave:
+-- un dueño tiene una sola fila por clave, sea personal o compartida.
+-- Al entrar a un taller, esa misma fila se asocia con taller_id.
+
 update public.retazos r
 set taller_id = t.id
 from public.talleres t

@@ -708,14 +708,11 @@ def actualizar_precio_nube(clave, valor, categoria):
         _owner_id, _tid = _scope_escritura_config()
         data = {"user_id": _owner_id, "taller_id": _tid, "clave": clave, "valor": float(valor), "categoria": categoria}
 
-        buscar = supabase.table("configuracion").select("clave").eq("clave", clave).eq("categoria", categoria)
-        buscar = buscar.eq("taller_id", _tid) if _tid else buscar.eq("user_id", _owner_id).is_("taller_id", "null")
+        buscar = supabase.table("configuracion").select("clave").eq("user_id", _owner_id).eq("clave", clave)
         existe = buscar.limit(1).execute()
 
         if existe.data:
-            actualizar = supabase.table("configuracion").update(data).eq("clave", clave).eq("categoria", categoria)
-            actualizar = actualizar.eq("taller_id", _tid) if _tid else actualizar.eq("user_id", _owner_id).is_("taller_id", "null")
-            actualizar.execute()
+            supabase.table("configuracion").update(data).eq("user_id", _owner_id).eq("clave", clave).execute()
         else:
             supabase.table("configuracion").insert(data).execute()
 
