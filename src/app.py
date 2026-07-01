@@ -414,7 +414,7 @@ def get_token():
 def _traer_retazos_db(scope_id: str, usa_taller: bool):
     """Carga retazos desde Supabase. Cacheado 2 minutos."""
     query = supabase.table("retazos").select("*")
-    query = query.eq("taller_id", scope_id) if usa_taller else query.eq("user_id", scope_id)
+    query = query.eq("taller_id", scope_id) if usa_taller else query.eq("user_id", scope_id).is_("taller_id", "null")
     return query.execute().data
 
 def _scope_lectura():
@@ -473,8 +473,10 @@ def _resolver_datos_miembro(user_id: str):
             t_id = res.data[0]["taller_id"]
             rol = res.data[0]["rol"]
             try:
-                res_taller = supabase.table("talleres").select("nombre").eq("id", t_id).limit(1).execute()
+                res_taller = supabase.table("talleres").select("nombre, owner_id").eq("id", t_id).limit(1).execute()
                 nombre_taller = res_taller.data[0]["nombre"] if res_taller.data else "Taller Compartido"
+                if res_taller.data and res_taller.data[0].get("owner_id") == user_id:
+                    rol = "dueño"
             except Exception:
                 nombre_taller = "Taller Compartido"
             return {"taller_id": t_id, "rol": rol, "nombre_taller": nombre_taller}
@@ -585,7 +587,7 @@ def _aplicar_scope_mutacion(query):
     tid = _taller_id_actual()
     if tid:
         return query.eq("taller_id", tid)
-    return query.eq("user_id", _user_id())
+    return query.eq("user_id", _user_id()).is_("taller_id", "null")
 
 def abandonar_taller() -> bool:
     """Permite a un empleado desvincularse y abandonar el taller compartido actual."""
@@ -796,11 +798,16 @@ def eliminar_precio_nube(clave, categoria):
 
 # Sincronización: Reducimos TTL a 5s para garantizar actualización en tiempo real en la pantalla del empleado
 @st.cache_data(ttl=5, show_spinner=False)
-def _traer_datos_db(scope_id: str, token: str, usa_taller: bool):
+def _traer_datos_db(scope_id: str, token: str, usa_taller: bool, owner_id: Optional[str] = None):
     """Carga configuración desde Supabase. Cacheada 5 segundos por scope."""
     supabase.postgrest.auth(token)
     query = supabase.table("configuracion").select("*")
-    query = query.eq("taller_id", scope_id) if usa_taller else query.eq("user_id", scope_id)
+    if usa_taller:
+        query = query.eq("taller_id", scope_id)
+        if owner_id:
+            query = query.eq("user_id", owner_id)
+    else:
+        query = query.eq("user_id", scope_id).is_("taller_id", "null")
     datos_db = query.execute().data
     maderas_db = {d['clave']: d['valor'] for d in datos_db if str(d.get('categoria','')).lower().strip() == 'maderas'}
     config_db  = {d['clave']: d['valor'] for d in datos_db if str(d.get('categoria','')).lower().strip() in ['costos','margen','herrajes']}
@@ -821,7 +828,8 @@ def traer_datos():
         if not token: raise Exception("No token")
         _tid = _taller_id_actual()
         if _tid:
-            maderas_db, config_db = _traer_datos_db(_tid, token, usa_taller=True)
+            _owner_id, _ = _asegurar_datos_taller()
+            maderas_db, config_db = _traer_datos_db(_tid, token, usa_taller=True, owner_id=_owner_id)
         else:
             maderas_db, config_db = _traer_datos_db(_user_id(), token, usa_taller=False)
         return {**MADERAS_DEFAULT, **maderas_db}, FONDOS, {**CONFIG_DEFAULT, **config_db}
@@ -877,7 +885,7 @@ def guardar_presupuesto_nube(cliente, mueble, total, parametros=None, id_editar=
                 "parametros": json.dumps(parametros)}
         
         if id_editar:
-            res_update = supabase.table("ventas").update(data).eq("id", id_editar).execute()
+            res_update = _aplicar_scope_mutacion(supabase.table("ventas").update(data).eq("id", id_editar)).execute()
             if hasattr(res_update, "data") and res_update.data == []:
                 st.warning("No se actualizó ninguna fila. Revisá las políticas RLS de ventas en Supabase.")
             _traer_historial_db.clear()
@@ -900,7 +908,7 @@ def guardar_presupuesto_nube(cliente, mueble, total, parametros=None, id_editar=
 def _traer_historial_db(scope_id: str, usa_taller: bool):
     """Carga historial desde Supabase. Cacheado 60 segundos."""
     query = supabase.table("ventas").select("*")
-    query = query.eq("taller_id", scope_id) if usa_taller else query.eq("user_id", scope_id)
+    query = query.eq("taller_id", scope_id) if usa_taller else query.eq("user_id", scope_id).is_("taller_id", "null")
     return pd.DataFrame(query.execute().data)
 
 def traer_datos_historial():
@@ -1381,7 +1389,8 @@ for k, v in {
 maderas, fondos, config = traer_datos()
 
 # Identificadores de permisos y rol multi-usuario
-es_empleado = (_obtener_rol_actual() == "empleado")
+_rol_actual = _obtener_rol_actual()
+es_empleado = (_rol_actual is not None and _rol_actual != "dueño")
 
 _opciones_menu  = ["🪵 Cotizador", "♻️ Retazos", "📋 Historial", "⚙️ Precios"]
 _editando_algo  = st.session_state.get("edit_ctx") is not None
@@ -2363,8 +2372,30 @@ elif menu == "📋 Historial":
 
     def actualizar_estado(id_venta, nuevo_estado):
         try:
-            supabase.postgrest.auth(st.session_state["session"].access_token)
-            supabase.table("ventas").update({"estado": nuevo_estado}).eq("id", id_venta).execute()
+            token = get_token()
+            if token:
+                supabase.postgrest.auth(token)
+
+            user_actual = st.session_state.get("user", None)
+            user_email = user_actual.email if user_actual and hasattr(user_actual, "email") else "Usuario desconocido"
+            fecha_actual = datetime.now(timezone(timedelta(hours=-3))).strftime("%Y-%m-%d %H:%M")
+
+            parametros = {}
+            old_record = supabase.table("ventas").select("parametros").eq("id", id_venta).limit(1).execute()
+            if old_record.data and old_record.data[0].get("parametros"):
+                try:
+                    parsed = json.loads(old_record.data[0]["parametros"])
+                    if isinstance(parsed, dict):
+                        parametros = parsed
+                except Exception:
+                    parametros = {}
+
+            parametros["editado_por"] = user_email
+            parametros["fecha_edicion"] = fecha_actual
+            parametros["ultima_accion"] = f"Estado cambiado a {nuevo_estado}"
+
+            data_update = {"estado": nuevo_estado, "parametros": json.dumps(parametros), "fecha": fecha_actual}
+            _aplicar_scope_mutacion(supabase.table("ventas").update(data_update).eq("id", id_venta)).execute()
             _traer_historial_db.clear()
         except Exception as e:
             st.error(f"Error: {e}")
