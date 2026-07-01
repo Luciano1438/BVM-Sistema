@@ -478,6 +478,15 @@ def _resolver_datos_miembro(user_id: str):
             except Exception:
                 nombre_taller = "Taller Compartido"
             return {"taller_id": t_id, "rol": rol, "nombre_taller": nombre_taller}
+
+        res_owner = supabase.table("talleres").select("id, nombre").eq("owner_id", user_id).limit(1).execute()
+        if res_owner.data:
+            taller = res_owner.data[0]
+            return {
+                "taller_id": taller["id"],
+                "rol": "dueño",
+                "nombre_taller": taller.get("nombre") or "Taller Compartido",
+            }
     except Exception:
         pass
     return None
