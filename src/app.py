@@ -705,6 +705,17 @@ def actualizar_precio_nube(clave, valor, categoria):
         token = get_token()
         if not token: return
         supabase.postgrest.auth(token)
+        try:
+            supabase.rpc("guardar_configuracion_bvm", {
+                "p_clave": clave,
+                "p_valor": float(valor),
+                "p_categoria": categoria,
+            }).execute()
+            _traer_datos_db.clear()
+            return
+        except Exception:
+            pass
+
         _owner_id, _tid = _scope_escritura_config()
         data = {"user_id": _owner_id, "taller_id": _tid, "clave": clave, "valor": float(valor), "categoria": categoria}
 

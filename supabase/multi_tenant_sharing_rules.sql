@@ -117,6 +117,62 @@ with check (
   )
 );
 
+-- Guardado robusto de precios/configuracion desde Streamlit.
+-- Evita conflictos con la constraint existente unique_user_clave.
+create or replace function public.guardar_configuracion_bvm(
+  p_clave text,
+  p_valor double precision,
+  p_categoria text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_taller_id uuid;
+  v_owner_id uuid;
+begin
+  if v_uid is null then
+    raise exception 'Usuario no autenticado';
+  end if;
+
+  select mt.taller_id
+    into v_taller_id
+  from public.miembros_taller mt
+  where mt.user_id = v_uid
+  limit 1;
+
+  if v_taller_id is not null then
+    select t.owner_id
+      into v_owner_id
+    from public.talleres t
+    where t.id = v_taller_id;
+
+    if v_owner_id is distinct from v_uid then
+      raise exception 'Solo el dueño del taller puede modificar precios';
+    end if;
+  else
+    v_owner_id := v_uid;
+  end if;
+
+  update public.configuracion c
+  set valor = p_valor,
+      categoria = p_categoria,
+      taller_id = v_taller_id
+  where c.user_id = v_owner_id
+    and c.clave = p_clave;
+
+  if not found then
+    insert into public.configuracion (user_id, taller_id, clave, valor, categoria)
+    values (v_owner_id, v_taller_id, p_clave, p_valor, p_categoria);
+  end if;
+end;
+$$;
+
+grant execute on function public.guardar_configuracion_bvm(text, double precision, text) to authenticated;
+
 drop policy if exists ventas_delete_scope on public.ventas;
 create policy ventas_delete_scope
 on public.ventas for delete
