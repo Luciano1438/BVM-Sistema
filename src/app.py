@@ -498,6 +498,13 @@ def _resolver_taller_id(user_id: str):
     info = _resolver_datos_miembro(user_id)
     return info["taller_id"] if info else None
 
+def _limpiar_cache_multiusuario():
+    for fn in (_resolver_datos_miembro, _resolver_owner_de_taller, _traer_datos_db, _traer_retazos_db, _traer_historial_db):
+        try:
+            fn.clear()
+        except Exception:
+            pass
+
 def _obtener_rol_actual() -> Optional[str]:
     """Obtiene el rol del usuario actual en el taller ('dueño', 'empleado' o None)."""
     uid = _user_id()
@@ -578,9 +585,7 @@ def _migrar_datos_dueno_a_taller(owner_id: str, taller_id: str):
                 .eq("user_id", owner_id).is_("taller_id", "null").execute()
         except Exception:
             pass
-    _traer_datos_db.clear()
-    _traer_historial_db.clear()
-    _traer_retazos_db.clear()
+    _limpiar_cache_multiusuario()
 
 def _aplicar_scope_mutacion(query):
     """Filtro defensivo para update/delete: RLS sigue siendo la seguridad real."""
@@ -607,11 +612,7 @@ def abandonar_taller() -> bool:
         supabase.table("miembros_taller").delete().eq("taller_id", info["taller_id"]).eq("user_id", uid).execute()
         
         # Invalidar la caché
-        _resolver_datos_miembro.clear()
-        _resolver_taller_id.clear()
-        _traer_datos_db.clear()
-        _traer_retazos_db.clear()
-        _traer_historial_db.clear()
+        _limpiar_cache_multiusuario()
         return True
     except Exception as e:
         st.error(f"Error al abandonar el taller: {e}")
@@ -663,8 +664,7 @@ def invitar_a_taller(email_invitado: str) -> bool:
         supabase.table("miembros_taller").insert({"taller_id": taller_id, "user_id": invitado_id, "rol": "empleado"}).execute()
         
         # Invalidar la caché de los datos vinculados
-        _resolver_datos_miembro.clear()
-        _resolver_taller_id.clear()
+        _limpiar_cache_multiusuario()
         return True
     except Exception as e:
         st.error(f"No se pudo invitar: {e}")
@@ -801,14 +801,28 @@ def eliminar_precio_nube(clave, categoria):
 def _traer_datos_db(scope_id: str, token: str, usa_taller: bool, owner_id: Optional[str] = None):
     """Carga configuración desde Supabase. Cacheada 5 segundos por scope."""
     supabase.postgrest.auth(token)
+    try:
+        rpc = supabase.rpc("bvm_configuracion_actual").execute()
+        if rpc.data:
+            datos_db = rpc.data
+            maderas_db = {d['clave']: d['valor'] for d in datos_db if str(d.get('categoria','')).lower().strip() == 'maderas'}
+            config_db  = {d['clave']: d['valor'] for d in datos_db if str(d.get('categoria','')).lower().strip() in ['costos','margen','herrajes']}
+            return maderas_db, config_db
+    except Exception:
+        pass
+
     query = supabase.table("configuracion").select("*")
     if usa_taller:
         query = query.eq("taller_id", scope_id)
-        if owner_id:
+        if owner_id and owner_id != _user_id():
             query = query.eq("user_id", owner_id)
     else:
         query = query.eq("user_id", scope_id).is_("taller_id", "null")
     datos_db = query.execute().data
+    if usa_taller and owner_id and (owner_id != _user_id() or _obtener_rol_actual() == "dueño"):
+        owner_rows = [d for d in datos_db if d.get("user_id") == owner_id]
+        if owner_rows:
+            datos_db = owner_rows
     maderas_db = {d['clave']: d['valor'] for d in datos_db if str(d.get('categoria','')).lower().strip() == 'maderas'}
     config_db  = {d['clave']: d['valor'] for d in datos_db if str(d.get('categoria','')).lower().strip() in ['costos','margen','herrajes']}
     return maderas_db, config_db

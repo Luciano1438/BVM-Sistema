@@ -105,6 +105,105 @@ $$;
 grant execute on function public.bvm_is_workshop_owner(uuid) to authenticated;
 grant execute on function public.bvm_is_workshop_member(uuid) to authenticated;
 
+alter table public.talleres enable row level security;
+
+drop policy if exists talleres_select_scope on public.talleres;
+create policy talleres_select_scope
+on public.talleres for select
+to authenticated
+using (
+  owner_id = auth.uid()
+  or public.bvm_is_workshop_member(id)
+);
+
+drop policy if exists talleres_insert_owner on public.talleres;
+create policy talleres_insert_owner
+on public.talleres for insert
+to authenticated
+with check (owner_id = auth.uid());
+
+drop policy if exists talleres_update_owner on public.talleres;
+create policy talleres_update_owner
+on public.talleres for update
+to authenticated
+using (owner_id = auth.uid())
+with check (owner_id = auth.uid());
+
+drop policy if exists talleres_delete_owner on public.talleres;
+create policy talleres_delete_owner
+on public.talleres for delete
+to authenticated
+using (owner_id = auth.uid());
+
+create or replace function public.bvm_configuracion_actual()
+returns table (
+  clave text,
+  valor double precision,
+  categoria text
+)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_taller_id uuid;
+  v_owner_id uuid;
+begin
+  if v_uid is null then
+    raise exception 'Usuario no autenticado';
+  end if;
+
+  select mt.taller_id
+    into v_taller_id
+  from public.miembros_taller mt
+  where mt.user_id = v_uid
+  limit 1;
+
+  if v_taller_id is null then
+    select t.id, t.owner_id
+      into v_taller_id, v_owner_id
+    from public.talleres t
+    where t.owner_id = v_uid
+    limit 1;
+  end if;
+
+  if v_taller_id is not null then
+    if v_owner_id is null then
+      select t.owner_id
+        into v_owner_id
+      from public.talleres t
+      where t.id = v_taller_id;
+    end if;
+
+    if v_owner_id is distinct from v_uid
+       and not exists (
+         select 1
+         from public.miembros_taller mt
+         where mt.taller_id = v_taller_id
+           and mt.user_id = v_uid
+       ) then
+      raise exception 'Sin acceso al taller';
+    end if;
+
+    return query
+    select c.clave::text, c.valor::double precision, c.categoria::text
+    from public.configuracion c
+    where c.taller_id = v_taller_id
+      and c.user_id = v_owner_id;
+  else
+    return query
+    select c.clave::text, c.valor::double precision, c.categoria::text
+    from public.configuracion c
+    where c.taller_id is null
+      and c.user_id = v_uid;
+  end if;
+end;
+$$;
+
+grant execute on function public.bvm_configuracion_actual() to authenticated;
+
 create or replace function public.guardar_configuracion_bvm_v2(
   p_clave text,
   p_valor double precision,
