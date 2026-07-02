@@ -6,6 +6,7 @@ import json
 import io
 import html
 import hashlib
+import copy
 import urllib.parse
 from pathlib import Path
 from supabase import create_client, Client
@@ -1495,7 +1496,7 @@ div[data-testid="stElementContainer"]:has(.bvm-module-card) + div[data-testid="s
 
 .bvm-label-preview {
     display: grid;
-    grid-template-columns: 1fr 84px;
+    grid-template-columns: 1fr 124px;
     gap: 12px;
     align-items: center;
     background: #FFFFFF;
@@ -1524,8 +1525,8 @@ div[data-testid="stElementContainer"]:has(.bvm-module-card) + div[data-testid="s
     margin-top: 4px;
 }
 .bvm-label-qr {
-    width: 76px;
-    height: 76px;
+    width: 116px;
+    height: 116px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1535,8 +1536,8 @@ div[data-testid="stElementContainer"]:has(.bvm-module-card) + div[data-testid="s
     overflow: hidden;
 }
 .bvm-label-qr img {
-    width: 72px;
-    height: 72px;
+    width: 110px;
+    height: 110px;
 }
 
 /* ── Alertas e info ────────────────────────────────────────────── */
@@ -1751,6 +1752,36 @@ def _serializar_obra_para_nube(mods):
     """Convierte lista de módulos al formato que se guarda en Supabase."""
     return [dict(_params_desde_mod(m), precio=m.get("precio", 0), nombre=m.get("nombre","")) for m in mods if m is not None]
 
+def _nombre_modulo_auto(tipo_modulo, ancho_m=0, alto_m=0, prof_m=0):
+    """Nombre sugerido mientras el usuario no escribió uno propio."""
+    tipo = str(tipo_modulo or "Módulo")
+    ancho = _safe_float(ancho_m, 0)
+    alto = _safe_float(alto_m, 0)
+    prof = _safe_float(prof_m, 0)
+    if ancho > 0 and alto > 0 and prof > 0:
+        return f"{tipo} {int(ancho)}x{int(alto)}x{int(prof)} mm"
+    if ancho > 0:
+        return f"{tipo} {int(ancho)} mm"
+    return tipo
+
+def _limpiar_borrador_obra_guardada():
+    st.session_state.pop("_obra_snapshot_original", None)
+    st.session_state.pop("_obra_id_historial", None)
+    st.session_state.pop("_obra_cliente_historial", None)
+
+def _volver_a_proyectos():
+    st.session_state["menu_idx"] = 0
+    st.session_state["_nav_destino"] = "Proyectos"
+
+def _descartar_borrador_obra_guardada():
+    """Sale de una obra guardada sin persistir los cambios locales."""
+    st.session_state["obra_modulos"] = []
+    st.session_state["logistica_obra"] = {}
+    st.session_state["cliente_actual"] = ""
+    _limpiar_edicion()
+    _limpiar_borrador_obra_guardada()
+    _volver_a_proyectos()
+
 def _limpiar_edicion():
     st.session_state["edit_ctx"] = None
     st.session_state.pop("_tipo_modulo_sel", None)
@@ -1758,10 +1789,6 @@ def _limpiar_edicion():
     for _key in list(st.session_state.keys()):
         if str(_key).startswith("cot_"):
             st.session_state.pop(_key, None)
-
-def _volver_a_proyectos():
-    st.session_state["menu_idx"] = 0
-    st.session_state["_nav_destino"] = "Proyectos"
 
 def _cancelar_edicion_modulo(ctx):
     """Cancela el draft actual sin tocar la obra guardada."""
@@ -1781,8 +1808,7 @@ def _cancelar_edicion_modulo(ctx):
     else:
         st.session_state["obra_modulos"] = []
         st.session_state["cliente_actual"] = ""
-        st.session_state.pop("_obra_id_historial", None)
-        st.session_state.pop("_obra_cliente_historial", None)
+        _limpiar_borrador_obra_guardada()
         _volver_a_proyectos()
 
 def _guardar_obra_nube(mods, cliente, obra_id=None, total_con_logistica=None, logistica=None):
@@ -1866,6 +1892,8 @@ def _generar_orden_produccion(mods):
             nombre_pieza = pieza.get("Pieza", "Pieza")
             tipo_codigo = _codigo_tipo_pieza(nombre_pieza)
             filas.append({
+                "Modulo #": idx_mod,
+                "Pieza #": idx_pieza,
                 "Codigo": f"BV-{codigo_modulo}-{tipo_codigo}-{idx_pieza:02d}-V1",
                 "Modulo": nombre_modulo,
                 "Tipo modulo": params.get("tipo_modulo", mod.get("tipo", "")),
@@ -1879,11 +1907,72 @@ def _generar_orden_produccion(mods):
             })
     return pd.DataFrame(filas)
 
+def _df_corte_desde_modulo(mod):
+    df = mod.get("df_corte") if isinstance(mod, dict) else None
+    if isinstance(df, pd.DataFrame) and not df.empty:
+        return df.copy()
+
+    params = _params_desde_mod(mod)
+    piezas = _generar_despiece_cached(json.dumps(_args_despiece_desde_params(params), sort_keys=True))
+    df = pd.DataFrame(piezas)
+    if df.empty:
+        return df
+    for col_n in ["Tipo", "L", "A", "Cant"]:
+        if col_n not in df.columns:
+            df[col_n] = 0 if col_n != "Tipo" else "Cuerpo"
+    df["L"] = pd.to_numeric(df["L"], errors="coerce").fillna(0)
+    df["A"] = pd.to_numeric(df["A"], errors="coerce").fillna(0)
+    df["Cant"] = pd.to_numeric(df["Cant"], errors="coerce").fillna(0).astype(int)
+    df["Tipo"] = df["Tipo"].fillna("Cuerpo").astype(str)
+    return df
+
+def _modulos_con_df_corte(mods):
+    salida = []
+    for mod in [m for m in mods if m is not None]:
+        df = _df_corte_desde_modulo(mod)
+        if df is None or df.empty:
+            continue
+        mod_copia = dict(mod)
+        mod_copia["df_corte"] = df
+        salida.append(mod_copia)
+    return salida
+
+def _csv_orden_produccion(df_prod: pd.DataFrame) -> bytes:
+    if df_prod is None or df_prod.empty:
+        return b""
+    df = df_prod.copy()
+    columnas = [
+        "Modulo #", "Modulo", "Tipo modulo", "Pieza #", "Codigo",
+        "Pieza", "Cantidad", "Largo", "Ancho", "Material", "Tipo", "Veta",
+    ]
+    for col in columnas:
+        if col not in df.columns:
+            df[col] = ""
+    df = df[columnas].rename(columns={
+        "Modulo #": "Modulo orden",
+        "Tipo modulo": "Tipo de modulo",
+        "Pieza #": "Pieza orden",
+        "Largo": "Largo mm",
+        "Ancho": "Ancho mm",
+    })
+    for col in ["Largo mm", "Ancho mm"]:
+        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).round(1)
+    df["Cantidad"] = pd.to_numeric(df["Cantidad"], errors="coerce").fillna(0).astype(int)
+    return df.to_csv(index=False, sep=";").encode("utf-8-sig")
+
 
 def _qr_data_uri(texto: str) -> str:
     if qrcode is None:
         return ""
-    img = qrcode.make(str(texto))
+    qr = qrcode.QRCode(
+        version=None,
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=8,
+        border=4,
+    )
+    qr.add_data(str(texto))
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white").convert("RGB")
     buffer = io.BytesIO()
     img.save(buffer, format="PNG")
     encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
@@ -1918,23 +2007,18 @@ def _etiquetas_desde_df(df_prod: pd.DataFrame) -> list[dict]:
 
 
 def _payload_qr_etiqueta(etiqueta: dict) -> str:
-    payload = {
-        "codigo": etiqueta.get("codigo", ""),
-        "codigo_base": etiqueta.get("codigo_base", ""),
-        "modulo": etiqueta.get("modulo", ""),
-        "tipo_modulo": etiqueta.get("tipo_modulo", ""),
-        "pieza": etiqueta.get("pieza", ""),
-        "material": etiqueta.get("material", ""),
-        "medidas_mm": {
-            "largo": int(etiqueta.get("largo", 0)),
-            "ancho": int(etiqueta.get("ancho", 0)),
-        },
-        "unidad": etiqueta.get("unidad", 1),
-        "cantidad_total": etiqueta.get("cantidad_total", 1),
-        "tipo": etiqueta.get("tipo", ""),
-        "veta": etiqueta.get("veta", ""),
-    }
-    return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+    return "\n".join([
+        "BVM - PIEZA",
+        f"CODIGO: {etiqueta.get('codigo', '')}",
+        f"MODULO: {etiqueta.get('modulo', '')}",
+        f"TIPO MODULO: {etiqueta.get('tipo_modulo', '')}",
+        f"PIEZA: {etiqueta.get('pieza', '')}",
+        f"MATERIAL: {etiqueta.get('material', '')}",
+        f"MEDIDA: {int(etiqueta.get('largo', 0))} x {int(etiqueta.get('ancho', 0))} mm",
+        f"UNIDAD: {etiqueta.get('unidad', 1)} de {etiqueta.get('cantidad_total', 1)}",
+        f"TIPO PIEZA: {etiqueta.get('tipo', '')}",
+        f"VETA: {etiqueta.get('veta', '')}",
+    ])
 
 
 def _html_label_card(etiqueta: dict, qr_uri: str) -> str:
@@ -1985,15 +2069,15 @@ def _html_etiquetas_imprimibles(etiquetas: list[dict], cliente: str) -> bytes:
     .toolbar button {{ background: white; color: #0f172a; border: 0; border-radius: 6px; padding: 8px 14px; font-weight: 700; cursor: pointer; }}
     .sheet {{ padding: 10mm; }}
     .labels {{ display: grid; grid-template-columns: repeat(2, 1fr); gap: 5mm; }}
-    .label {{ height: 52mm; border: 1px solid #111827; border-radius: 3mm; background: white; padding: 4mm; display: grid; grid-template-columns: 1fr 30mm; gap: 4mm; break-inside: avoid; page-break-inside: avoid; }}
+    .label {{ height: 58mm; border: 1px solid #111827; border-radius: 3mm; background: white; padding: 4mm; display: grid; grid-template-columns: 1fr 36mm; gap: 4mm; break-inside: avoid; page-break-inside: avoid; }}
     .code {{ font-size: 10pt; font-weight: 800; letter-spacing: 0.02em; }}
     .piece {{ font-size: 9pt; font-weight: 700; margin-top: 2mm; }}
     .module {{ font-size: 7.5pt; margin-top: 1mm; }}
     .measure {{ font-size: 12pt; font-weight: 800; margin-top: 2mm; }}
     .meta {{ font-size: 7.5pt; margin-top: 1mm; line-height: 1.25; }}
     .unit {{ font-size: 7pt; margin-top: 1.5mm; color: #475569; }}
-    .qr {{ width: 30mm; height: 30mm; align-self: center; justify-self: center; border: 1px solid #cbd5e1; display: flex; align-items: center; justify-content: center; }}
-    .qr img {{ width: 28mm; height: 28mm; }}
+    .qr {{ width: 36mm; height: 36mm; align-self: center; justify-self: center; border: 1px solid #cbd5e1; display: flex; align-items: center; justify-content: center; }}
+    .qr img {{ width: 34mm; height: 34mm; }}
     .qr-fallback {{ font-size: 8pt; text-align: center; font-weight: 700; color: #64748b; }}
     @media print {{
       body {{ background: white; }}
@@ -2034,7 +2118,26 @@ if menu == "🪵 Cotizador":
         _mods_elegir = [m for m in st.session_state.get("obra_modulos", []) if m is not None]
         _cli_elegir  = ctx.get("obra_cliente", "")
         _oid_elegir  = ctx.get("obra_id")
-        st.markdown(f"### ✏️ Editando obra de **{_cli_elegir}** — ¿Qué módulo querés editar?")
+        st.markdown(f"### ✏️ Editando obra de **{_cli_elegir}**")
+        st.caption("Los cambios quedan como borrador local hasta que guardes la obra completa.")
+
+        c_full, c_new = st.columns(2)
+        if c_full.button("🏠 Abrir obra completa", type="primary", use_container_width=True, help="Volver al resumen de obra para agregar módulos, generar etiquetas, CSV o DXF."):
+            _limpiar_edicion()
+            st.session_state["cliente_actual"] = _cli_elegir
+            st.session_state["menu_idx"] = 1
+            st.session_state["_nav_destino"] = "Cotizador"
+            st.rerun()
+        if c_new.button("➕ Agregar otro módulo", use_container_width=True):
+            _limpiar_edicion()
+            st.session_state["cliente_actual"] = _cli_elegir
+            st.session_state["_tipo_modulo_sel"] = "Bajo Mesada"
+            st.session_state["menu_idx"] = 1
+            st.session_state["_nav_destino"] = "Cotizador"
+            st.rerun()
+
+        st.write("---")
+        st.markdown("#### Módulos de la obra")
         for i_e, mod_e in enumerate(_mods_elegir):
             c_info, c_btn = st.columns([5, 1])
             c_info.markdown(f"**{i_e+1}. {mod_e['nombre']}** — {mod_e['ancho']}×{mod_e['alto']}×{mod_e['prof']} mm — {mod_e['material']} — `${mod_e['precio']:,.0f}`")
@@ -2062,19 +2165,13 @@ if menu == "🪵 Cotizador":
                 st.session_state["obra_modulos"] = []
                 st.session_state["cliente_actual"] = ""
                 _limpiar_edicion()
-                st.session_state["menu_idx"] = 0  # Redirigir a Proyectos
-                st.session_state["_nav_destino"] = "Proyectos"
+                _limpiar_borrador_obra_guardada()
+                _volver_a_proyectos()
                 st.toast("✅ Cambios en la obra guardados de forma definitiva.", icon="💾")
                 st.rerun()
 
         if c_can.button("✕ Cancelar edición (Sin guardar cambios)", use_container_width=True):
-            st.session_state["obra_modulos"] = []
-            st.session_state.pop("_obra_id_historial",      None)
-            st.session_state.pop("_obra_cliente_historial", None)
-            st.session_state["cliente_actual"] = ""
-            _limpiar_edicion()
-            st.session_state["menu_idx"] = 0
-            st.session_state["_nav_destino"] = "Proyectos"
+            _descartar_borrador_obra_guardada()
             st.rerun()
         st.stop()
 
@@ -2501,7 +2598,7 @@ Para piezas que no entran en ningún módulo automático:<br>
           st.markdown('''<div style="background:#FFF8E6;border-left:3px solid #EF9F27;border-radius:0 8px 8px 0;padding:12px 16px;">
           <b style="color:#854F0B;">👆 Ingresá el nombre del cliente primero</b></div>''', unsafe_allow_html=True)
 
-      nombre_modulo = _v("nombre", f"{tipo_modulo} {ancho_m:.0f}mm")
+      nombre_modulo = _v("nombre", _nombre_modulo_auto(tipo_modulo, ancho_m, alto_m, prof_m))
       if alto_m > 0 and ancho_m > 0 and cliente:
           _div_pl   = division_placard            if tipo_modulo == "Placard" else "Sin división"
           _z_izq    = zona_izq                    if tipo_modulo == "Placard" else "Solo estantes"
@@ -2698,15 +2795,18 @@ Para piezas que no entran en ningún módulo automático:<br>
               <h4 style="color:#111827;margin:0 0 4px 0;">✏️ Modo Edición Activo</h4>
               <p style="color:#374151;margin:0;font-size:13px;">
                   Modificá las medidas o la estructura de este mueble utilizando la <b>columna de la izquierda</b>.<br>
-                  Cuando estés conforme con los valores, hacé clic en el botón de abajo para guardar los cambios de forma automática.
+                  Cuando estés conforme, confirmá el módulo. La obra se guarda en Proyectos recién al guardar la obra completa.
               </p>
           </div>
           """, unsafe_allow_html=True)
 
           st.subheader("💾 Guardar cambios en el mueble")
-          nombre_modulo = st.text_input("Nombre de este módulo", value=_v("nombre", f"{tipo_modulo} {ancho_m:.0f}mm"), help="Asigna un nombre descriptivo para identificar este mueble dentro de tu obra.", key=_wkey("nombre_modulo_edit"))
+          _nombre_edit_key = _wkey("nombre_modulo_edit")
+          if _nombre_edit_key not in st.session_state:
+              st.session_state[_nombre_edit_key] = _v("nombre", "") or _nombre_modulo_auto(tipo_modulo, ancho_m, alto_m, prof_m)
+          nombre_modulo = st.text_input("Nombre de este módulo", help="Asigna un nombre descriptivo para identificar este mueble dentro de tu obra.", key=_nombre_edit_key)
 
-          if st.button("💾 Confirmar cambios y guardar proyecto", use_container_width=True, type="primary", key=_wkey("confirmar_edit_modulo")):
+          if st.button("✅ Confirmar cambios del módulo", use_container_width=True, type="primary", key=_wkey("confirmar_edit_modulo")):
               if precio_a_usar <= 0:
                   st.warning("El precio es 0. Completá las medidas para poder calcular.")
               else:
@@ -2727,30 +2827,15 @@ Para piezas que no entran en ningún módulo automático:<br>
                   _oid = ctx.get("obra_id")
                   _cli = ctx.get("obra_cliente") or cliente
                   if _oid and _cli:
-                      _log_prev = st.session_state.get("logistica_obra", {})
-                      _tot_prev = sum(m["precio"] for m in mods) + _log_prev.get("costo_log_total", 0.0)
-                      if _guardar_obra_nube(mods, _cli, _oid,
-                                             total_con_logistica=_tot_prev,
-                                             logistica=_log_prev):
-                          # Redirección inteligente según el tamaño de la obra
-                          if len(mods) > 1:
-                              st.session_state["edit_ctx"] = {
-                                  "modo":        "elegir_modulo_obra",
-                                  "obra_id":     _oid,
-                                  "obra_cliente": _cli,
-                              }
-                              st.toast("✅ Módulo actualizado. Podés seguir editando la obra.", icon="✏️")
-                              st.rerun()
-                          else:
-                              st.session_state["obra_modulos"] = []
-                              st.session_state["cliente_actual"] = ""
-                              _limpiar_edicion()
-                              st.session_state["menu_idx"] = 0  # Redirige a Proyectos
-                              st.session_state["_nav_destino"] = "Proyectos"
-                              st.toast("✅ Proyecto actualizado y guardado.", icon="💾")
-                              st.rerun()
-                      else:
-                          st.warning("No se pudo guardar el cambio en Proyectos. Revisá el error anterior.")
+                      st.session_state["edit_ctx"] = {
+                          "modo":        "elegir_modulo_obra",
+                          "obra_id":     _oid,
+                          "obra_cliente": _cli,
+                      }
+                      st.session_state.pop("_tipo_modulo_sel", None)
+                      st.session_state.pop("_ctx_sig_prev",    None)
+                      st.toast("✅ Módulo actualizado en el borrador. Guardá la obra completa para confirmar.", icon="✏️")
+                      st.rerun()
                   else:
                       _limpiar_edicion()
                       st.toast(f"✅ {nombre_modulo} actualizado en el resumen local", icon="✏️")
@@ -2759,7 +2844,14 @@ Para piezas que no entran en ningún módulo automático:<br>
       else:
           st.subheader("🛒 Agregar al Resumen de Obra")
           st.markdown("<span style='color:#666;font-size:14px;'>Cada módulo se suma al total de la obra.</span>", unsafe_allow_html=True)
-          nombre_modulo = st.text_input("Nombre del módulo", value=f"{tipo_modulo} {ancho_m:.0f}mm", key=_wkey("nombre_modulo_add"))
+          _nombre_add_key = _wkey("nombre_modulo_add")
+          _nombre_add_auto_key = _wkey("nombre_modulo_add_auto")
+          _nombre_add_auto = _nombre_modulo_auto(tipo_modulo, ancho_m, alto_m, prof_m)
+          _nombre_add_prev_auto = st.session_state.get(_nombre_add_auto_key)
+          if _nombre_add_key not in st.session_state or st.session_state.get(_nombre_add_key, "") == _nombre_add_prev_auto:
+              st.session_state[_nombre_add_key] = _nombre_add_auto
+          st.session_state[_nombre_add_auto_key] = _nombre_add_auto
+          nombre_modulo = st.text_input("Nombre del módulo", key=_nombre_add_key)
           if st.button("👇 Agregar mueble al Resumen de Obra", use_container_width=True, type="primary", key=_wkey("agregar_modulo")):
               if ancho_m <= 0 or alto_m <= 0:
                   st.warning("Ingresá las medidas del módulo.")
@@ -2792,6 +2884,13 @@ Para piezas que no entran en ningún módulo automático:<br>
     if _mods_obra and modo not in ["editar_legacy", "editar_modulo_obra", "elegir_modulo_obra"]:
         st.write("---")
         st.header("🏠 Resumen de Obra Completa")
+        _obra_guardada_id = st.session_state.get("_obra_id_historial")
+        if _obra_guardada_id:
+            c_draft_msg, c_draft_cancel = st.columns([4, 1])
+            c_draft_msg.info("Estás trabajando sobre una obra guardada. Podés agregar módulos, editar, generar producción y recién confirmar con Guardar proyecto.")
+            if c_draft_cancel.button("Descartar cambios", use_container_width=True, help="Vuelve a Proyectos sin guardar este borrador."):
+                _descartar_borrador_obra_guardada()
+                st.rerun()
 
         subtotal_mods = sum(m["precio"] for m in _mods_obra)
 
@@ -2799,7 +2898,6 @@ Para piezas que no entran en ningún módulo automático:<br>
             col_mod, col_dup, col_edit, col_del = st.columns([6, 1, 1, 1])
             col_mod.write(f"**{i_m+1}. {mod['nombre']}** — {mod['ancho']}×{mod['alto']}×{mod['prof']} mm — {mod['material']} — `${mod['precio']:,.0f}`")
             if col_dup.button("⧉", key=f"dup_mod_{i_m}", help="Duplicar este módulo"):
-                import copy
                 mod_copia = copy.deepcopy(mod)
                 mod_copia["nombre"] = f"{mod['nombre']} (copia)"
                 mod_copia["df_corte"] = mod.get("df_corte")
@@ -2905,7 +3003,7 @@ Para piezas que no entran en ningún módulo automático:<br>
                     col_ord, col_print = st.columns(2)
                     col_ord.download_button(
                         "Descargar orden CSV",
-                        data=df_prod.to_csv(index=False).encode("utf-8"),
+                        data=_csv_orden_produccion(df_prod),
                         file_name=f"Orden_produccion_{cliente_obra}.csv",
                         mime="text/csv",
                         use_container_width=True,
@@ -2945,7 +3043,7 @@ Para piezas que no entran en ningún módulo automático:<br>
                 st.caption("Generá la orden cuando la obra ya tenga los módulos listos.")
 
         with st.expander("⚙️ DXF Aspire — Obra completa"):
-            _mods_cnc = [m for m in _mods_obra if m.get("df_corte") is not None]
+            _mods_cnc = _modulos_con_df_corte(_mods_obra)
             if _mods_cnc:
                 _cnc_obra_sig = json.dumps(_serializar_obra_para_nube(_mods_cnc), sort_keys=True, default=str)
                 if st.button("Preparar DXF de obra para Aspire", use_container_width=True, key="btn_preparar_cnc_obra"):
@@ -3011,8 +3109,7 @@ Para piezas que no entran en ningún módulo automático:<br>
                     st.session_state["logistica_obra"]  = {}
                     st.session_state["ultimo_agregado"] = None
                     st.session_state["_tipo_modulo_sel"] = "Bajo Mesada"
-                    st.session_state.pop("_obra_cliente_historial", None)
-                    st.session_state.pop("_obra_id_historial",      None)
+                    _limpiar_borrador_obra_guardada()
                     st.session_state.pop("_ctx_sig_prev",           None)
                     st.session_state["edit_ctx"] = None
                     st.session_state["cliente_actual"] = ""
@@ -3202,29 +3299,33 @@ elif menu == "📋 Historial":
                                         "params":    p,
                                     })
 
+                                _logistica_guardada = params.get("logistica", {}) if isinstance(params.get("logistica"), dict) else {}
                                 st.session_state["obra_modulos"]            = mods_internos
+                                st.session_state["logistica_obra"]          = _logistica_guardada
+                                st.session_state["flete_obra"]              = _logistica_guardada.get("flete_sel", "Ninguno")
+                                st.session_state["col_obra"]                = bool(_safe_int(_logistica_guardada.get("dias_col", 0)) > 0)
+                                st.session_state["dias_col_obra"]           = _safe_int(_logistica_guardada.get("dias_col", 0))
+                                st.session_state["dias_obra"]               = _safe_int(_logistica_guardada.get("dias_entrega", 20), 20)
+                                st.session_state["sena_obra"]               = max(0, min(100, _safe_int(_logistica_guardada.get("pct_seña", 50), 50)))
                                 st.session_state["_obra_id_historial"]      = id_venta
                                 st.session_state["_obra_cliente_historial"] = cliente_h
+                                st.session_state["_obra_snapshot_original"] = {
+                                    "obra_id": id_venta,
+                                    "cliente": cliente_h,
+                                    "modulos": copy.deepcopy(mods_internos),
+                                    "logistica": copy.deepcopy(_logistica_guardada),
+                                }
                                 st.session_state["cliente_actual"]          = cliente_h
                                 st.session_state.pop("_tipo_modulo_sel", None)
                                 st.session_state.pop("_ctx_sig_prev",    None)
                                 st.session_state["menu_idx"] = 1
                                 st.session_state["_nav_destino"] = "Cotizador"
 
-                                if len(mods_internos) == 1:
-                                    st.session_state["edit_ctx"] = {
-                                        "modo":        "editar_modulo_obra",
-                                        "idx":         0,
-                                        "obra_id":     id_venta,
-                                        "obra_cliente": cliente_h,
-                                        "params":      mods_internos[0]["params"],
-                                    }
-                                else:
-                                    st.session_state["edit_ctx"] = {
-                                        "modo":        "elegir_modulo_obra",
-                                        "obra_id":     id_venta,
-                                        "obra_cliente": cliente_h,
-                                    }
+                                st.session_state["edit_ctx"] = {
+                                    "modo":        "elegir_modulo_obra",
+                                    "obra_id":     id_venta,
+                                    "obra_cliente": cliente_h,
+                                }
                             else:
                                 params["precio_guardado"] = float(row.get("precio_final", 0))
                                 st.session_state["edit_ctx"] = {
