@@ -4,16 +4,22 @@ import sqlite3
 import os
 import json
 import io
+import html
 import urllib.parse
 from pathlib import Path
 from supabase import create_client, Client
 from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
 from fpdf import FPDF
+import base64
 try:
     import ezdxf
 except ImportError:
     ezdxf = None
+try:
+    import qrcode
+except ImportError:
+    qrcode = None
 
 from motor import (
     generar_despiece_bvm,
@@ -965,13 +971,16 @@ def guardar_presupuesto_nube(cliente, mueble, total, parametros=None, id_editar=
             res_update = _aplicar_scope_mutacion(supabase.table("ventas").update(data).eq("id", id_editar)).execute()
             if hasattr(res_update, "data") and res_update.data == []:
                 st.warning("No se actualizó ninguna fila. Revisá las políticas RLS de ventas en Supabase.")
+                return False
             _traer_historial_db.clear()
-            st.success("✅ Presupuesto actualizado.")
+            st.success("✅ Proyecto actualizado.")
+            return True
         else:
             data["estado"] = "Pendiente"
             supabase.table("ventas").insert(data).execute()
             _traer_historial_db.clear()
-            st.success("✅ Presupuesto guardado.")
+            st.success("✅ Guardado en Proyectos.")
+            return True
     except Exception as e:
         err_msg = str(e)
         if "JWT" in err_msg or "expired" in err_msg.lower():
@@ -980,6 +989,7 @@ def guardar_presupuesto_nube(cliente, mueble, total, parametros=None, id_editar=
             st.error("Ya existe un registro con esos datos.")
         else:
             st.error(f"Error al guardar: {err_msg}")
+        return False
 
 @st.cache_data(ttl=60, show_spinner=False)
 def _traer_historial_db(scope_id: str, usa_taller: bool):
@@ -1404,11 +1414,37 @@ h3 { font-size: 14px !important; font-weight: 600 !important; color: var(--bvm-t
     text-align: center;
     min-height: 116px;
     box-shadow: var(--bvm-shadow);
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: border-color 0.12s, box-shadow 0.12s, transform 0.12s;
 }
 .bvm-module-card.is-active {
     border-color: var(--bvm-accent);
     background: #EEF2FF;
     box-shadow: 0 6px 16px rgba(79,70,229,0.14);
+}
+.bvm-module-card:hover {
+    border-color: var(--bvm-accent);
+    box-shadow: var(--bvm-shadow-md);
+    transform: translateY(-1px);
+}
+.bvm-module-card + div[data-testid="stButton"] {
+    margin-top: -124px;
+    height: 124px;
+    margin-bottom: 8px;
+}
+.bvm-module-card + div[data-testid="stButton"] button {
+    height: 116px;
+    opacity: 0;
+}
+div[data-testid="stMarkdown"]:has(.bvm-module-card) + div[data-testid="stButton"] {
+    margin-top: -124px;
+    height: 124px;
+    margin-bottom: 8px;
+}
+div[data-testid="stMarkdown"]:has(.bvm-module-card) + div[data-testid="stButton"] button {
+    height: 116px;
+    opacity: 0;
 }
 .bvm-module-card svg {
     width: 86px;
@@ -1427,6 +1463,52 @@ h3 { font-size: 14px !important; font-weight: 600 !important; color: var(--bvm-t
 .bvm-hero p,
 .bvm-hero div {
     color: white !important;
+}
+
+.bvm-label-preview {
+    display: grid;
+    grid-template-columns: 1fr 84px;
+    gap: 12px;
+    align-items: center;
+    background: #FFFFFF;
+    border: 1px solid var(--bvm-border);
+    border-radius: 8px;
+    padding: 12px;
+    margin: 8px 0;
+    box-shadow: var(--bvm-shadow);
+}
+.bvm-label-code {
+    font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--bvm-text);
+}
+.bvm-label-piece {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--bvm-text);
+    margin-top: 4px;
+}
+.bvm-label-meta {
+    font-size: 11px;
+    color: var(--bvm-muted);
+    line-height: 1.45;
+    margin-top: 4px;
+}
+.bvm-label-qr {
+    width: 76px;
+    height: 76px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--bvm-border);
+    border-radius: 6px;
+    background: #F8FAFC;
+    overflow: hidden;
+}
+.bvm-label-qr img {
+    width: 72px;
+    height: 72px;
 }
 
 /* ── Alertas e info ────────────────────────────────────────────── */
@@ -1469,13 +1551,13 @@ if not st.session_state["onboarding_visto"]:
     <h1 style="color:white;margin:0 0 10px 0;font-size:32px;">Bienvenido a BVM</h1>
     <p style="color:white;font-size:17px;opacity:0.9;max-width:520px;margin:0 auto;">
     El sistema de presupuestación y gestión diseñado para carpinteros profesionales.
-    Calculá precios exactos, generá presupuestos en segundos y ganale al que tarda más.</p></div>""", unsafe_allow_html=True)
+    Calculá precios exactos, generá proyectos en segundos y ganale al que tarda más.</p></div>""", unsafe_allow_html=True)
 
     c1, c2, c3 = st.columns(3)
     for col, icono, titulo, desc in [
         (c1, "📐", "Paso 1 — Calculá el mueble", "Ingresá las medidas y el sistema genera la lista de corte con las piezas exactas. Sin errores, sin desperdicios."),
-        (c2, "🏗️", "Paso 2 — Armá la obra completa", "Agregá módulo por módulo y BVM los acumula en un solo presupuesto total para el cliente."),
-        (c3, "📲", "Paso 3 — Enviá y cerrá", "Generá el PDF o mandá por WhatsApp. El historial registra cada trabajo para hacer seguimiento."),
+        (c2, "🏗️", "Paso 2 — Armá la obra completa", "Agregá módulo por módulo y BVM los acumula en un solo proyecto para el cliente."),
+        (c3, "📲", "Paso 3 — Enviá y cerrá", "Generá el PDF o mandá por WhatsApp. Proyectos registra cada trabajo para hacer seguimiento."),
     ]:
         with col:
             st.markdown(f"""<div style="border:1.5px solid #E0E0E0;border-radius:12px;padding:24px;min-height:160px;">
@@ -1511,7 +1593,7 @@ es_empleado = (_rol_actual is not None and _rol_actual != "dueño")
 _nav_principal = {
     "Proyectos": "📋 Historial",
     "Cotizador": "🪵 Cotizador",
-    "Materiales": "♻️ Retazos",
+    "Retazos": "♻️ Retazos",
     "Ajustes": "⚙️ Precios",
 }
 _opciones_menu  = list(_nav_principal.keys())
@@ -1609,8 +1691,8 @@ def _guardar_obra_nube(mods, cliente, obra_id=None, total_con_logistica=None, lo
         "modulos":   _serializar_obra_para_nube(mods),
         "logistica": logistica or {},
     }
-    guardar_presupuesto_nube(cliente, f"Obra ({len(mods)} módulos)", total,
-                              parametros=params, id_editar=obra_id)
+    return guardar_presupuesto_nube(cliente, f"Obra ({len(mods)} módulos)", total,
+                                    parametros=params, id_editar=obra_id)
 
 def _codigo_tipo_pieza(nombre_pieza: str) -> str:
     nombre = str(nombre_pieza or "").lower()
@@ -1696,6 +1778,16 @@ def _generar_orden_produccion(mods):
     return pd.DataFrame(filas)
 
 
+def _qr_data_uri(texto: str) -> str:
+    if qrcode is None:
+        return ""
+    img = qrcode.make(str(texto))
+    buffer = io.BytesIO()
+    img.save(buffer, format="PNG")
+    encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
+    return f"data:image/png;base64,{encoded}"
+
+
 # ===========================================================================
 # COTIZADOR
 # ===========================================================================
@@ -1731,7 +1823,7 @@ if menu == "🪵 Cotizador":
         
         st.write("---")
         c_fin, c_can = st.columns(2)
-        if c_fin.button("💾 Finalizar Edición (Guardar y Volver al Historial)", type="primary", use_container_width=True):
+        if c_fin.button("💾 Finalizar edición y volver a Proyectos", type="primary", use_container_width=True):
             # Guardamos la obra entera de forma limpia
             _log_prev = st.session_state.get("logistica_obra", {})
             _tot_prev = sum(m["precio"] for m in _mods_elegir) + _log_prev.get("costo_log_total", 0.0)
@@ -1762,7 +1854,7 @@ if menu == "🪵 Cotizador":
             st.rerun()
 
     elif modo == "editar_legacy":
-        st.info(f"✏️ **Editando presupuesto** de **{ctx.get('cliente','')}** — Modificá y guardá.")
+        st.info(f"✏️ **Editando proyecto** de **{ctx.get('cliente','')}** — Modificá y guardá.")
         if st.button("✕ Cancelar edición", key="btn_cancel_edit"):
             _limpiar_edicion()
             st.rerun()
@@ -1873,7 +1965,7 @@ if menu == "🪵 Cotizador":
                         f'<div class="bvm-module-card{" is-active" if activo else ""}">{_svg_modulo_card(nombre_btn, activo)}<div class="bvm-module-card-label">{nombre_btn}</div></div>',
                         unsafe_allow_html=True,
                     )
-                    if st.button("Usar", key=f"sel_mod_{nombre_btn}", use_container_width=True, type="primary" if activo else "secondary"):
+                    if st.button(f"Seleccionar {nombre_btn}", key=f"sel_mod_{nombre_btn}", use_container_width=True, type="primary" if activo else "secondary"):
                         st.session_state["_tipo_modulo_sel"] = nombre_btn
                         st.session_state.pop("radio_tipo_modulo", None)
                         st.rerun()
@@ -2285,44 +2377,11 @@ Para piezas que no entran en ningún módulo automático:<br>
           else:
               st.caption("Sin herrajes extra seleccionados.")
 
-          st.write("Salidas disponibles")
-          if not df_corte.empty:
-              _csv_despiece = df_corte.to_csv(index=False).encode("utf-8")
-              st.download_button(
-                  "Despiece CSV",
-                  data=_csv_despiece,
-                  file_name=f"Despiece_{nombre_modulo}.csv",
-                  mime="text/csv",
-                  use_container_width=True,
-                  key="dl_despiece_resumen",
-              )
-              _cnc_resumen = st.session_state.get("_cnc_modulo_actual", {})
-              if "_cnc_sig" in locals() and _cnc_resumen.get("sig") == _cnc_sig:
-                  st.download_button(
-                      "DXF Aspire",
-                      data=_cnc_resumen["dxf"],
-                      file_name=f"DXF_Aspire_{nombre_modulo}.dxf",
-                      mime="application/dxf",
-                      use_container_width=True,
-                      key="dl_dxf_resumen",
-                  )
-              else:
-                  st.caption("Prepará el DXF desde el visor para habilitar la descarga.")
-          else:
-              st.caption("Completá medidas y cliente para generar salidas.")
-
           if matches and not es_empleado:
               st.success(f"Retazos: {len(matches)} pieza(s), ahorro ${ahorro_madera:,.0f}")
               with st.expander("Detalle de retazos"):
                   for m_r in matches:
                       st.write(f"{m_r['pieza']} -> Retazo ID-{m_r['retazo_id']} (${m_r['ahorro']:,.0f})")
-
-          if precio_final > 0 and not es_empleado:
-              with st.expander("Desglose de costos"):
-                  st.bar_chart(pd.DataFrame({
-                      "Categoría": ["Madera/Fondo","Herrajes","Operativo","Ganancia"],
-                      "Monto":     [costo_madera+costo_fondo, costo_herrajes, costo_operativo+costo_base, utilidad],
-                  }), x="Categoría", y="Monto", color="#2e7d32")
 
       st.write("---")
 
@@ -2365,19 +2424,19 @@ Para piezas que no entran en ningún módulo automático:<br>
 
       if modo == "editar_legacy":
           st.subheader("💾 Guardar cambios")
-          if st.button("Guardar cambios en el Historial", use_container_width=True, type="primary"):
+          if st.button("Guardar cambios en Proyectos", use_container_width=True, type="primary"):
               if not cliente:
                   st.warning("Ingresá el nombre del cliente.")
               elif precio_a_usar <= 0:
                   st.warning("El precio es 0. Completá las medidas para calcular.")
               else:
-                  guardar_presupuesto_nube(cliente, tipo_modulo, precio_a_usar,
-                                            parametros=_build_params_dict(),
-                                            id_editar=ctx["id"])
-                  _limpiar_edicion()
-                  st.session_state["_tipo_modulo_sel"] = "Bajo Mesada"
-                  st.session_state["menu_idx"] = 0
-                  st.rerun()
+                  if guardar_presupuesto_nube(cliente, tipo_modulo, precio_a_usar,
+                                               parametros=_build_params_dict(),
+                                               id_editar=ctx["id"]):
+                      _limpiar_edicion()
+                      st.session_state["_tipo_modulo_sel"] = "Bajo Mesada"
+                      st.session_state["menu_idx"] = 0
+                      st.rerun()
 
       # ── MODO: edición de un módulo cargado en la obra ──
       elif modo == "editar_modulo_obra":
@@ -2394,7 +2453,7 @@ Para piezas que no entran en ningún módulo automático:<br>
           st.subheader("💾 Guardar cambios en el mueble")
           nombre_modulo = st.text_input("Nombre de este módulo", value=_v("nombre", f"{tipo_modulo} {ancho_m:.0f}mm"), help="Asigna un nombre descriptivo para identificar este mueble dentro de tu obra.")
           
-          if st.button("💾 Confirmar Cambios y Guardar Presupuesto", use_container_width=True, type="primary"):
+          if st.button("💾 Confirmar cambios y guardar proyecto", use_container_width=True, type="primary"):
               if precio_a_usar <= 0:
                   st.warning("El precio es 0. Completá las medidas para poder calcular.")
               else:
@@ -2417,26 +2476,27 @@ Para piezas que no entran en ningún módulo automático:<br>
                   if _oid and _cli:
                       _log_prev = st.session_state.get("logistica_obra", {})
                       _tot_prev = sum(m["precio"] for m in mods) + _log_prev.get("costo_log_total", 0.0)
-                      _guardar_obra_nube(mods, _cli, _oid,
-                                          total_con_logistica=_tot_prev,
-                                          logistica=_log_prev)
-                      
-                      # Redirección inteligente según el tamaño de la obra
-                      if len(mods) > 1:
-                          st.session_state["edit_ctx"] = {
-                              "modo":        "elegir_modulo_obra",
-                              "obra_id":     _oid,
-                              "obra_cliente": _cli,
-                          }
-                          st.toast("✅ Módulo actualizado. Podés seguir editando la obra.", icon="✏️")
-                          st.rerun()
+                      if _guardar_obra_nube(mods, _cli, _oid,
+                                             total_con_logistica=_tot_prev,
+                                             logistica=_log_prev):
+                          # Redirección inteligente según el tamaño de la obra
+                          if len(mods) > 1:
+                              st.session_state["edit_ctx"] = {
+                                  "modo":        "elegir_modulo_obra",
+                                  "obra_id":     _oid,
+                                  "obra_cliente": _cli,
+                              }
+                              st.toast("✅ Módulo actualizado. Podés seguir editando la obra.", icon="✏️")
+                              st.rerun()
+                          else:
+                              st.session_state["obra_modulos"] = []
+                              st.session_state["cliente_actual"] = ""
+                              _limpiar_edicion()
+                              st.session_state["menu_idx"] = 0  # Redirige a Proyectos
+                              st.toast("✅ Proyecto actualizado y guardado.", icon="💾")
+                              st.rerun()
                       else:
-                          st.session_state["obra_modulos"] = []
-                          st.session_state["cliente_actual"] = ""
-                          _limpiar_edicion()
-                          st.session_state["menu_idx"] = 0  # Redirige a Proyectos
-                          st.toast("✅ Presupuesto actualizado y guardado de forma definitiva.", icon="💾")
-                          st.rerun()
+                          st.warning("No se pudo guardar el cambio en Proyectos. Revisá el error anterior.")
                   else:
                       _limpiar_edicion()
                       st.toast(f"✅ {nombre_modulo} actualizado en el resumen local", icon="✏️")
@@ -2444,7 +2504,7 @@ Para piezas que no entran en ningún módulo automático:<br>
 
       else:
           st.subheader("🛒 Agregar al Resumen de Obra")
-          st.markdown("<span style='color:#666;font-size:14px;'>Cada módulo se suma al presupuesto total de la obra.</span>", unsafe_allow_html=True)
+          st.markdown("<span style='color:#666;font-size:14px;'>Cada módulo se suma al total de la obra.</span>", unsafe_allow_html=True)
           nombre_modulo = st.text_input("Nombre del módulo", value=f"{tipo_modulo} {ancho_m:.0f}mm")
           if st.button("👇 Agregar mueble al Resumen de Obra", use_container_width=True, type="primary"):
               if ancho_m <= 0 or alto_m <= 0:
@@ -2482,21 +2542,8 @@ Para piezas que no entran en ningún módulo automático:<br>
         subtotal_mods = sum(m["precio"] for m in _mods_obra)
 
         for i_m, mod in enumerate(_mods_obra):
-            col_mod, col_plan, col_dup, col_edit, col_del = st.columns([5, 1, 1, 1, 1])
+            col_mod, col_dup, col_edit, col_del = st.columns([6, 1, 1, 1])
             col_mod.write(f"**{i_m+1}. {mod['nombre']}** — {mod['ancho']}×{mod['alto']}×{mod['prof']} mm — {mod['material']} — `${mod['precio']:,.0f}`")
-            if mod.get("df_corte") is not None and not mod["df_corte"].empty:
-                _df_dl = mod["df_corte"].copy()
-                _esp_m  = mod.get("params", {}).get("esp_real", 18.0)
-                _mat_m  = mod.get("material", "")
-                _mat_f  = mod.get("params", {}).get("mat_fondo_sel", "Fibroplus Blanco 3mm")
-                _esp_f  = 5.5 if ("5.5" in _mat_f or "Faplac" in _mat_f) else 3.0
-                _df_dl2 = _df_dl.rename(columns={"Pieza":"Name","L":"Length","A":"Width","Cant":"Quantity"})
-                _df_dl2["Thickness"] = _df_dl2.apply(lambda r: _esp_f if str(r.get("Tipo","")).lower() in ["fondo","piso"] else _esp_m, axis=1)
-                _df_dl2["Material"]  = _df_dl2.apply(lambda r: _mat_f  if str(r.get("Tipo","")).lower() in ["fondo","piso"] else _mat_m,  axis=1)
-                _csv_dl = _df_dl2[["Name","Length","Width","Thickness","Quantity","Material"]].to_csv(index=False).encode("utf-8")
-                col_plan.download_button("📋", data=_csv_dl,
-                    file_name=f"Planilla_{mod['nombre'].replace(' ','_')}.csv",
-                    mime="text/csv", key=f"dl_plan_{i_m}", help="Descargar planilla de corte")
             if col_dup.button("⧉", key=f"dup_mod_{i_m}", help="Duplicar este módulo"):
                 import copy
                 mod_copia = copy.deepcopy(mod)
@@ -2579,23 +2626,7 @@ Para piezas que no entran en ningún módulo automático:<br>
             if st.button("🗑️ Limpiar obra", use_container_width=True):
                 st.session_state["obra_modulos"] = []; st.rerun()
 
-        with st.expander("⚙️ DXF Aspire — Obra completa"):
-            _mods_cnc = [m for m in _mods_obra if m.get("df_corte") is not None]
-            if _mods_cnc:
-                _cnc_obra_sig = json.dumps(_serializar_obra_para_nube(_mods_cnc), sort_keys=True, default=str)
-                if st.button("Preparar DXF de obra para Aspire", use_container_width=True, key="btn_preparar_cnc_obra"):
-                    with st.spinner("Preparando DXF de la obra..."):
-                        st.session_state["_cnc_obra_actual"] = {
-                            "sig": _cnc_obra_sig,
-                            "dxf": generar_dxf_obra(_mods_cnc),
-                        }
-                _cnc_obra_actual = st.session_state.get("_cnc_obra_actual", {})
-                if _cnc_obra_actual.get("sig") == _cnc_obra_sig:
-                    st.download_button("📐 Descargar DXF Aspire", data=_cnc_obra_actual["dxf"], file_name=f"DXF_Aspire_{cliente_obra}.dxf", mime="application/dxf", use_container_width=True)
-            else:
-                st.warning("Calculá los módulos en esta sesión para exportar CNC.")
-
-        with st.expander("🏭 Orden de producción y etiquetas", expanded=False):
+        with st.expander("🏭 Producción: orden y etiquetas", expanded=True):
             _prod_sig = json.dumps(_serializar_obra_para_nube(_mods_obra), sort_keys=True, default=str)
             if st.button("Generar orden de producción", use_container_width=True, key="btn_generar_orden_prod"):
                 with st.spinner("Armando orden de producción..."):
@@ -2624,16 +2655,44 @@ Para piezas que no entran en ningún módulo automático:<br>
                         use_container_width=True,
                     )
 
-                    st.write("Etiquetas preliminares")
+                    st.write("Etiquetas de pieza")
+                    st.caption("El QR guarda solo el ID único de la pieza; la ficha completa se podrá consultar desde la base de datos.")
                     for _, row in df_prod.head(12).iterrows():
-                        c_code, c_piece, c_dim = st.columns([2, 4, 2])
-                        c_code.code(row["Codigo"])
-                        c_piece.markdown(f"**{row['Pieza']}**")
-                        c_piece.caption(f"{row['Modulo']} · {row['Material']} · {row['Veta']}")
-                        c_dim.markdown(f"**{int(row['Largo'])} x {int(row['Ancho'])}**")
-                        c_dim.caption(f"Cant: {int(row['Cantidad'])}")
+                        codigo = str(row["Codigo"])
+                        qr_uri = _qr_data_uri(codigo)
+                        qr_html = f'<img src="{qr_uri}" alt="QR {html.escape(codigo)}">' if qr_uri else '<div style="font-size:11px;font-weight:700;color:#64748B;text-align:center;">QR<br>ID</div>'
+                        st.markdown(f"""
+                        <div class="bvm-label-preview">
+                            <div>
+                                <div class="bvm-label-code">{html.escape(codigo)}</div>
+                                <div class="bvm-label-piece">{html.escape(str(row['Pieza']))}</div>
+                                <div class="bvm-label-meta">
+                                    {html.escape(str(row['Modulo']))}<br>
+                                    {int(row['Largo'])} x {int(row['Ancho'])} mm · Cant. {int(row['Cantidad'])}<br>
+                                    {html.escape(str(row['Material']))} · Veta: {html.escape(str(row['Veta']))}
+                                </div>
+                            </div>
+                            <div class="bvm-label-qr">{qr_html}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
             else:
                 st.caption("Generá la orden cuando la obra ya tenga los módulos listos.")
+
+        with st.expander("⚙️ DXF Aspire — Obra completa"):
+            _mods_cnc = [m for m in _mods_obra if m.get("df_corte") is not None]
+            if _mods_cnc:
+                _cnc_obra_sig = json.dumps(_serializar_obra_para_nube(_mods_cnc), sort_keys=True, default=str)
+                if st.button("Preparar DXF de obra para Aspire", use_container_width=True, key="btn_preparar_cnc_obra"):
+                    with st.spinner("Preparando DXF de la obra..."):
+                        st.session_state["_cnc_obra_actual"] = {
+                            "sig": _cnc_obra_sig,
+                            "dxf": generar_dxf_obra(_mods_cnc),
+                        }
+                _cnc_obra_actual = st.session_state.get("_cnc_obra_actual", {})
+                if _cnc_obra_actual.get("sig") == _cnc_obra_sig:
+                    st.download_button("📐 Descargar DXF Aspire", data=_cnc_obra_actual["dxf"], file_name=f"DXF_Aspire_{cliente_obra}.dxf", mime="application/dxf", use_container_width=True)
+            else:
+                st.warning("Calculá los módulos en esta sesión para exportar CNC.")
 
         if _OPTIMIZADOR_DISPONIBLE:
             with st.expander("📐 Optimización de Corte — ¿Cuántas placas necesito?", expanded=bool(st.session_state.get("_abrir_optimizacion_obra"))):
@@ -2667,34 +2726,37 @@ Para piezas que no entran en ningún módulo automático:<br>
                                 st.markdown(f'<div style="text-align:center;margin-bottom:12px;">{_svg_placa}</div>', unsafe_allow_html=True)
                             st.write("---")
 
-        if st.button("💾 Guardar obra en historial", use_container_width=True):
+        if st.button("💾 Guardar proyecto", use_container_width=True):
             if not cliente_obra:
                 st.warning("Ingresá el nombre del cliente arriba.")
             else:
-                _id_a_guardar = st.session_state.pop("_obra_id_historial", None)
+                _id_a_guardar = st.session_state.get("_obra_id_historial")
                 _log_data = {
                     "flete_sel": flete_sel, "costo_flete": costo_flete,
                     "dias_col": dias_col_obra, "costo_col": costo_col,
                     "costo_log_total": costo_log,
                     "dias_entrega": dias_entrega, "pct_seña": pct_seña,
                 }
-                _guardar_obra_nube(_mods_obra, cliente_obra, _id_a_guardar,
-                                    total_con_logistica=total_obra,
-                                    logistica=_log_data)
-                st.toast(f"💾 Obra de {cliente_obra} guardada — ${total_obra:,.0f}", icon="💾")
-                st.session_state["obra_modulos"]    = []
-                st.session_state["logistica_obra"]  = {}
-                st.session_state["ultimo_agregado"] = None
-                st.session_state["_tipo_modulo_sel"] = "Bajo Mesada"
-                st.session_state.pop("_obra_cliente_historial", None)
-                st.session_state.pop("_obra_id_historial",      None)
-                st.session_state.pop("_ctx_sig_prev",           None)
-                st.session_state["edit_ctx"] = None
-                st.session_state["cliente_actual"] = ""
-                for _k in ["inp_ancho", "inp_alto", "inp_prof"]:
-                    if _k in st.session_state:
-                        del st.session_state[_k]
-                st.rerun()
+                if _guardar_obra_nube(_mods_obra, cliente_obra, _id_a_guardar,
+                                       total_con_logistica=total_obra,
+                                       logistica=_log_data):
+                    st.toast(f"💾 Proyecto de {cliente_obra} guardado — ${total_obra:,.0f}", icon="💾")
+                    st.session_state["obra_modulos"]    = []
+                    st.session_state["logistica_obra"]  = {}
+                    st.session_state["ultimo_agregado"] = None
+                    st.session_state["_tipo_modulo_sel"] = "Bajo Mesada"
+                    st.session_state.pop("_obra_cliente_historial", None)
+                    st.session_state.pop("_obra_id_historial",      None)
+                    st.session_state.pop("_ctx_sig_prev",           None)
+                    st.session_state["edit_ctx"] = None
+                    st.session_state["cliente_actual"] = ""
+                    st.session_state["menu_idx"] = 0
+                    for _k in ["inp_ancho", "inp_alto", "inp_prof"]:
+                        if _k in st.session_state:
+                            del st.session_state[_k]
+                    st.rerun()
+                else:
+                    st.warning("No se guardó el proyecto. Revisá el error anterior y volvé a intentar.")
 
   except Exception as e:
       import traceback
@@ -2703,7 +2765,7 @@ Para piezas que no entran en ningún módulo automático:<br>
           st.code(traceback.format_exc())
 
 elif menu == "📋 Historial":
-    st.title("📋 Historial de presupuestos")
+    st.title("📋 Proyectos")
     ESTADOS = ["Pendiente","Señado","Pagado"]
     COLORES = {"Pendiente": ("🔴","#FCEBEB","#A32D2D"), "Señado": ("🟡","#FAEEDA","#854F0B"), "Pagado": ("🟢","#E1F5EE","#0F6E56")}
 
@@ -2740,7 +2802,7 @@ elif menu == "📋 Historial":
     try:
         df_hist = traer_datos_historial()
         if df_hist.empty:
-            st.info("No hay presupuestos guardados todavía.")
+            st.info("No hay proyectos guardados todavía.")
         else:
             total_pend = df_hist[df_hist['estado']=='Pendiente']['precio_final'].sum()
             total_pag  = df_hist[df_hist['estado']=='Pagado']['precio_final'].sum()
@@ -2759,9 +2821,9 @@ elif menu == "📋 Historial":
                 total_senas += float(row_s.get('precio_final', 0)) * (pct_s / 100)
 
             c1,c2,c3 = st.columns(3)
-            c1.metric("🔴 Pendientes",      f"${total_pend:,.0f}",  f"{len(df_hist[df_hist['estado']=='Pendiente'])} presupuestos")
-            c2.metric("🟡 Señas cobradas",  f"${total_senas:,.0f}", f"{len(df_sen)} presupuestos")
-            c3.metric("🟢 Pagados",         f"${total_pag:,.0f}",   f"{len(df_hist[df_hist['estado']=='Pagado'])} presupuestos")
+            c1.metric("🔴 Pendientes",      f"${total_pend:,.0f}",  f"{len(df_hist[df_hist['estado']=='Pendiente'])} proyectos")
+            c2.metric("🟡 Señas cobradas",  f"${total_senas:,.0f}", f"{len(df_sen)} proyectos")
+            c3.metric("🟢 Pagados",         f"${total_pag:,.0f}",   f"{len(df_hist[df_hist['estado']=='Pagado'])} proyectos")
             st.write("---")
             col_busq, col_filt = st.columns([2, 3])
             busqueda = col_busq.text_input("🔍 Buscar cliente", placeholder="Nombre del cliente...", label_visibility="collapsed")
@@ -2773,7 +2835,7 @@ elif menu == "📋 Historial":
             df_f = df_f.sort_values("fecha", ascending=False) if "fecha" in df_f.columns else df_f
 
             _total_filtrado = df_f['precio_final'].sum() if not df_f.empty else 0
-            st.markdown(f"<div style='font-size:13px;color:#888;margin-bottom:8px;'><b>{len(df_f)}</b> presupuesto(s) {'· búsqueda: <b>' + busqueda + '</b>' if busqueda else ''} {'· total filtrado: <b>$' + f'{_total_filtrado:,.0f}' + '</b>' if len(df_f) > 1 else ''}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='font-size:13px;color:#888;margin-bottom:8px;'><b>{len(df_f)}</b> proyecto(s) {'· búsqueda: <b>' + busqueda + '</b>' if busqueda else ''} {'· total filtrado: <b>$' + f'{_total_filtrado:,.0f}' + '</b>' if len(df_f) > 1 else ''}</div>", unsafe_allow_html=True)
             st.write("---")
 
             for idx, row in df_f.iterrows():
@@ -2845,7 +2907,7 @@ elif menu == "📋 Historial":
                     tiene_params = row.get('parametros') not in [None,'','null']
                     if st.button("Editar" if tiene_params else "—", key=f"edit_{id_venta}_{idx}",
                                  use_container_width=True, disabled=not tiene_params,
-                                 help="Editar este presupuesto" if tiene_params else "Sin parámetros guardados"):
+                                 help="Editar este proyecto" if tiene_params else "Sin parámetros guardados"):
                         try:
                             _raw = row.get('parametros')
                             if not _raw or _raw in ('null', 'None', ''):
@@ -2923,7 +2985,7 @@ elif menu == "📋 Historial":
                             st.error(f"Error: {e}")
                 st.write("---")
     except Exception as e:
-        st.error(f"Error en el historial: {e}")
+        st.error(f"Error en Proyectos: {e}")
 
 
 # ===========================================================================
@@ -3009,7 +3071,7 @@ elif menu == "⚙️ Precios":
     else:
         with st.container(border=True):
             st.markdown("#### 👥 Mi Equipo / Taller")
-            st.caption("Compartí tu configuración de precios, historial y depósito de retazos con un empleado o socio. Ambos van a ver y editar los mismos datos.")
+            st.caption("Compartí tu configuración de precios, proyectos y depósito de retazos con un empleado o socio. Ambos van a ver y editar los mismos datos.")
             col_inv1, col_inv2 = st.columns([3, 1])
             email_inv = col_inv1.text_input("Email del empleado/socio", placeholder="empleado@email.com", label_visibility="collapsed")
             if col_inv2.button("Invitar", use_container_width=True):

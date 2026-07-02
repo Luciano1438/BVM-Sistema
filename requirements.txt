@@ -6,3 +6,4 @@ fpdf2
 ezdxf
 pydantic
 rectpack
+qrcode[pil]
