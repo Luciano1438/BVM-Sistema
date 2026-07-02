@@ -4,21 +4,32 @@ import sqlite3
 import os
 import json
 import io
-import ezdxf
 import urllib.parse
 from pathlib import Path
 from supabase import create_client, Client
 from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
 from fpdf import FPDF
+try:
+    import ezdxf
+except ImportError:
+    ezdxf = None
+
 from motor import (
     generar_despiece_bvm,
     obtener_veta_automatica,
     calcular_medida_frente,
     calcular_ahorro_retazos,
-    validar_medidas_brs,
-    validar_herrajes_bks,
 )
+try:
+    from motor.brs_bks import validar_medidas_brs, validar_herrajes_bks
+except ImportError:
+    def validar_medidas_brs(params: dict) -> list[str]:
+        return []
+
+    def validar_herrajes_bks(params: dict, config: dict) -> list[str]:
+        return []
+
 try:
     from motor.optimizador import optimizar_obra, generar_svg_placa, PLACA_ANCHO_DEFAULT, PLACA_ALTO_DEFAULT
     _OPTIMIZADOR_DISPONIBLE = True
@@ -181,6 +192,8 @@ else:
 
 def generar_dxf_obra(modulos_con_df):
     """Genera DXF con todos los módulos, separados por módulo, con material y espesor."""
+    if ezdxf is None:
+        raise RuntimeError("DXF no disponible: falta instalar ezdxf.")
     doc = ezdxf.new('R2010')
     msp = doc.modelspace()
     y_offset = 0
@@ -2132,22 +2145,25 @@ Para piezas que no entran en ningún módulo automático:<br>
               with st.expander("⚙️ Terminal CNC — Este módulo"):
                   _cnc_sig = json.dumps(_despiece_args, sort_keys=True)
                   if st.button("Preparar archivos CNC", use_container_width=True, key="btn_preparar_cnc_mod"):
-                      import io as _io, ezdxf as _ezdxf
-                      _doc = _ezdxf.new("R2010"); _msp = _doc.modelspace(); _x = 0
-                      for _, _row in df_corte.iterrows():
-                          for _ in range(int(_row["Cant"])):
-                              _pts = [(_x,0),(_x+float(_row["L"]),0),(_x+float(_row["L"]),float(_row["A"])),(_x,float(_row["A"])),(_x,0)]
-                              _msp.add_lwpolyline(_pts, close=True)
-                              _msp.add_text(f"{_row['Pieza']}\n{int(_row['L'])}x{int(_row['A'])}", height=10).set_placement((_x+5,5))
-                              _x += float(_row["L"]) + 50
-                      _out = _io.StringIO(); _doc.write(_out)
-                      _df_a  = df_corte.copy().rename(columns={"Pieza":"Name","L":"Length","A":"Width","Cant":"Quantity"})
-                      _df_a["Thickness"] = esp_real; _df_a["Material"] = mat_principal
-                      st.session_state["_cnc_modulo_actual"] = {
-                          "sig": _cnc_sig,
-                          "dxf": _out.getvalue().encode("utf-8"),
-                          "csv": _df_a[["Name","Length","Width","Thickness","Quantity","Material"]].to_csv(index=False).encode("utf-8"),
-                      }
+                      if ezdxf is None:
+                          st.error("DXF no disponible: falta instalar ezdxf.")
+                      else:
+                          import io as _io
+                          _doc = ezdxf.new("R2010"); _msp = _doc.modelspace(); _x = 0
+                          for _, _row in df_corte.iterrows():
+                              for _ in range(int(_row["Cant"])):
+                                  _pts = [(_x,0),(_x+float(_row["L"]),0),(_x+float(_row["L"]),float(_row["A"])),(_x,float(_row["A"])),(_x,0)]
+                                  _msp.add_lwpolyline(_pts, close=True)
+                                  _msp.add_text(f"{_row['Pieza']}\n{int(_row['L'])}x{int(_row['A'])}", height=10).set_placement((_x+5,5))
+                                  _x += float(_row["L"]) + 50
+                          _out = _io.StringIO(); _doc.write(_out)
+                          _df_a  = df_corte.copy().rename(columns={"Pieza":"Name","L":"Length","A":"Width","Cant":"Quantity"})
+                          _df_a["Thickness"] = esp_real; _df_a["Material"] = mat_principal
+                          st.session_state["_cnc_modulo_actual"] = {
+                              "sig": _cnc_sig,
+                              "dxf": _out.getvalue().encode("utf-8"),
+                              "csv": _df_a[["Name","Length","Width","Thickness","Quantity","Material"]].to_csv(index=False).encode("utf-8"),
+                          }
                   _cnc_actual = st.session_state.get("_cnc_modulo_actual", {})
                   if _cnc_actual.get("sig") == _cnc_sig:
                       cc1, cc2 = st.columns(2)
