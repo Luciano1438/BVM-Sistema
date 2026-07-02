@@ -922,6 +922,12 @@ def traer_datos():
 
 def guardar_presupuesto_nube(cliente, mueble, total, parametros=None, id_editar=None):
     try:
+        token = get_token()
+        if not token:
+            st.error("Sesión expirada. Recargá la página e intentá de nuevo.")
+            return False
+        supabase.postgrest.auth(token)
+
         # Obtener datos del autor para auditoría
         user_email = st.session_state.get("user", None)
         user_email = user_email.email if user_email and hasattr(user_email, "email") else "Usuario desconocido"
@@ -991,18 +997,39 @@ def guardar_presupuesto_nube(cliente, mueble, total, parametros=None, id_editar=
             st.error(f"Error al guardar: {err_msg}")
         return False
 
-@st.cache_data(ttl=60, show_spinner=False)
-def _traer_historial_db(scope_id: str, usa_taller: bool):
-    """Carga historial desde Supabase. Cacheado 60 segundos."""
-    query = supabase.table("ventas").select("*")
-    query = query.eq("taller_id", scope_id) if usa_taller else query.eq("user_id", scope_id).is_("taller_id", "null")
-    return pd.DataFrame(query.execute().data)
+@st.cache_data(ttl=30, show_spinner=False)
+def _traer_historial_db(user_id: str, taller_id: Optional[str]):
+    """Carga proyectos visibles. Incluye el taller activo y los proyectos personales propios."""
+    frames = []
+
+    if taller_id:
+        data_taller = supabase.table("ventas").select("*").eq("taller_id", taller_id).execute().data or []
+        if data_taller:
+            frames.append(pd.DataFrame(data_taller))
+
+    query_personal = supabase.table("ventas").select("*").eq("user_id", user_id)
+    query_personal = query_personal.is_("taller_id", "null")
+    data_personal = query_personal.execute().data or []
+    if data_personal:
+        frames.append(pd.DataFrame(data_personal))
+
+    if not frames:
+        return pd.DataFrame()
+
+    df = pd.concat(frames, ignore_index=True)
+    if "id" in df.columns:
+        df = df.drop_duplicates(subset=["id"], keep="first")
+    return df
 
 def traer_datos_historial():
     try:
-        _sid, _ut = _scope_lectura()
-        return _traer_historial_db(_sid, _ut)
-    except Exception:
+        token = get_token()
+        if not token:
+            return pd.DataFrame()
+        supabase.postgrest.auth(token)
+        return _traer_historial_db(_user_id(), _taller_id_actual())
+    except Exception as e:
+        st.error(f"No se pudieron cargar los proyectos: {e}")
         return pd.DataFrame()
 
 @st.cache_data(ttl=900, show_spinner=False)
@@ -1637,10 +1664,14 @@ else:
 
 if _editando_algo:
     menu = "🪵 Cotizador"
-    st.sidebar.radio("Navegación", _opciones_menu, index=1)
+    st.sidebar.radio("Navegación", _opciones_menu, index=1, key="nav_radio_editando", disabled=True)
 else:
-    _idx_nav = min(st.session_state.get("menu_idx", 1), len(_opciones_menu) - 1)
-    _nav_seleccionada = st.sidebar.radio("Navegación", _opciones_menu, index=_idx_nav)
+    if "_nav_destino" in st.session_state:
+        st.session_state["nav_radio"] = st.session_state.pop("_nav_destino")
+    if "nav_radio" not in st.session_state or st.session_state["nav_radio"] not in _opciones_menu:
+        _idx_nav = min(st.session_state.get("menu_idx", 1), len(_opciones_menu) - 1)
+        st.session_state["nav_radio"] = _opciones_menu[_idx_nav]
+    _nav_seleccionada = st.sidebar.radio("Navegación", _opciones_menu, key="nav_radio")
     st.session_state["menu_idx"] = _opciones_menu.index(_nav_seleccionada)
     st.session_state["_abrir_optimizacion_obra"] = False
     menu = _nav_principal[_nav_seleccionada]
@@ -1788,6 +1819,133 @@ def _qr_data_uri(texto: str) -> str:
     return f"data:image/png;base64,{encoded}"
 
 
+def _etiquetas_desde_df(df_prod: pd.DataFrame) -> list[dict]:
+    etiquetas = []
+    if df_prod is None or df_prod.empty:
+        return etiquetas
+
+    for _, row in df_prod.iterrows():
+        cantidad = max(1, _safe_int(row.get("Cantidad", 1), 1))
+        codigo_base = str(row.get("Codigo", "BV-PZ"))
+        for unidad in range(1, cantidad + 1):
+            codigo = codigo_base if cantidad == 1 else f"{codigo_base}-U{unidad:02d}"
+            etiquetas.append({
+                "codigo": codigo,
+                "codigo_base": codigo_base,
+                "modulo": str(row.get("Modulo", "")),
+                "tipo_modulo": str(row.get("Tipo modulo", "")),
+                "pieza": str(row.get("Pieza", "")),
+                "material": str(row.get("Material", "")),
+                "largo": _safe_float(row.get("Largo", 0)),
+                "ancho": _safe_float(row.get("Ancho", 0)),
+                "unidad": unidad,
+                "cantidad_total": cantidad,
+                "tipo": str(row.get("Tipo", "")),
+                "veta": str(row.get("Veta", "")),
+            })
+    return etiquetas
+
+
+def _payload_qr_etiqueta(etiqueta: dict) -> str:
+    payload = {
+        "codigo": etiqueta.get("codigo", ""),
+        "codigo_base": etiqueta.get("codigo_base", ""),
+        "modulo": etiqueta.get("modulo", ""),
+        "tipo_modulo": etiqueta.get("tipo_modulo", ""),
+        "pieza": etiqueta.get("pieza", ""),
+        "material": etiqueta.get("material", ""),
+        "medidas_mm": {
+            "largo": int(etiqueta.get("largo", 0)),
+            "ancho": int(etiqueta.get("ancho", 0)),
+        },
+        "unidad": etiqueta.get("unidad", 1),
+        "cantidad_total": etiqueta.get("cantidad_total", 1),
+        "tipo": etiqueta.get("tipo", ""),
+        "veta": etiqueta.get("veta", ""),
+    }
+    return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+
+
+def _html_label_card(etiqueta: dict, qr_uri: str) -> str:
+    codigo = html.escape(str(etiqueta.get("codigo", "")))
+    pieza = html.escape(str(etiqueta.get("pieza", "")))
+    modulo = html.escape(str(etiqueta.get("modulo", "")))
+    material = html.escape(str(etiqueta.get("material", "")))
+    veta = html.escape(str(etiqueta.get("veta", "")))
+    tipo = html.escape(str(etiqueta.get("tipo", "")))
+    largo = int(etiqueta.get("largo", 0))
+    ancho = int(etiqueta.get("ancho", 0))
+    unidad = int(etiqueta.get("unidad", 1))
+    total = int(etiqueta.get("cantidad_total", 1))
+    qr_html = f'<img src="{qr_uri}" alt="QR {codigo}">' if qr_uri else '<div class="qr-fallback">QR<br>DATOS</div>'
+    return f"""
+    <div class="label">
+      <div class="label-info">
+        <div class="code">{codigo}</div>
+        <div class="piece">{pieza}</div>
+        <div class="module">{modulo}</div>
+        <div class="measure">{largo} x {ancho} mm</div>
+        <div class="meta">{material}</div>
+        <div class="meta">Tipo: {tipo} · Veta: {veta}</div>
+        <div class="unit">Unidad {unidad} de {total}</div>
+      </div>
+      <div class="qr">{qr_html}</div>
+    </div>
+    """
+
+
+def _html_etiquetas_imprimibles(etiquetas: list[dict], cliente: str) -> bytes:
+    cards = []
+    for etiqueta in etiquetas:
+        qr_uri = _qr_data_uri(_payload_qr_etiqueta(etiqueta))
+        cards.append(_html_label_card(etiqueta, qr_uri))
+
+    cliente_txt = html.escape(cliente or "Proyecto BVM")
+    doc = f"""<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Etiquetas BVM - {cliente_txt}</title>
+  <style>
+    @page {{ size: A4; margin: 10mm; }}
+    * {{ box-sizing: border-box; }}
+    body {{ margin: 0; font-family: Arial, Helvetica, sans-serif; color: #0f172a; background: #f8fafc; }}
+    .toolbar {{ position: sticky; top: 0; z-index: 10; background: #0f172a; color: white; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; }}
+    .toolbar button {{ background: white; color: #0f172a; border: 0; border-radius: 6px; padding: 8px 14px; font-weight: 700; cursor: pointer; }}
+    .sheet {{ padding: 10mm; }}
+    .labels {{ display: grid; grid-template-columns: repeat(2, 1fr); gap: 5mm; }}
+    .label {{ height: 52mm; border: 1px solid #111827; border-radius: 3mm; background: white; padding: 4mm; display: grid; grid-template-columns: 1fr 30mm; gap: 4mm; break-inside: avoid; page-break-inside: avoid; }}
+    .code {{ font-size: 10pt; font-weight: 800; letter-spacing: 0.02em; }}
+    .piece {{ font-size: 9pt; font-weight: 700; margin-top: 2mm; }}
+    .module {{ font-size: 7.5pt; margin-top: 1mm; }}
+    .measure {{ font-size: 12pt; font-weight: 800; margin-top: 2mm; }}
+    .meta {{ font-size: 7.5pt; margin-top: 1mm; line-height: 1.25; }}
+    .unit {{ font-size: 7pt; margin-top: 1.5mm; color: #475569; }}
+    .qr {{ width: 30mm; height: 30mm; align-self: center; justify-self: center; border: 1px solid #cbd5e1; display: flex; align-items: center; justify-content: center; }}
+    .qr img {{ width: 28mm; height: 28mm; }}
+    .qr-fallback {{ font-size: 8pt; text-align: center; font-weight: 700; color: #64748b; }}
+    @media print {{
+      body {{ background: white; }}
+      .toolbar {{ display: none; }}
+      .sheet {{ padding: 0; }}
+    }}
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <strong>Etiquetas BVM - {cliente_txt}</strong>
+    <button onclick="window.print()">Imprimir etiquetas</button>
+  </div>
+  <main class="sheet">
+    <section class="labels">
+      {''.join(cards)}
+    </section>
+  </main>
+</body>
+</html>"""
+    return doc.encode("utf-8")
+
+
 # ===========================================================================
 # COTIZADOR
 # ===========================================================================
@@ -1827,15 +1985,16 @@ if menu == "🪵 Cotizador":
             # Guardamos la obra entera de forma limpia
             _log_prev = st.session_state.get("logistica_obra", {})
             _tot_prev = sum(m["precio"] for m in _mods_elegir) + _log_prev.get("costo_log_total", 0.0)
-            _guardar_obra_nube(_mods_elegir, _cli_elegir, _oid_elegir,
-                                total_con_logistica=_tot_prev,
-                                logistica=_log_prev)
-            st.session_state["obra_modulos"] = []
-            st.session_state["cliente_actual"] = ""
-            _limpiar_edicion()
-            st.session_state["menu_idx"] = 0  # Redirigir a Proyectos
-            st.toast("✅ Cambios en la obra guardados de forma definitiva.", icon="💾")
-            st.rerun()
+            if _guardar_obra_nube(_mods_elegir, _cli_elegir, _oid_elegir,
+                                  total_con_logistica=_tot_prev,
+                                  logistica=_log_prev):
+                st.session_state["obra_modulos"] = []
+                st.session_state["cliente_actual"] = ""
+                _limpiar_edicion()
+                st.session_state["menu_idx"] = 0  # Redirigir a Proyectos
+                st.session_state["_nav_destino"] = "Proyectos"
+                st.toast("✅ Cambios en la obra guardados de forma definitiva.", icon="💾")
+                st.rerun()
 
         if c_can.button("✕ Cancelar edición (Sin guardar cambios)", use_container_width=True):
             st.session_state["obra_modulos"] = []
@@ -1844,6 +2003,7 @@ if menu == "🪵 Cotizador":
             st.session_state["cliente_actual"] = ""
             _limpiar_edicion()
             st.session_state["menu_idx"] = 0
+            st.session_state["_nav_destino"] = "Proyectos"
             st.rerun()
         st.stop()
 
@@ -2436,6 +2596,7 @@ Para piezas que no entran en ningún módulo automático:<br>
                       _limpiar_edicion()
                       st.session_state["_tipo_modulo_sel"] = "Bajo Mesada"
                       st.session_state["menu_idx"] = 0
+                      st.session_state["_nav_destino"] = "Proyectos"
                       st.rerun()
 
       # ── MODO: edición de un módulo cargado en la obra ──
@@ -2493,6 +2654,7 @@ Para piezas que no entran en ningún módulo automático:<br>
                               st.session_state["cliente_actual"] = ""
                               _limpiar_edicion()
                               st.session_state["menu_idx"] = 0  # Redirige a Proyectos
+                              st.session_state["_nav_destino"] = "Proyectos"
                               st.toast("✅ Proyecto actualizado y guardado.", icon="💾")
                               st.rerun()
                       else:
@@ -2641,40 +2803,52 @@ Para piezas que no entran en ningún módulo automático:<br>
                 if df_prod.empty:
                     st.info("No hay piezas calculadas para producir.")
                 else:
+                    etiquetas = _etiquetas_desde_df(df_prod)
                     total_piezas = int(df_prod["Cantidad"].sum())
                     c_p1, c_p2, c_p3 = st.columns(3)
                     c_p1.metric("Módulos", len(_mods_obra))
                     c_p2.metric("Piezas", total_piezas)
-                    c_p3.metric("Etiquetas", len(df_prod))
+                    c_p3.metric("Etiquetas", len(etiquetas))
                     st.dataframe(df_prod, use_container_width=True, hide_index=True)
-                    st.download_button(
+                    col_ord, col_print = st.columns(2)
+                    col_ord.download_button(
                         "Descargar orden CSV",
                         data=df_prod.to_csv(index=False).encode("utf-8"),
                         file_name=f"Orden_produccion_{cliente_obra}.csv",
                         mime="text/csv",
                         use_container_width=True,
                     )
+                    col_print.download_button(
+                        "🖨️ Imprimir etiquetas",
+                        data=_html_etiquetas_imprimibles(etiquetas, cliente_obra),
+                        file_name=f"Etiquetas_BVM_{(cliente_obra or 'proyecto').replace(' ', '_')}.html",
+                        mime="text/html",
+                        use_container_width=True,
+                        help="Descarga una hoja HTML imprimible. Al abrirla, tocá Imprimir etiquetas.",
+                    )
 
                     st.write("Etiquetas de pieza")
-                    st.caption("El QR guarda solo el ID único de la pieza; la ficha completa se podrá consultar desde la base de datos.")
-                    for _, row in df_prod.head(12).iterrows():
-                        codigo = str(row["Codigo"])
-                        qr_uri = _qr_data_uri(codigo)
-                        qr_html = f'<img src="{qr_uri}" alt="QR {html.escape(codigo)}">' if qr_uri else '<div style="font-size:11px;font-weight:700;color:#64748B;text-align:center;">QR<br>ID</div>'
+                    st.caption("El QR contiene los datos principales de la pieza: código, módulo, pieza, material, medidas, unidad, tipo y veta.")
+                    for etiqueta in etiquetas[:12]:
+                        codigo = str(etiqueta["codigo"])
+                        qr_uri = _qr_data_uri(_payload_qr_etiqueta(etiqueta))
+                        qr_html = f'<img src="{qr_uri}" alt="QR {html.escape(codigo)}">' if qr_uri else '<div style="font-size:11px;font-weight:700;color:#64748B;text-align:center;">QR<br>DATOS</div>'
                         st.markdown(f"""
                         <div class="bvm-label-preview">
                             <div>
                                 <div class="bvm-label-code">{html.escape(codigo)}</div>
-                                <div class="bvm-label-piece">{html.escape(str(row['Pieza']))}</div>
+                                <div class="bvm-label-piece">{html.escape(str(etiqueta['pieza']))}</div>
                                 <div class="bvm-label-meta">
-                                    {html.escape(str(row['Modulo']))}<br>
-                                    {int(row['Largo'])} x {int(row['Ancho'])} mm · Cant. {int(row['Cantidad'])}<br>
-                                    {html.escape(str(row['Material']))} · Veta: {html.escape(str(row['Veta']))}
+                                    {html.escape(str(etiqueta['modulo']))}<br>
+                                    {int(etiqueta['largo'])} x {int(etiqueta['ancho'])} mm · Unidad {int(etiqueta['unidad'])}/{int(etiqueta['cantidad_total'])}<br>
+                                    {html.escape(str(etiqueta['material']))} · Veta: {html.escape(str(etiqueta['veta']))}
                                 </div>
                             </div>
                             <div class="bvm-label-qr">{qr_html}</div>
                         </div>
                         """, unsafe_allow_html=True)
+                    if len(etiquetas) > 12:
+                        st.caption(f"Vista previa de 12 etiquetas. El archivo imprimible incluye las {len(etiquetas)}.")
             else:
                 st.caption("Generá la orden cuando la obra ya tenga los módulos listos.")
 
@@ -2751,6 +2925,7 @@ Para piezas que no entran en ningún módulo automático:<br>
                     st.session_state["edit_ctx"] = None
                     st.session_state["cliente_actual"] = ""
                     st.session_state["menu_idx"] = 0
+                    st.session_state["_nav_destino"] = "Proyectos"
                     for _k in ["inp_ancho", "inp_alto", "inp_prof"]:
                         if _k in st.session_state:
                             del st.session_state[_k]
@@ -2942,6 +3117,7 @@ elif menu == "📋 Historial":
                                 st.session_state.pop("_tipo_modulo_sel", None)
                                 st.session_state.pop("_ctx_sig_prev",    None)
                                 st.session_state["menu_idx"] = 1
+                                st.session_state["_nav_destino"] = "Cotizador"
 
                                 if len(mods_internos) == 1:
                                     st.session_state["edit_ctx"] = {
@@ -2969,6 +3145,7 @@ elif menu == "📋 Historial":
                                 st.session_state.pop("_tipo_modulo_sel", None)
                                 st.session_state.pop("_ctx_sig_prev",    None)
                                 st.session_state["menu_idx"] = 1
+                                st.session_state["_nav_destino"] = "Cotizador"
                             st.rerun()
                         except Exception as e:
                             st.error(f"Error: {e}")
