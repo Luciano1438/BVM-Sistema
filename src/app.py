@@ -5,6 +5,7 @@ import os
 import json
 import io
 import html
+import hashlib
 import urllib.parse
 from pathlib import Path
 from supabase import create_client, Client
@@ -1754,6 +1755,35 @@ def _limpiar_edicion():
     st.session_state["edit_ctx"] = None
     st.session_state.pop("_tipo_modulo_sel", None)
     st.session_state.pop("_ctx_sig_prev",    None)
+    for _key in list(st.session_state.keys()):
+        if str(_key).startswith("cot_"):
+            st.session_state.pop(_key, None)
+
+def _volver_a_proyectos():
+    st.session_state["menu_idx"] = 0
+    st.session_state["_nav_destino"] = "Proyectos"
+
+def _cancelar_edicion_modulo(ctx):
+    """Cancela el draft actual sin tocar la obra guardada."""
+    obra_id = ctx.get("obra_id") if ctx else None
+    obra_cliente = ctx.get("obra_cliente", "") if ctx else ""
+    mods = [m for m in st.session_state.get("obra_modulos", []) if m is not None]
+    _limpiar_edicion()
+    if not obra_id:
+        st.session_state["obra_modulos"] = mods
+        return
+    if len(mods) > 1:
+        st.session_state["edit_ctx"] = {
+            "modo": "elegir_modulo_obra",
+            "obra_id": obra_id,
+            "obra_cliente": obra_cliente,
+        }
+    else:
+        st.session_state["obra_modulos"] = []
+        st.session_state["cliente_actual"] = ""
+        st.session_state.pop("_obra_id_historial", None)
+        st.session_state.pop("_obra_cliente_historial", None)
+        _volver_a_proyectos()
 
 def _guardar_obra_nube(mods, cliente, obra_id=None, total_con_logistica=None, logistica=None):
     mods  = [m for m in mods if m is not None]
@@ -2051,13 +2081,14 @@ if menu == "🪵 Cotizador":
     elif modo == "editar_modulo_obra":
         st.info(f"✏️ **Editando módulo** de la obra de **{ctx.get('obra_cliente','')}** — Cambiá lo que necesitás y confirmá.")
         if st.button("✕ Cancelar edición", key="btn_cancel_edit"):
-            _limpiar_edicion()
+            _cancelar_edicion_modulo(ctx)
             st.rerun()
 
     elif modo == "editar_legacy":
         st.info(f"✏️ **Editando proyecto** de **{ctx.get('cliente','')}** — Modificá y guardá.")
         if st.button("✕ Cancelar edición", key="btn_cancel_edit"):
             _limpiar_edicion()
+            _volver_a_proyectos()
             st.rerun()
 
     # ───────────────────────────────────────────────────────────────────────
@@ -2068,11 +2099,23 @@ if menu == "🪵 Cotizador":
     def _v(key, default):
         return ep[key] if ep and key in ep else default
 
+    _form_ctx_payload = {
+        "modo": modo or "nuevo",
+        "id": ctx.get("id") if ctx else None,
+        "obra_id": ctx.get("obra_id") if ctx else None,
+        "idx": ctx.get("idx") if ctx else None,
+        "params": ep or {},
+    }
+    _form_sig = hashlib.sha1(json.dumps(_form_ctx_payload, sort_keys=True, default=str).encode("utf-8")).hexdigest()[:12]
+
+    def _wkey(name: str) -> str:
+        return f"cot_{_form_sig}_{name}"
+
     # ───────────────────────────────────────────────────────────────────────
     # Tipo de módulo
     # ───────────────────────────────────────────────────────────────────────
     _tipo_default = _v("tipo_modulo", "Bajo Mesada")
-    _ctx_sig = f"{_tipo_default}_{_v('ancho_m',0)}_{_v('alto_m',0)}_{_v('precio_guardado',0)}" if ep else "none"
+    _ctx_sig = _form_sig
     if "_tipo_modulo_sel" not in st.session_state or st.session_state.get("_ctx_sig_prev") != _ctx_sig:
         st.session_state["_tipo_modulo_sel"] = _tipo_default
         st.session_state["_ctx_sig_prev"]    = _ctx_sig
@@ -2137,7 +2180,7 @@ if menu == "🪵 Cotizador":
         if modo == "editar_modulo_obra": _cliente_default = ctx.get("obra_cliente", "")
         elif modo == "editar_legacy":    _cliente_default = ctx.get("cliente", "")
         
-        cliente = st.text_input("Cliente", _cliente_default)
+        cliente = st.text_input("Cliente", _cliente_default, key=_wkey("cliente"))
         st.session_state["cliente_actual"] = cliente
 
         _modulos_disponibles = ["Bajo Mesada", "Cajonera", "Alacena", "Placard", "Pieza Suelta"]
@@ -2174,12 +2217,12 @@ if menu == "🪵 Cotizador":
 
         tipo_modulo = st.session_state["_tipo_modulo_sel"]
         c1, c2, c3 = st.columns(3)
-        ancho_m = c1.number_input("Ancho total (mm)", min_value=0.0, max_value=5000.0, value=float(_v("ancho_m", 0.0)), step=0.5, key="inp_ancho")
-        alto_m  = c2.number_input("Alto total (mm)",  min_value=0.0, max_value=5000.0, value=float(_v("alto_m",  0.0)), step=0.5, key="inp_alto")
-        prof_m  = c3.number_input("Profundidad (mm)", min_value=0.0, max_value=2000.0, value=float(_v("prof_m",  0.0)), step=0.5, key="inp_prof")
-        mat_principal = st.selectbox("Material del cuerpo (18mm)", lista_maderas, index=idx_madera)
-        esp_real      = st.number_input("Espesor real de placa (mm)", min_value=1.0, max_value=50.0, value=float(_v("esp_real", 18.0)), step=0.1)
-        mat_fondo_sel = st.selectbox("Material del fondo", lista_fondos, index=idx_fondo)
+        ancho_m = c1.number_input("Ancho total (mm)", min_value=0.0, max_value=5000.0, value=float(_v("ancho_m", 0.0)), step=0.5, key=_wkey("ancho"))
+        alto_m  = c2.number_input("Alto total (mm)",  min_value=0.0, max_value=5000.0, value=float(_v("alto_m",  0.0)), step=0.5, key=_wkey("alto"))
+        prof_m  = c3.number_input("Profundidad (mm)", min_value=0.0, max_value=2000.0, value=float(_v("prof_m",  0.0)), step=0.5, key=_wkey("prof"))
+        mat_principal = st.selectbox("Material del cuerpo (18mm)", lista_maderas, index=idx_madera, key=_wkey("mat_principal"))
+        esp_real      = st.number_input("Espesor real de placa (mm)", min_value=1.0, max_value=50.0, value=float(_v("esp_real", 18.0)), step=0.1, key=_wkey("esp_real"))
+        mat_fondo_sel = st.selectbox("Material del fondo", lista_fondos, index=idx_fondo, key=_wkey("mat_fondo"))
         sin_fondo = mat_fondo_sel == "Sin fondo"
 
         if ancho_m > 0 and alto_m > 0:
@@ -2215,20 +2258,22 @@ if menu == "🪵 Cotizador":
         st.markdown("#### Configuración técnica")
         if tipo_modulo == "Bajo Mesada":
             _bm_opts = ["Superpuesta", "Gola BVM", "Embutida"]
-            tipo_tapa    = st.radio("Estilo", _bm_opts, index=_bm_opts.index(_v("tipo_tapa","Superpuesta")) if _v("tipo_tapa","Superpuesta") in _bm_opts else 0)
-            cant_puertas = st.selectbox("Cantidad de Puertas", [2, 3], index=0 if int(_v("cant_puertas",2)) == 2 else 1)
+            tipo_tapa    = st.radio("Estilo", _bm_opts, index=_bm_opts.index(_v("tipo_tapa","Superpuesta")) if _v("tipo_tapa","Superpuesta") in _bm_opts else 0, key=_wkey("bm_tipo_tapa"))
+            cant_puertas = st.selectbox("Cantidad de Puertas", [2, 3], index=0 if int(_v("cant_puertas",2)) == 2 else 1, key=_wkey("bm_cant_puertas"))
             if cant_puertas == 3:
                 tiene_parante = True
                 st.info("3 puertas: Parante divisor incluido.")
-                tipo_parante      = st.selectbox("Tipo de Parante", ["Corto (100mm)", "Largo (Fondo Lateral)"])
-                distancia_parante = st.number_input("Distancia desde lateral izq. (mm)", value=ancho_m/cant_puertas if ancho_m > 0 else 0.0, step=1.0)
-            tiene_parante_medio = st.checkbox("¿Lleva parante medio?", value=bool(_v("tiene_parante_medio", False)))
+                _parante_opts = ["Corto (100mm)", "Largo (Fondo Lateral)"]
+                _parante_def = _v("tipo_parante", "Corto (100mm)")
+                tipo_parante = st.selectbox("Tipo de Parante", _parante_opts, index=_parante_opts.index(_parante_def) if _parante_def in _parante_opts else 0, key=_wkey("bm_tipo_parante"))
+                distancia_parante = st.number_input("Distancia desde lateral izq. (mm)", value=float(_v("distancia_parante", ancho_m/cant_puertas if ancho_m > 0 else 0.0)), step=1.0, key=_wkey("bm_dist_parante"))
+            tiene_parante_medio = st.checkbox("¿Lleva parante medio?", value=bool(_v("tiene_parante_medio", False)), key=_wkey("bm_parante_medio"))
             st.markdown("---")
             st.markdown("#### Estantes")
             _cant_est_def = max(1, int(_v("estantes_fijos",0)) + int(_v("estantes_moviles",0)))
-            cant_total_est = st.number_input("Cantidad Total Estantes", min_value=0, value=_cant_est_def, step=1, key="cant_est_bm")
+            cant_total_est = st.number_input("Cantidad Total Estantes", min_value=0, value=_cant_est_def, step=1, key=_wkey("cant_est_bm"))
             _fmt_opts = ["Completo", "Medio"]
-            tipo_estante_manual = st.radio("Formato de Estante", _fmt_opts, index=_fmt_opts.index(_v("tipo_estante_manual","Completo")) if _v("tipo_estante_manual","Completo") in _fmt_opts else 0, key="fmt_est_bm")
+            tipo_estante_manual = st.radio("Formato de Estante", _fmt_opts, index=_fmt_opts.index(_v("tipo_estante_manual","Completo")) if _v("tipo_estante_manual","Completo") in _fmt_opts else 0, key=_wkey("fmt_est_bm"))
             _indices_guard = _v("indices_estantes_fijos", [])
             indices_fijos = []
             if cant_total_est > 0:
@@ -2236,7 +2281,7 @@ if menu == "🪵 Cotizador":
                 cols_e = st.columns(int(cant_total_est))
                 for i_e in range(int(cant_total_est)):
                     with cols_e[i_e]:
-                        if st.checkbox(f"E{i_e+1}", value=(i_e in _indices_guard), key=f"check_est_bm_{i_e}"):
+                        if st.checkbox(f"E{i_e+1}", value=(i_e in _indices_guard), key=_wkey(f"check_est_bm_{i_e}")):
                             indices_fijos.append(i_e)
             estantes_fijos   = len(indices_fijos)
             estantes_moviles = cant_total_est - estantes_fijos
@@ -2246,11 +2291,12 @@ if menu == "🪵 Cotizador":
         elif tipo_modulo == "Alacena":
             c_ala1, c_ala2 = st.columns(2)
             _ala_opts = ["Superpuesta", "Uñero", "Embutida"]
-            tipo_tapa    = c_ala1.radio("Sistema de Apertura", _ala_opts, index=_ala_opts.index(_v("tipo_tapa","Superpuesta")) if _v("tipo_tapa","Superpuesta") in _ala_opts else 0)
+            tipo_tapa    = c_ala1.radio("Sistema de Apertura", _ala_opts, index=_ala_opts.index(_v("tipo_tapa","Superpuesta")) if _v("tipo_tapa","Superpuesta") in _ala_opts else 0, key=_wkey("ala_tipo_tapa"))
             _p_ala = int(_v("cant_puertas",2))
-            cant_puertas = c_ala2.selectbox("Cantidad de Puertas", [2,3,4], index=[2,3,4].index(_p_ala) if _p_ala in [2,3,4] else 0)
+            cant_puertas = c_ala2.selectbox("Cantidad de Puertas", [2,3,4], index=[2,3,4].index(_p_ala) if _p_ala in [2,3,4] else 0, key=_wkey("ala_cant_puertas"))
             st.markdown("---")
-            cant_total_est = st.number_input("Cantidad Total Estantes", min_value=0, value=1, step=1)
+            _cant_est_ala_def = max(1, int(_v("estantes_fijos", 0)) + int(_v("estantes_moviles", 0)))
+            cant_total_est = st.number_input("Cantidad Total Estantes", min_value=0, value=_cant_est_ala_def, step=1, key=_wkey("ala_cant_est"))
             _indices_guard_ala = _v("indices_estantes_fijos", [])
             indices_fijos = []
             if cant_total_est > 0:
@@ -2258,7 +2304,7 @@ if menu == "🪵 Cotizador":
                 cols_e = st.columns(int(cant_total_est))
                 for i_e in range(int(cant_total_est)):
                     with cols_e[i_e]:
-                        if st.checkbox(f"E{i_e+1}", value=(i_e in _indices_guard_ala), key=f"check_est_{i_e}"):
+                        if st.checkbox(f"E{i_e+1}", value=(i_e in _indices_guard_ala), key=_wkey(f"check_est_ala_{i_e}")):
                             indices_fijos.append(i_e)
             estantes_fijos   = len(indices_fijos)
             estantes_moviles = cant_total_est - estantes_fijos
@@ -2266,9 +2312,9 @@ if menu == "🪵 Cotizador":
             tiene_cenefa = False
             alto_cenefa  = 0.0
             if "Uñero" in tipo_tapa:
-                tiene_cenefa = st.checkbox("¿Lleva Cenefa inferior?", value=True)
+                tiene_cenefa = st.checkbox("¿Lleva Cenefa inferior?", value=bool(_v("tiene_cenefa", True)), key=_wkey("ala_cenefa"))
                 if tiene_cenefa:
-                    alto_cenefa = st.number_input("Altura de Cenefa (mm)", value=50.0, step=5.0)
+                    alto_cenefa = st.number_input("Altura de Cenefa (mm)", value=float(_v("alto_cenefa", 50.0)), step=5.0, key=_wkey("ala_alto_cenefa"))
             cant_cajones = 0
 
         elif tipo_modulo == "Placard":
@@ -2290,24 +2336,27 @@ if menu == "🪵 Cotizador":
 
             _div_opts = ["Sin división", "Una división central", "Dos divisiones"]
             division_placard = st.radio("División interna", _div_opts,
-                                         index=_div_opts.index(division_placard) if division_placard in _div_opts else 0)
-            tiene_frentin_placard = st.checkbox("¿Lleva frentín superior?", value=tiene_frentin_placard)
+                                         index=_div_opts.index(division_placard) if division_placard in _div_opts else 0,
+                                         key=_wkey("placard_division"))
+            tiene_frentin_placard = st.checkbox("¿Lleva frentín superior?", value=tiene_frentin_placard, key=_wkey("placard_frentin"))
 
             _zona_opts = ["Solo estantes", "Ropa colgada", "Cajones"]
             if division_placard == "Sin división":
                 st.markdown("**Contenido del placard**")
                 zona_unica = st.selectbox("Tipo de zona", _zona_opts,
-                                           index=_zona_opts.index(zona_unica) if zona_unica in _zona_opts else 0)
+                                           index=_zona_opts.index(zona_unica) if zona_unica in _zona_opts else 0,
+                                           key=_wkey("placard_zona_unica"))
                 if zona_unica == "Ropa colgada":
                     altura_tubo = st.number_input("Altura del tubo desde el piso (mm)",
-                                                   value=altura_tubo, min_value=400, step=50)
+                                                   value=altura_tubo, min_value=400, step=50,
+                                                   key=_wkey("placard_tubo_unica"))
                     _alto_sugerido = int(alto_m * 0.62) if alto_m > 0 else 1200
                     st.caption(f"💡 Sugerencia para {int(alto_m)}mm de alto: ~{_alto_sugerido}mm")
                 c_ef, c_em = st.columns(2)
-                cant_estantes_unica_fijos   = c_ef.number_input("Estantes fijos",   value=cant_estantes_unica_fijos,   min_value=0, key="est_u_f")
-                cant_estantes_unica_moviles = c_em.number_input("Estantes móviles", value=cant_estantes_unica_moviles, min_value=0, key="est_u_m")
+                cant_estantes_unica_fijos   = c_ef.number_input("Estantes fijos",   value=cant_estantes_unica_fijos,   min_value=0, key=_wkey("placard_est_u_f"))
+                cant_estantes_unica_moviles = c_em.number_input("Estantes móviles", value=cant_estantes_unica_moviles, min_value=0, key=_wkey("placard_est_u_m"))
                 if zona_unica == "Cajones":
-                    cant_cajones_placard = st.number_input("Cantidad de cajones", value=max(1,cant_cajones_placard), min_value=1, max_value=8)
+                    cant_cajones_placard = st.number_input("Cantidad de cajones", value=max(1,cant_cajones_placard), min_value=1, max_value=8, key=_wkey("placard_caj_unica"))
 
             else:
                 _zonas_config = [("Zona izquierda", "zona_izq", "izq"),
@@ -2320,26 +2369,26 @@ if menu == "🪵 Cotizador":
                     _val_actual = locals()[var_z] if var_z in locals() else "Solo estantes"
                     _nueva_zona = st.selectbox(f"Tipo — {label_z}", _zona_opts,
                                                 index=_zona_opts.index(_val_actual) if _val_actual in _zona_opts else 0,
-                                                key=f"zona_{sufijo_z}")
+                                                key=_wkey(f"zona_{sufijo_z}"))
                     if var_z == "zona_izq":   zona_izq   = _nueva_zona
                     elif var_z == "zona_der": zona_der   = _nueva_zona
                     else:                     zona_unica = _nueva_zona
 
                     if _nueva_zona == "Ropa colgada":
                         altura_tubo = st.number_input(f"Altura tubo — {label_z} (mm)",
-                                                       value=altura_tubo, min_value=400, step=50, key=f"tubo_{sufijo_z}")
+                                                       value=altura_tubo, min_value=400, step=50, key=_wkey(f"tubo_{sufijo_z}"))
                     c_ef2, c_em2 = st.columns(2)
                     if sufijo_z == "izq":
-                        cant_estantes_izq_fijos   = c_ef2.number_input("Fijos",   value=cant_estantes_izq_fijos,   min_value=0, key=f"ef_{sufijo_z}")
-                        cant_estantes_izq_moviles = c_em2.number_input("Móviles", value=cant_estantes_izq_moviles, min_value=0, key=f"em_{sufijo_z}")
+                        cant_estantes_izq_fijos   = c_ef2.number_input("Fijos",   value=cant_estantes_izq_fijos,   min_value=0, key=_wkey(f"ef_{sufijo_z}"))
+                        cant_estantes_izq_moviles = c_em2.number_input("Móviles", value=cant_estantes_izq_moviles, min_value=0, key=_wkey(f"em_{sufijo_z}"))
                     elif sufijo_z == "der":
-                        cant_estantes_der_fijos   = c_ef2.number_input("Fijos",   value=cant_estantes_der_fijos,   min_value=0, key=f"ef_{sufijo_z}")
-                        cant_estantes_der_moviles = c_em2.number_input("Móviles", value=cant_estantes_der_moviles, min_value=0, key=f"em_{sufijo_z}")
+                        cant_estantes_der_fijos   = c_ef2.number_input("Fijos",   value=cant_estantes_der_fijos,   min_value=0, key=_wkey(f"ef_{sufijo_z}"))
+                        cant_estantes_der_moviles = c_em2.number_input("Móviles", value=cant_estantes_der_moviles, min_value=0, key=_wkey(f"em_{sufijo_z}"))
                     else:
-                        cant_estantes_unica_fijos   = c_ef2.number_input("Fijos",   value=cant_estantes_unica_fijos,   min_value=0, key=f"ef_{sufijo_z}")
-                        cant_estantes_unica_moviles = c_em2.number_input("Móviles", value=cant_estantes_unica_moviles, min_value=0, key=f"em_{sufijo_z}")
+                        cant_estantes_unica_fijos   = c_ef2.number_input("Fijos",   value=cant_estantes_unica_fijos,   min_value=0, key=_wkey(f"ef_{sufijo_z}"))
+                        cant_estantes_unica_moviles = c_em2.number_input("Móviles", value=cant_estantes_unica_moviles, min_value=0, key=_wkey(f"em_{sufijo_z}"))
                     if _nueva_zona == "Cajones":
-                        cant_cajones_placard = st.number_input(f"Cajones — {label_z}", value=max(1,cant_cajones_placard), min_value=1, max_value=8, key=f"caj_{sufijo_z}")
+                        cant_cajones_placard = st.number_input(f"Cajones — {label_z}", value=max(1,cant_cajones_placard), min_value=1, max_value=8, key=_wkey(f"caj_{sufijo_z}"))
 
             cant_cajones = 0
 
@@ -2355,41 +2404,42 @@ Para piezas que no entran en ningún módulo automático:<br>
 • Cualquier corte especial que medís vos en obra
 </div>
 </div>""", unsafe_allow_html=True)
-            cant_paneles = st.number_input("Cantidad de piezas", value=int(_v("cant_paneles", 1)), min_value=1, max_value=100)
+            cant_paneles = st.number_input("Cantidad de piezas", value=int(_v("cant_paneles", 1)), min_value=1, max_value=100, key=_wkey("pieza_cant_paneles"))
             nota_pieza   = st.text_input("Descripción (opcional)", value=_v("nota_pieza", ""),
-                                          placeholder="Ej: Panel lateral a falsa escuadra, Tapa mesada...")
+                                          placeholder="Ej: Panel lateral a falsa escuadra, Tapa mesada...",
+                                          key=_wkey("pieza_nota"))
             cant_cajones = 0
 
         else:  # CAJONERA
             c_caj, _ = st.columns(2)
-            cant_cajones = c_caj.number_input("Cant. Cajones", value=int(_v("cant_cajones", 0)), min_value=0)
+            cant_cajones = c_caj.number_input("Cant. Cajones", value=int(_v("cant_cajones", 0)), min_value=0, key=_wkey("caj_cant"))
             _caj_opts = ["Superpuesta", "Embutida"] + (["Gola"] if cant_cajones == 3 else [])
             _tapa_def = _v("tipo_tapa","Superpuesta")
-            tipo_tapa = st.radio("Estilo de Tapa", _caj_opts, index=_caj_opts.index(_tapa_def) if _tapa_def in _caj_opts else 0)
+            tipo_tapa = st.radio("Estilo de Tapa", _caj_opts, index=_caj_opts.index(_tapa_def) if _tapa_def in _caj_opts else 0, key=_wkey("caj_tipo_tapa"))
             st.markdown(f"#### Parámetros del cajón ({tipo_tapa})")
             col_l1, col_l2 = st.columns(2)
-            luz_entre_tapas = col_l1.number_input("Luz entre tapas (mm)", value=float(_v("luz_entre_tapas", 3.0)))
+            luz_entre_tapas = col_l1.number_input("Luz entre tapas (mm)", value=float(_v("luz_entre_tapas", 3.0)), key=_wkey("caj_luz_entre_tapas"))
             if cant_cajones > 0:
                 if tipo_tapa == "Embutida":
-                    alto_frentin_emb    = col_l2.number_input("Altura Frentín Superior (mm)", value=float(_v("alto_frentin_emb", 30.0)))
+                    alto_frentin_emb    = col_l2.number_input("Altura Frentín Superior (mm)", value=float(_v("alto_frentin_emb", 30.0)), key=_wkey("caj_alto_frentin"))
                     luz_perimetral_tapa = 6.0
                 else:
-                    luz_perimetral_tapa = col_l2.number_input("Luz total ancho (mm)", value=float(_v("luz_perimetral_tapa", 4.0)))
+                    luz_perimetral_tapa = col_l2.number_input("Luz total ancho (mm)", value=float(_v("luz_perimetral_tapa", 4.0)), key=_wkey("caj_luz_ancho"))
                     alto_frentin_emb    = 0.0
                 _dist_opts = ["Iguales", "Proporcional (20/35/45)"]
-                distribucion_tapas = col_l1.radio("Distribución", _dist_opts, index=_dist_opts.index(_v("distribucion_tapas","Iguales")) if _v("distribucion_tapas","Iguales") in _dist_opts else 0)
+                distribucion_tapas = col_l1.radio("Distribución", _dist_opts, index=_dist_opts.index(_v("distribucion_tapas","Iguales")) if _v("distribucion_tapas","Iguales") in _dist_opts else 0, key=_wkey("caj_distribucion"))
                 col_c1, col_c2 = st.columns(2)
-                esp_corredera = col_c1.number_input("Espesor de corredera (mm)", value=float(_v("esp_corredera", 13.0)))
-                aire_trasero  = col_c2.number_input("Espacio libre trasero (mm)", value=float(_v("aire_trasero", 30.0)))
+                esp_corredera = col_c1.number_input("Espesor de corredera (mm)", value=float(_v("esp_corredera", 13.0)), key=_wkey("caj_esp_corredera"))
+                aire_trasero  = col_c2.number_input("Espacio libre trasero (mm)", value=float(_v("aire_trasero", 30.0)), key=_wkey("caj_aire_trasero"))
 
       with tab_config:
           if tipo_modulo != "Alacena":
               st.markdown("#### Soporte")
               _opts_base = ["Zócalo de Madera", "Banquina", "Patas Plásticas", "Nada"]
               _base_def  = _v("tipo_base","Nada") if _v("tipo_base","Nada") in _opts_base else "Nada"
-              tipo_base = st.selectbox("Tipo de Soporte", _opts_base, index=_opts_base.index(_base_def))
+              tipo_base = st.selectbox("Tipo de Soporte", _opts_base, index=_opts_base.index(_base_def), key=_wkey("tipo_base"))
               if tipo_base != "Nada":
-                  altura_base = st.number_input("Altura (mm)", min_value=0.0, value=float(_v("altura_base",100.0)), step=5.0)
+                  altura_base = st.number_input("Altura (mm)", min_value=0.0, value=float(_v("altura_base",100.0)), step=5.0, key=_wkey("altura_base"))
               else:
                   altura_base = 0.0
               costo_base = 5000 if tipo_base == "Patas Plásticas" else 0
@@ -2414,13 +2464,13 @@ Para piezas que no entran en ningún módulo automático:<br>
               opciones_limpias = [_mapa.get(k, k) for k in herrajes_disp]
               mapa_inv         = {v: k for k, v in _mapa.items()}
               def_sel = [_mapa.get(k, k) for k in _herr_guard if _mapa.get(k, k) in opciones_limpias]
-              seleccionados = st.multiselect("Herrajes para este módulo", opciones_limpias, default=def_sel)
+              seleccionados = st.multiselect("Herrajes para este módulo", opciones_limpias, default=def_sel, key=_wkey("herrajes_extra"))
               if seleccionados:
                   c_h1, c_h2 = st.columns(2)
                   for i_h, nm in enumerate(seleccionados):
                       clave = mapa_inv.get(nm, nm)
                       col_h = c_h1 if i_h % 2 == 0 else c_h2
-                      cant_h = col_h.number_input(f"Cant. {nm}", min_value=1, value=int(_herr_guard.get(clave, 1)), step=1, key=f"cant_{clave}")
+                      cant_h = col_h.number_input(f"Cant. {nm}", min_value=1, value=int(_herr_guard.get(clave, 1)), step=1, key=_wkey(f"cant_{clave}"))
                       herrajes_extra_sel[clave] = cant_h
 
           # TODO: Inyectar logica BKS de herrajes desde motor/brs_bks.py.
@@ -2429,7 +2479,7 @@ Para piezas que no entran en ningún módulo automático:<br>
 
       with tab_taller:
           st.markdown("#### Tiempo operativo")
-          dias_prod = st.number_input("Días de trabajo en taller", value=float(_v("dias_prod", 0.0)), step=0.5)
+          dias_prod = st.number_input("Días de trabajo en taller", value=float(_v("dias_prod", 0.0)), step=0.5, key=_wkey("dias_prod"))
 
     # ═══════════════════════════════════════════════════════════════════════
     # COLUMNA DERECHA — preview + planilla + precio + botones
@@ -2626,7 +2676,7 @@ Para piezas que no entran en ningún módulo automático:<br>
 
       if modo == "editar_legacy":
           st.subheader("💾 Guardar cambios")
-          if st.button("Guardar cambios en Proyectos", use_container_width=True, type="primary"):
+          if st.button("Guardar cambios en Proyectos", use_container_width=True, type="primary", key=_wkey("guardar_legacy")):
               if not cliente:
                   st.warning("Ingresá el nombre del cliente.")
               elif precio_a_usar <= 0:
@@ -2654,9 +2704,9 @@ Para piezas que no entran en ningún módulo automático:<br>
           """, unsafe_allow_html=True)
 
           st.subheader("💾 Guardar cambios en el mueble")
-          nombre_modulo = st.text_input("Nombre de este módulo", value=_v("nombre", f"{tipo_modulo} {ancho_m:.0f}mm"), help="Asigna un nombre descriptivo para identificar este mueble dentro de tu obra.")
-          
-          if st.button("💾 Confirmar cambios y guardar proyecto", use_container_width=True, type="primary"):
+          nombre_modulo = st.text_input("Nombre de este módulo", value=_v("nombre", f"{tipo_modulo} {ancho_m:.0f}mm"), help="Asigna un nombre descriptivo para identificar este mueble dentro de tu obra.", key=_wkey("nombre_modulo_edit"))
+
+          if st.button("💾 Confirmar cambios y guardar proyecto", use_container_width=True, type="primary", key=_wkey("confirmar_edit_modulo")):
               if precio_a_usar <= 0:
                   st.warning("El precio es 0. Completá las medidas para poder calcular.")
               else:
@@ -2709,8 +2759,8 @@ Para piezas que no entran en ningún módulo automático:<br>
       else:
           st.subheader("🛒 Agregar al Resumen de Obra")
           st.markdown("<span style='color:#666;font-size:14px;'>Cada módulo se suma al total de la obra.</span>", unsafe_allow_html=True)
-          nombre_modulo = st.text_input("Nombre del módulo", value=f"{tipo_modulo} {ancho_m:.0f}mm")
-          if st.button("👇 Agregar mueble al Resumen de Obra", use_container_width=True, type="primary"):
+          nombre_modulo = st.text_input("Nombre del módulo", value=f"{tipo_modulo} {ancho_m:.0f}mm", key=_wkey("nombre_modulo_add"))
+          if st.button("👇 Agregar mueble al Resumen de Obra", use_container_width=True, type="primary", key=_wkey("agregar_modulo")):
               if ancho_m <= 0 or alto_m <= 0:
                   st.warning("Ingresá las medidas del módulo.")
               elif precio_a_usar <= 0:
