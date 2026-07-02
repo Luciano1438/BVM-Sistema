@@ -1433,6 +1433,15 @@ h3 { font-size: 14px !important; font-weight: 600 !important; color: var(--bvm-t
 }
 
 /* ── Selector visual de módulos ───────────────────────────────── */
+.bvm-module-link {
+    display: block;
+    color: inherit !important;
+    text-decoration: none !important;
+}
+.bvm-module-link:focus-visible .bvm-module-card {
+    outline: 3px solid rgba(79,70,229,0.22);
+    outline-offset: 2px;
+}
 .bvm-module-card {
     border: 1.5px solid var(--bvm-border);
     border-radius: 10px;
@@ -1454,24 +1463,6 @@ h3 { font-size: 14px !important; font-weight: 600 !important; color: var(--bvm-t
     border-color: var(--bvm-accent);
     box-shadow: var(--bvm-shadow-md);
     transform: translateY(-1px);
-}
-.bvm-module-card + div[data-testid="stButton"] {
-    margin-top: -124px;
-    height: 124px;
-    margin-bottom: 8px;
-}
-.bvm-module-card + div[data-testid="stButton"] button {
-    height: 116px;
-    opacity: 0;
-}
-div[data-testid="stMarkdown"]:has(.bvm-module-card) + div[data-testid="stButton"] {
-    margin-top: -124px;
-    height: 124px;
-    margin-bottom: 8px;
-}
-div[data-testid="stMarkdown"]:has(.bvm-module-card) + div[data-testid="stButton"] button {
-    height: 116px;
-    opacity: 0;
 }
 .bvm-module-card svg {
     width: 86px;
@@ -1562,6 +1553,47 @@ div[data-testid="stMarkdown"]:has(.bvm-module-card) + div[data-testid="stButton"
 ::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
 
 /* ── Dividers ──────────────────────────────────────────────────── */
+/* Responsive base */
+@media (max-width: 1100px) {
+    .block-container {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+    [data-testid="stHorizontalBlock"] {
+        gap: 0.75rem !important;
+    }
+}
+
+@media (max-width: 760px) {
+    .block-container {
+        padding: 0.75rem 0.75rem 2rem !important;
+    }
+    [data-testid="column"] {
+        width: 100% !important;
+        min-width: 100% !important;
+        flex: 1 1 100% !important;
+    }
+    .bvm-module-card {
+        min-height: 104px;
+        padding: 10px 8px;
+    }
+    .bvm-module-card svg {
+        height: 54px;
+        margin-bottom: 6px;
+    }
+    .bvm-label-preview {
+        grid-template-columns: 1fr;
+    }
+    .bvm-label-qr {
+        width: 96px;
+        height: 96px;
+    }
+    .bvm-label-qr img {
+        width: 90px;
+        height: 90px;
+    }
+}
+
 hr { border-color: var(--bvm-border) !important; margin: 16px 0 !important; }
 </style>""", unsafe_allow_html=True)
 
@@ -2100,6 +2132,17 @@ if menu == "🪵 Cotizador":
         st.session_state["cliente_actual"] = cliente
 
         _modulos_disponibles = ["Bajo Mesada", "Cajonera", "Alacena", "Placard", "Pieza Suelta"]
+        try:
+            _modulo_qp = st.query_params.get("bvm_module")
+        except Exception:
+            _modulo_qp = None
+        if isinstance(_modulo_qp, list):
+            _modulo_qp = _modulo_qp[0] if _modulo_qp else None
+        if modo is None and _modulo_qp in _modulos_disponibles and st.session_state.get("_tipo_modulo_sel") != _modulo_qp:
+            st.session_state["_tipo_modulo_sel"] = _modulo_qp
+            st.session_state.pop("radio_tipo_modulo", None)
+            st.rerun()
+
         def _svg_modulo_card(nombre, activo=False):
             color = "#4F46E5" if activo else "#64748B"
             fill = "#EEF2FF" if activo else "#F8FAFC"
@@ -2121,14 +2164,14 @@ if menu == "🪵 Cotizador":
             for col_mod, nombre_btn in zip(cols_mod, _modulos_disponibles[_fila:_fila + 2]):
                 with col_mod:
                     activo = st.session_state["_tipo_modulo_sel"] == nombre_btn
+                    _href_mod = f"?bvm_module={urllib.parse.quote(nombre_btn)}"
+                    _label_mod = html.escape(nombre_btn)
                     st.markdown(
-                        f'<div class="bvm-module-card{" is-active" if activo else ""}">{_svg_modulo_card(nombre_btn, activo)}<div class="bvm-module-card-label">{nombre_btn}</div></div>',
+                        f'<a class="bvm-module-link" href="{_href_mod}" target="_self" aria-label="Seleccionar {_label_mod}">'
+                        f'<div class="bvm-module-card{" is-active" if activo else ""}">{_svg_modulo_card(nombre_btn, activo)}<div class="bvm-module-card-label">{_label_mod}</div></div>'
+                        f'</a>',
                         unsafe_allow_html=True,
                     )
-                    if st.button(f"Seleccionar {nombre_btn}", key=f"sel_mod_{nombre_btn}", use_container_width=True, type="primary" if activo else "secondary"):
-                        st.session_state["_tipo_modulo_sel"] = nombre_btn
-                        st.session_state.pop("radio_tipo_modulo", None)
-                        st.rerun()
 
         tipo_modulo = st.session_state["_tipo_modulo_sel"]
         c1, c2, c3 = st.columns(3)
