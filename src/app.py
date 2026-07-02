@@ -1399,6 +1399,11 @@ h3 { font-size: 14px !important; font-weight: 600 !important; color: var(--bvm-t
     color: var(--bvm-text);
     line-height: 1.2;
 }
+.bvm-hero h1,
+.bvm-hero p,
+.bvm-hero div {
+    color: white !important;
+}
 
 /* ── Alertas e info ────────────────────────────────────────────── */
 [data-testid="stAlert"]        { border-radius: 8px !important; font-size: 13px !important; }
@@ -1435,7 +1440,7 @@ if "onboarding_visto" not in st.session_state:
     st.session_state["onboarding_visto"] = False
 
 if not st.session_state["onboarding_visto"]:
-    st.markdown("""<div style="background:linear-gradient(135deg,#1F2937 0%,#0B1220 100%);border-radius:16px;padding:40px 48px;margin-bottom:32px;text-align:center;">
+    st.markdown("""<div class="bvm-hero" style="background:linear-gradient(135deg,#1F2937 0%,#0B1220 100%);border-radius:16px;padding:40px 48px;margin-bottom:32px;text-align:center;">
     <div style="font-size:48px;margin-bottom:12px;">🪵</div>
     <h1 style="color:white;margin:0 0 10px 0;font-size:32px;">Bienvenido a BVM</h1>
     <p style="color:white;font-size:17px;opacity:0.9;max-width:520px;margin:0 auto;">
@@ -1755,6 +1760,7 @@ if menu == "🪵 Cotizador":
     if "_tipo_modulo_sel" not in st.session_state or st.session_state.get("_ctx_sig_prev") != _ctx_sig:
         st.session_state["_tipo_modulo_sel"] = _tipo_default
         st.session_state["_ctx_sig_prev"]    = _ctx_sig
+        st.session_state.pop("radio_tipo_modulo", None)
 
     df_corte = pd.DataFrame()
     costo_madera = costo_fondo = costo_herrajes = precio_final = total_costo = 0.0
@@ -1809,7 +1815,8 @@ if menu == "🪵 Cotizador":
     # COLUMNA IZQUIERDA — inputs
     # ═══════════════════════════════════════════════════════════════════════
     with col_ctrl:
-      with st.expander("🛠️ Definición de estructura", expanded=True):
+      tab_modulo, tab_config, tab_costos = st.tabs(["1. Módulo", "2. Config.", "3. Costos"])
+      with tab_modulo:
         _cliente_default = st.session_state["cliente_actual"]
         if modo == "editar_modulo_obra": _cliente_default = ctx.get("obra_cliente", "")
         elif modo == "editar_legacy":    _cliente_default = ctx.get("cliente", "")
@@ -1817,32 +1824,22 @@ if menu == "🪵 Cotizador":
         cliente = st.text_input("Cliente", _cliente_default)
         st.session_state["cliente_actual"] = cliente
 
-        st.markdown("**Tipo de mueble**")
-        _svgs = {
-            "Bajo Mesada":    '<svg viewBox="0 0 80 60" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="18" width="76" height="38" rx="2" fill="COLOR" opacity="0.12" stroke="COLOR" stroke-width="1.5"/><rect x="2" y="18" width="76" height="8" rx="1" fill="COLOR" opacity="0.25"/><line x1="41" y1="26" x2="41" y2="56" stroke="COLOR" stroke-width="1.2"/><rect x="5" y="30" width="33" height="22" rx="1.5" fill="COLOR" opacity="0.18"/><rect x="44" y="30" width="33" height="22" rx="1.5" fill="COLOR" opacity="0.18"/><circle cx="39" cy="41" r="2" fill="COLOR" opacity="0.6"/><circle cx="43" cy="41" r="2" fill="COLOR" opacity="0.6"/></svg>',
-            "Cajonera":       '<svg viewBox="0 0 80 60" xmlns="http://www.w3.org/2000/svg"><rect x="5" y="4" width="70" height="52" rx="2" fill="COLOR" opacity="0.12" stroke="COLOR" stroke-width="1.5"/><rect x="8" y="8" width="64" height="13" rx="1.5" fill="COLOR" opacity="0.2"/><rect x="8" y="24" width="64" height="13" rx="1.5" fill="COLOR" opacity="0.2"/><rect x="8" y="40" width="64" height="13" rx="1.5" fill="COLOR" opacity="0.2"/><circle cx="40" cy="14.5" r="2" fill="COLOR" opacity="0.7"/><circle cx="40" cy="30.5" r="2" fill="COLOR" opacity="0.7"/><circle cx="40" cy="46.5" r="2" fill="COLOR" opacity="0.7"/></svg>',
-            "Alacena":        '<svg viewBox="0 0 80 60" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="2" width="76" height="52" rx="2" fill="COLOR" opacity="0.12" stroke="COLOR" stroke-width="1.5"/><rect x="2" y="2" width="76" height="7" rx="1" fill="COLOR" opacity="0.2"/><line x1="41" y1="9" x2="41" y2="54" stroke="COLOR" stroke-width="1.2"/><rect x="5" y="13" width="33" height="37" rx="1.5" fill="COLOR" opacity="0.18"/><rect x="44" y="13" width="33" height="37" rx="1.5" fill="COLOR" opacity="0.18"/><circle cx="39" cy="31" r="2" fill="COLOR" opacity="0.6"/><circle cx="43" cy="31" r="2" fill="COLOR" opacity="0.6"/></svg>',
-            "Placard":        '<svg viewBox="0 0 80 60" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="2" width="76" height="56" rx="2" fill="COLOR" opacity="0.12" stroke="COLOR" stroke-width="1.5"/><rect x="2" y="2" width="76" height="6" rx="1" fill="COLOR" opacity="0.3"/><line x1="41" y1="8" x2="41" y2="58" stroke="COLOR" stroke-width="1.5"/><rect x="5" y="11" width="33" height="4" rx="1" fill="COLOR" opacity="0.5"/><line x1="22" y1="15" x2="22" y2="40" stroke="COLOR" stroke-width="0.8" stroke-dasharray="2,2"/><rect x="44" y="11" width="33" height="4" rx="1" fill="COLOR" opacity="0.5"/><rect x="47" y="20" width="27" height="3" rx="1" fill="COLOR" opacity="0.35"/><rect x="47" y="28" width="27" height="3" rx="1" fill="COLOR" opacity="0.35"/><rect x="47" y="36" width="27" height="3" rx="1" fill="COLOR" opacity="0.35"/></svg>',
-            "Pieza Suelta": '<svg viewBox="0 0 80 60" xmlns="http://www.w3.org/2000/svg"><rect x="5" y="5" width="70" height="50" rx="2" fill="COLOR" opacity="0.12" stroke="COLOR" stroke-width="1.5" stroke-dasharray="4,3"/><text x="40" y="26" text-anchor="middle" font-size="9" fill="COLOR" opacity="0.7" font-weight="bold">L</text><text x="40" y="38" text-anchor="middle" font-size="9" fill="COLOR" opacity="0.7" font-weight="bold">×</text><text x="40" y="50" text-anchor="middle" font-size="9" fill="COLOR" opacity="0.7" font-weight="bold">A</text><line x1="12" y1="8" x2="12" y2="52" stroke="COLOR" stroke-width="0.8" opacity="0.5"/><line x1="68" y1="8" x2="68" y2="52" stroke="COLOR" stroke-width="0.8" opacity="0.5"/><line x1="9" y1="10" x2="71" y2="10" stroke="COLOR" stroke-width="0.8" opacity="0.5"/><line x1="9" y1="50" x2="71" y2="50" stroke="COLOR" stroke-width="0.8" opacity="0.5"/></svg>',
-        }
         _modulos_disponibles = ["Bajo Mesada", "Cajonera", "Alacena", "Placard", "Pieza Suelta"]
-        for _fila in range(0, len(_modulos_disponibles), 2):
-            _cols_modulo = st.columns(2)
-            for _col_modulo, nombre_btn in zip(_cols_modulo, _modulos_disponibles[_fila:_fila + 2]):
-                with _col_modulo:
-                    sel = st.session_state["_tipo_modulo_sel"] == nombre_btn
-                    color = "#4F46E5" if sel else "#6B7280"
-                    svg = _svgs[nombre_btn].replace("COLOR", color)
-                    _active_class = " is-active" if sel else ""
-                    st.markdown(
-                        f'<div class="bvm-module-card{_active_class}">{svg}<div class="bvm-module-card-label">{nombre_btn}</div></div>',
-                        unsafe_allow_html=True,
-                    )
-                    if st.button(nombre_btn, key=f"sel_{nombre_btn}", use_container_width=True, type="primary" if sel else "secondary"):
-                        st.session_state["_tipo_modulo_sel"] = nombre_btn
-                        st.rerun()
-
-        tipo_modulo = st.session_state["_tipo_modulo_sel"]
+        _modulo_label = {
+            "Bajo Mesada": "▤ Bajo Mesada",
+            "Cajonera": "▥ Cajonera",
+            "Alacena": "▣ Alacena",
+            "Placard": "▧ Placard",
+            "Pieza Suelta": "□ Pieza Suelta",
+        }
+        tipo_modulo = st.radio(
+            "Tipo de mueble",
+            _modulos_disponibles,
+            index=_modulos_disponibles.index(st.session_state["_tipo_modulo_sel"]) if st.session_state["_tipo_modulo_sel"] in _modulos_disponibles else 0,
+            format_func=lambda opt: _modulo_label.get(opt, opt),
+            key="radio_tipo_modulo",
+        )
+        st.session_state["_tipo_modulo_sel"] = tipo_modulo
         c1, c2, c3 = st.columns(3)
         ancho_m = c1.number_input("Ancho total (mm)", min_value=0.0, max_value=5000.0, value=float(_v("ancho_m", 0.0)), step=0.5, key="inp_ancho")
         alto_m  = c2.number_input("Alto total (mm)",  min_value=0.0, max_value=5000.0, value=float(_v("alto_m",  0.0)), step=0.5, key="inp_alto")
@@ -1881,7 +1878,8 @@ if menu == "🪵 Cotizador":
             st.warning(_warning)
 
       _editando = modo in ("editar_modulo_obra", "editar_legacy")
-      with st.expander("🏗️ Configuración del módulo", expanded=_editando):
+      with tab_config:
+        st.markdown("#### Configuración técnica")
         if tipo_modulo == "Bajo Mesada":
             _bm_opts = ["Superpuesta", "Gola BVM", "Embutida"]
             tipo_tapa    = st.radio("Estilo", _bm_opts, index=_bm_opts.index(_v("tipo_tapa","Superpuesta")) if _v("tipo_tapa","Superpuesta") in _bm_opts else 0)
@@ -2052,52 +2050,51 @@ Para piezas que no entran en ningún módulo automático:<br>
                 esp_corredera = col_c1.number_input("Espesor de corredera (mm)", value=float(_v("esp_corredera", 13.0)))
                 aire_trasero  = col_c2.number_input("Espacio libre trasero (mm)", value=float(_v("aire_trasero", 30.0)))
 
-      if tipo_modulo != "Alacena":
-        with st.expander("📦 Soporte", expanded=_editando):
-            _opts_base = ["Zócalo de Madera", "Banquina", "Patas Plásticas", "Nada"]
-            _base_def  = _v("tipo_base","Nada") if _v("tipo_base","Nada") in _opts_base else "Nada"
-            tipo_base = st.selectbox("Tipo de Soporte", _opts_base, index=_opts_base.index(_base_def))
-            if tipo_base != "Nada":
-                altura_base = st.number_input("Altura (mm)", min_value=0.0, value=float(_v("altura_base",100.0)), step=5.0)
-            else:
-                altura_base = 0.0
-            costo_base = 5000 if tipo_base == "Patas Plásticas" else 0
-      else:
-        tipo_base = "Nada"; altura_base = 0.0; costo_base = 0
+      with tab_config:
+          if tipo_modulo != "Alacena":
+              st.markdown("#### Soporte")
+              _opts_base = ["Zócalo de Madera", "Banquina", "Patas Plásticas", "Nada"]
+              _base_def  = _v("tipo_base","Nada") if _v("tipo_base","Nada") in _opts_base else "Nada"
+              tipo_base = st.selectbox("Tipo de Soporte", _opts_base, index=_opts_base.index(_base_def))
+              if tipo_base != "Nada":
+                  altura_base = st.number_input("Altura (mm)", min_value=0.0, value=float(_v("altura_base",100.0)), step=5.0)
+              else:
+                  altura_base = 0.0
+              costo_base = 5000 if tipo_base == "Patas Plásticas" else 0
+          else:
+              tipo_base = "Nada"; altura_base = 0.0; costo_base = 0
+      with tab_costos:
+          st.markdown("#### Herrajes y tiempos")
+          if tipo_modulo in ["Bajo Mesada","Alacena"] and cant_puertas > 0:
+              st.info(f"Sugerencia: {cant_puertas * 2} bisagras.")
+          elif tipo_modulo == "Cajonera" and cant_cajones > 0:
+              st.info(f"Sugerencia: {cant_cajones} pares de correderas.")
 
-      st.markdown("---")
-      st.markdown("#### 🔩 Herrajes y Accesorios")
-      if tipo_modulo in ["Bajo Mesada","Alacena"] and cant_puertas > 0:
-          st.info(f"💡 Sugerencia: {cant_puertas * 2} bisagras.")
-      elif tipo_modulo == "Cajonera" and cant_cajones > 0:
-          st.info(f"💡 Sugerencia: {cant_cajones} pares de correderas.")
+          herrajes_disp = {k: v for k, v in config.items() if k not in ['gastos_fijos_diarios','flete_capital','flete_norte','colocacion_dia','ganancia_taller_pct']}
+          herrajes_extra_sel = {}
+          if herrajes_disp:
+              _herr_guard = _v("herrajes_extra", {})
+              _mapa = {
+                  "bisagra_cazoleta":  "Bisagra Cazoleta Estándar",
+                  "telescopica_45":    "Guía Telescópica 45cm",
+                  "telescopica_soft":  "Guía Telescópica Cierre Suave",
+              }
+              opciones_limpias = [_mapa.get(k, k) for k in herrajes_disp]
+              mapa_inv         = {v: k for k, v in _mapa.items()}
+              def_sel = [_mapa.get(k, k) for k in _herr_guard if _mapa.get(k, k) in opciones_limpias]
+              seleccionados = st.multiselect("Herrajes para este módulo", opciones_limpias, default=def_sel)
+              if seleccionados:
+                  c_h1, c_h2 = st.columns(2)
+                  for i_h, nm in enumerate(seleccionados):
+                      clave = mapa_inv.get(nm, nm)
+                      col_h = c_h1 if i_h % 2 == 0 else c_h2
+                      cant_h = col_h.number_input(f"Cant. {nm}", min_value=1, value=int(_herr_guard.get(clave, 1)), step=1, key=f"cant_{clave}")
+                      herrajes_extra_sel[clave] = cant_h
 
-      herrajes_disp = {k: v for k, v in config.items() if k not in ['gastos_fijos_diarios','flete_capital','flete_norte','colocacion_dia','ganancia_taller_pct']}
-      herrajes_extra_sel = {}
-      if herrajes_disp:
-          _herr_guard = _v("herrajes_extra", {})
-          _mapa = {
-              "bisagra_cazoleta":  "Bisagra Cazoleta Estándar",
-              "telescopica_45":    "Guía Telescópica 45cm",
-              "telescopica_soft":  "Guía Telescópica Cierre Suave",
-          }
-          opciones_limpias = [_mapa.get(k, k) for k in herrajes_disp]
-          mapa_inv         = {v: k for k, v in _mapa.items()}
-          def_sel = [_mapa.get(k, k) for k in _herr_guard if _mapa.get(k, k) in opciones_limpias]
-          seleccionados = st.multiselect("Herrajes para este módulo", opciones_limpias, default=def_sel)
-          if seleccionados:
-              c_h1, c_h2 = st.columns(2)
-              for i_h, nm in enumerate(seleccionados):
-                  clave = mapa_inv.get(nm, nm)
-                  col_h = c_h1 if i_h % 2 == 0 else c_h2
-                  cant_h = col_h.number_input(f"Cant. {nm}", min_value=1, value=int(_herr_guard.get(clave, 1)), step=1, key=f"cant_{clave}")
-                  herrajes_extra_sel[clave] = cant_h
+          # TODO: Inyectar logica BKS de herrajes desde motor/brs_bks.py.
+          for _warning in validar_herrajes_bks({"tipo_modulo": tipo_modulo, "herrajes_extra": herrajes_extra_sel}, config):
+              st.warning(_warning)
 
-      # TODO: Inyectar logica BKS de herrajes desde motor/brs_bks.py.
-      for _warning in validar_herrajes_bks({"tipo_modulo": tipo_modulo, "herrajes_extra": herrajes_extra_sel}, config):
-          st.warning(_warning)
-
-      with st.expander("🔨 Días de taller", expanded=_editando):
           dias_prod = st.number_input("Días de trabajo en taller", value=float(_v("dias_prod", 0.0)), step=0.5)
 
     # ═══════════════════════════════════════════════════════════════════════
@@ -2234,15 +2231,23 @@ Para piezas que no entran en ningún módulo automático:<br>
           else:
               st.metric("Valor", "$0", "faltan medidas")
 
-          st.metric("Ancho", f"{ancho_m:.0f} mm")
-          st.metric("Alto", f"{alto_m:.0f} mm")
-          st.metric("Profundidad", f"{prof_m:.0f} mm")
-          st.metric("M² placa", f"{m2_18mm:.2f}")
-
+          _resumen_filas = [
+              ("Ancho", f"{ancho_m:.0f} mm"),
+              ("Alto", f"{alto_m:.0f} mm"),
+              ("Profundidad", f"{prof_m:.0f} mm"),
+              ("M² placa", f"{m2_18mm:.2f}"),
+          ]
           if not es_empleado:
-              st.metric("Costo real", f"${total_costo_real:,.0f}")
-              st.metric("Ganancia neta", f"${utilidad:,.0f}")
-              st.metric("Margen", f"{pct_margen:.1f}%")
+              _resumen_filas.extend([
+                  ("Costo real", f"${total_costo_real:,.0f}"),
+                  ("Ganancia neta", f"${utilidad:,.0f}"),
+                  ("Margen", f"{pct_margen:.1f}%"),
+              ])
+          st.dataframe(
+              pd.DataFrame(_resumen_filas, columns=["Dato", "Valor"]),
+              hide_index=True,
+              use_container_width=True,
+          )
 
           st.write("Herrajes")
           if herrajes_extra_sel:
