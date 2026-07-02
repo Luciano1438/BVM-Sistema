@@ -271,7 +271,7 @@ def generar_pdf_obra(cliente, modulos, dias_entrega, pct_seña, costo_logistica=
     pdf.add_page()
     
     # Colores Corporativos BVM
-    r_main, g_main, b_main = 15, 110, 86  # Verde BVM (#0F6E56)
+    r_main, g_main, b_main = 17, 24, 39  # Azul noche BVM (#111827)
     
     # --- HEADER ---
     pdf.set_font("Arial", "B", 22)
@@ -1221,13 +1221,16 @@ st.set_page_config(page_title="BVM — Sistema de Gestión para Carpintería", p
 st.markdown("""<style>
 /* ── Variables de diseño BVM ───────────────────────────────────── */
 :root {
-    --bvm-green:        #0F6E56;
-    --bvm-green-light:  #1D9E75;
-    --bvm-green-pale:   #E1F5EE;
-    --bvm-surface:      #F8F8F6;
-    --bvm-border:       #E0DED6;
-    --bvm-text:         #1A1A1A;
-    --bvm-text-muted:   #888780;
+    --bvm-green:        #111827;
+    --bvm-green-light:  #4F46E5;
+    --bvm-green-pale:   #EEF2FF;
+    --bvm-surface:      #F6F7FB;
+    --bvm-border:       #E5E7EB;
+    --bvm-text:         #111827;
+    --bvm-text-muted:   #6B7280;
+    --bvm-sidebar:      #0B1220;
+    --bvm-sidebar-soft: #111827;
+    --bvm-accent:       #6366F1;
     --bvm-radius:       10px;
     --bvm-shadow:       0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
     --bvm-shadow-md:    0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
@@ -1248,12 +1251,15 @@ h3 { font-size: 14px !important; font-weight: 600 !important; color: var(--bvm-t
     padding-bottom: 3rem !important;
     max-width: 1400px !important;
 }
+[data-testid="stAppViewContainer"] {
+    background: var(--bvm-surface) !important;
+}
 
 /* ── Sidebar premium ───────────────────────────────────────────── */
 [data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #0F6E56 0%, #0A5240 100%) !important;
+    background: linear-gradient(180deg, var(--bvm-sidebar) 0%, #070B14 100%) !important;
     border-right: none !important;
-    box-shadow: 2px 0 12px rgba(0,0,0,0.15) !important;
+    box-shadow: 2px 0 18px rgba(15,23,42,0.22) !important;
 }
 [data-testid="stSidebar"] * { color: rgba(255,255,255,0.88) !important; }
 [data-testid="stSidebar"] .stRadio label {
@@ -1280,18 +1286,18 @@ h3 { font-size: 14px !important; font-weight: 600 !important; color: var(--bvm-t
 
 /* ── Botones ───────────────────────────────────────────────────── */
 .stButton > button[kind="primary"] {
-    background: linear-gradient(135deg, #1D9E75 0%, #0F6E56 100%) !important;
+    background: linear-gradient(135deg, #1F2937 0%, #111827 100%) !important;
     border: none !important;
     color: white !important;
     border-radius: 8px !important;
     font-weight: 600 !important;
     font-size: 13.5px !important;
     letter-spacing: 0.01em !important;
-    box-shadow: 0 2px 6px rgba(15,110,86,0.3) !important;
+    box-shadow: 0 2px 8px rgba(17,24,39,0.26) !important;
     transition: all 0.15s !important;
 }
 .stButton > button[kind="primary"]:hover {
-    box-shadow: 0 4px 12px rgba(15,110,86,0.4) !important;
+    box-shadow: 0 4px 14px rgba(17,24,39,0.34) !important;
     transform: translateY(-1px) !important;
 }
 .stButton > button[kind="secondary"] {
@@ -1357,12 +1363,41 @@ h3 { font-size: 14px !important; font-weight: 600 !important; color: var(--bvm-t
 [data-testid="stNumberInput"] input:focus,
 [data-testid="stTextInput"] input:focus {
     border-color: var(--bvm-green-light) !important;
-    box-shadow: 0 0 0 3px rgba(29,158,117,0.12) !important;
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.14) !important;
 }
 [data-testid="stSelectbox"] > div > div {
     border-radius: 7px !important;
     border-color: var(--bvm-border) !important;
     font-size: 13px !important;
+}
+
+/* ── Selector visual de módulos ───────────────────────────────── */
+.bvm-module-card {
+    border: 1.5px solid var(--bvm-border);
+    border-radius: 10px;
+    padding: 12px 8px 10px;
+    background: #FFFFFF;
+    text-align: center;
+    min-height: 116px;
+    box-shadow: var(--bvm-shadow);
+}
+.bvm-module-card.is-active {
+    border-color: var(--bvm-accent);
+    background: #EEF2FF;
+    box-shadow: 0 6px 16px rgba(79,70,229,0.14);
+}
+.bvm-module-card svg {
+    width: 86px;
+    max-width: 100%;
+    height: 64px;
+    display: block;
+    margin: 0 auto 8px;
+}
+.bvm-module-card-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--bvm-text);
+    line-height: 1.2;
 }
 
 /* ── Alertas e info ────────────────────────────────────────────── */
@@ -1385,8 +1420,8 @@ h3 { font-size: 14px !important; font-weight: 600 !important; color: var(--bvm-t
 /* ── Scrollbar custom ──────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #D3D1C7; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #B0AEA6; }
+::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
 
 /* ── Dividers ──────────────────────────────────────────────────── */
 hr { border-color: var(--bvm-border) !important; margin: 16px 0 !important; }
@@ -1400,7 +1435,7 @@ if "onboarding_visto" not in st.session_state:
     st.session_state["onboarding_visto"] = False
 
 if not st.session_state["onboarding_visto"]:
-    st.markdown("""<div style="background:linear-gradient(135deg,#1D9E75 0%,#0F6E56 100%);border-radius:16px;padding:40px 48px;margin-bottom:32px;text-align:center;">
+    st.markdown("""<div style="background:linear-gradient(135deg,#1F2937 0%,#0B1220 100%);border-radius:16px;padding:40px 48px;margin-bottom:32px;text-align:center;">
     <div style="font-size:48px;margin-bottom:12px;">🪵</div>
     <h1 style="color:white;margin:0 0 10px 0;font-size:32px;">Bienvenido a BVM</h1>
     <p style="color:white;font-size:17px;opacity:0.9;max-width:520px;margin:0 auto;">
@@ -1480,7 +1515,7 @@ if _info_taller:
     <div style="background:rgba(255,255,255,0.08);border-radius:8px;padding:10px 12px;margin: -8px 0 16px 0;border:1px solid rgba(255,255,255,0.15);">
         <div style="font-size:10px;color:rgba(255,255,255,0.5);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">TALLER ACTIVO</div>
         <div style="font-size:12px;font-weight:600;color:white;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{_info_taller["nombre_taller"]}</div>
-        <div style="font-size:11px;color:#1D9E75;margin-top:2px;font-weight:500;">{rol_label}</div>
+        <div style="font-size:11px;color:#A5B4FC;margin-top:2px;font-weight:500;">{rol_label}</div>
     </div>
     """, unsafe_allow_html=True)
 else:
@@ -1790,18 +1825,22 @@ if menu == "🪵 Cotizador":
             "Placard":        '<svg viewBox="0 0 80 60" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="2" width="76" height="56" rx="2" fill="COLOR" opacity="0.12" stroke="COLOR" stroke-width="1.5"/><rect x="2" y="2" width="76" height="6" rx="1" fill="COLOR" opacity="0.3"/><line x1="41" y1="8" x2="41" y2="58" stroke="COLOR" stroke-width="1.5"/><rect x="5" y="11" width="33" height="4" rx="1" fill="COLOR" opacity="0.5"/><line x1="22" y1="15" x2="22" y2="40" stroke="COLOR" stroke-width="0.8" stroke-dasharray="2,2"/><rect x="44" y="11" width="33" height="4" rx="1" fill="COLOR" opacity="0.5"/><rect x="47" y="20" width="27" height="3" rx="1" fill="COLOR" opacity="0.35"/><rect x="47" y="28" width="27" height="3" rx="1" fill="COLOR" opacity="0.35"/><rect x="47" y="36" width="27" height="3" rx="1" fill="COLOR" opacity="0.35"/></svg>',
             "Pieza Suelta": '<svg viewBox="0 0 80 60" xmlns="http://www.w3.org/2000/svg"><rect x="5" y="5" width="70" height="50" rx="2" fill="COLOR" opacity="0.12" stroke="COLOR" stroke-width="1.5" stroke-dasharray="4,3"/><text x="40" y="26" text-anchor="middle" font-size="9" fill="COLOR" opacity="0.7" font-weight="bold">L</text><text x="40" y="38" text-anchor="middle" font-size="9" fill="COLOR" opacity="0.7" font-weight="bold">×</text><text x="40" y="50" text-anchor="middle" font-size="9" fill="COLOR" opacity="0.7" font-weight="bold">A</text><line x1="12" y1="8" x2="12" y2="52" stroke="COLOR" stroke-width="0.8" opacity="0.5"/><line x1="68" y1="8" x2="68" y2="52" stroke="COLOR" stroke-width="0.8" opacity="0.5"/><line x1="9" y1="10" x2="71" y2="10" stroke="COLOR" stroke-width="0.8" opacity="0.5"/><line x1="9" y1="50" x2="71" y2="50" stroke="COLOR" stroke-width="0.8" opacity="0.5"/></svg>',
         }
-        col_bm, col_caj, col_ala, col_plac, col_panel = st.columns(5)
-        for col_btn, nombre_btn in [(col_bm, "Bajo Mesada"), (col_caj, "Cajonera"), (col_ala, "Alacena"), (col_plac, "Placard"), (col_panel, "Pieza Suelta")]:
-            with col_btn:
-                sel   = st.session_state["_tipo_modulo_sel"] == nombre_btn
-                color = "#1D9E75" if sel else "#888780"
-                bg    = "#E1F5EE" if sel else "transparent"
-                borde = "#1D9E75" if sel else "#D3D1C7"
-                svg   = _svgs[nombre_btn].replace("COLOR", color)
-                st.markdown(f'<div style="border:2px solid {borde};border-radius:10px;padding:12px 8px 8px 8px;background:{bg};text-align:center;color:{color};">{svg}<div style="font-size:12px;font-weight:600;margin-top:6px;">{nombre_btn}</div></div>', unsafe_allow_html=True)
-                if st.button("Seleccionar", key=f"sel_{nombre_btn}", use_container_width=True, type="primary" if sel else "secondary"):
-                    st.session_state["_tipo_modulo_sel"] = nombre_btn
-                    st.rerun()
+        _modulos_disponibles = ["Bajo Mesada", "Cajonera", "Alacena", "Placard", "Pieza Suelta"]
+        for _fila in range(0, len(_modulos_disponibles), 2):
+            _cols_modulo = st.columns(2)
+            for _col_modulo, nombre_btn in zip(_cols_modulo, _modulos_disponibles[_fila:_fila + 2]):
+                with _col_modulo:
+                    sel = st.session_state["_tipo_modulo_sel"] == nombre_btn
+                    color = "#4F46E5" if sel else "#6B7280"
+                    svg = _svgs[nombre_btn].replace("COLOR", color)
+                    _active_class = " is-active" if sel else ""
+                    st.markdown(
+                        f'<div class="bvm-module-card{_active_class}">{svg}<div class="bvm-module-card-label">{nombre_btn}</div></div>',
+                        unsafe_allow_html=True,
+                    )
+                    if st.button(nombre_btn, key=f"sel_{nombre_btn}", use_container_width=True, type="primary" if sel else "secondary"):
+                        st.session_state["_tipo_modulo_sel"] = nombre_btn
+                        st.rerun()
 
         tipo_modulo = st.session_state["_tipo_modulo_sel"]
         c1, c2, c3 = st.columns(3)
@@ -2074,7 +2113,7 @@ Para piezas que no entran en ningún módulo automático:<br>
                                          division_placard=division_placard,
                                          zona_izq=zona_izq, zona_der=zona_der, zona_unica=zona_unica)
           if svg_prev:
-              st.markdown(f'<div style="text-align:center;padding:16px;background:white;border:1px solid #E0DED6;border-radius:10px;margin-bottom:24px;">{svg_prev}</div>', unsafe_allow_html=True)
+              st.markdown(f'<div style="text-align:center;padding:16px;background:white;border:1px solid #E5E7EB;border-radius:10px;margin-bottom:24px;">{svg_prev}</div>', unsafe_allow_html=True)
 
       st.subheader("📐 Planilla de corte")
       if not cliente:
@@ -2312,9 +2351,9 @@ Para piezas que no entran en ningún módulo automático:<br>
       # ── MODO: edición de un módulo cargado en la obra ──
       elif modo == "editar_modulo_obra":
           st.markdown("""
-          <div style="background:#E1F5EE;border-left:4px solid #1D9E75;border-radius:4px;padding:12px 16px;margin-bottom:16px;">
-              <h4 style="color:#0F6E56;margin:0 0 4px 0;">✏️ Modo Edición Activo</h4>
-              <p style="color:#1F4D3A;margin:0;font-size:13px;">
+          <div style="background:#EEF2FF;border-left:4px solid #6366F1;border-radius:4px;padding:12px 16px;margin-bottom:16px;">
+              <h4 style="color:#111827;margin:0 0 4px 0;">✏️ Modo Edición Activo</h4>
+              <p style="color:#374151;margin:0;font-size:13px;">
                   Modificá las medidas o la estructura de este mueble utilizando la <b>columna de la izquierda</b>.<br>
                   Cuando estés conforme con los valores, hacé clic en el botón de abajo para guardar los cambios de forma automática.
               </p>
@@ -2467,7 +2506,7 @@ Para piezas que no entran en ningún módulo automático:<br>
                 st.info(f"Logística y colocación: **${costo_log:,.0f}**")
 
         total_obra = subtotal_mods + costo_log
-        st.markdown(f'''<div style="background:#0F6E56;border-radius:12px;padding:20px 24px;margin:12px 0;text-align:center;">
+        st.markdown(f'''<div style="background:#111827;border-radius:12px;padding:20px 24px;margin:12px 0;text-align:center;">
         <div style="color:rgba(255,255,255,0.7);font-size:12px;letter-spacing:0.1em;margin-bottom:6px;">TOTAL DE LA OBRA</div>
         <div style="color:white;font-size:44px;font-weight:700;letter-spacing:-2px;">${total_obra:,.0f}</div>
         <div style="color:rgba(255,255,255,0.65);font-size:13px;margin-top:6px;">{len(_mods_obra)} módulo(s) · Módulos: ${subtotal_mods:,.0f}{f" · Logística: ${costo_log:,.0f}" if costo_log > 0 else ""}</div>
