@@ -16,6 +16,8 @@ from motor import (
     obtener_veta_automatica,
     calcular_medida_frente,
     calcular_ahorro_retazos,
+    validar_medidas_brs,
+    validar_herrajes_bks,
 )
 try:
     from motor.optimizador import optimizar_obra, generar_svg_placa, PLACA_ANCHO_DEFAULT, PLACA_ALTO_DEFAULT
@@ -574,8 +576,10 @@ def _asegurar_datos_taller():
     if not tid:
         return None, None
     owner_id = _resolver_owner_de_taller(tid) or _user_id()
-    if owner_id == _user_id():
+    migration_key = f"_migracion_taller_ok_{tid}"
+    if owner_id == _user_id() and not st.session_state.get(migration_key):
         _migrar_datos_dueno_a_taller(owner_id, tid)
+        st.session_state[migration_key] = True
     return owner_id, tid
 
 def _migrar_datos_dueno_a_taller(owner_id: str, taller_id: str):
@@ -1423,13 +1427,18 @@ for k, v in {
     if k not in st.session_state:
         st.session_state[k] = v
 
-maderas, fondos, config = traer_datos()
-
 # Identificadores de permisos y rol multi-usuario
 _rol_actual = _obtener_rol_actual()
 es_empleado = (_rol_actual is not None and _rol_actual != "dueño")
 
-_opciones_menu  = ["🪵 Cotizador", "♻️ Retazos", "📋 Historial", "🏭 Producción", "⚙️ Precios"]
+_nav_principal = {
+    "Proyectos": "📋 Historial",
+    "Módulos": "🪵 Cotizador",
+    "Materiales": "♻️ Retazos",
+    "Optimización": "🪵 Cotizador",
+    "Ajustes": "⚙️ Precios",
+}
+_opciones_menu  = list(_nav_principal.keys())
 _editando_algo  = st.session_state.get("edit_ctx") is not None
 
 # SIDEBAR
@@ -1470,10 +1479,18 @@ else:
 
 if _editando_algo:
     menu = "🪵 Cotizador"
-    st.sidebar.radio("Navegación", _opciones_menu, index=0)
+    st.sidebar.radio("Navegación", _opciones_menu, index=1)
 else:
-    menu = st.sidebar.radio("Navegación", _opciones_menu, index=st.session_state.get("menu_idx", 0))
-    st.session_state["menu_idx"] = _opciones_menu.index(menu)
+    _idx_nav = min(st.session_state.get("menu_idx", 1), len(_opciones_menu) - 1)
+    _nav_seleccionada = st.sidebar.radio("Navegación", _opciones_menu, index=_idx_nav)
+    st.session_state["menu_idx"] = _opciones_menu.index(_nav_seleccionada)
+    st.session_state["_abrir_optimizacion_obra"] = _nav_seleccionada == "Optimización"
+    menu = _nav_principal[_nav_seleccionada]
+
+if menu in ["🪵 Cotizador", "♻️ Retazos", "⚙️ Precios"]:
+    maderas, fondos, config = traer_datos()
+else:
+    maderas, fondos, config = {}, {}, {}
 
 _mods_validos = [m for m in st.session_state["obra_modulos"] if m is not None]
 if _mods_validos:
@@ -1648,7 +1665,7 @@ if menu == "🪵 Cotizador":
             st.session_state["obra_modulos"] = []
             st.session_state["cliente_actual"] = ""
             _limpiar_edicion()
-            st.session_state["menu_idx"] = 2  # Redirigir al historial
+            st.session_state["menu_idx"] = 0  # Redirigir a Proyectos
             st.toast("✅ Cambios en la obra guardados de forma definitiva.", icon="💾")
             st.rerun()
 
@@ -1658,7 +1675,7 @@ if menu == "🪵 Cotizador":
             st.session_state.pop("_obra_cliente_historial", None)
             st.session_state["cliente_actual"] = ""
             _limpiar_edicion()
-            st.session_state["menu_idx"] = 2
+            st.session_state["menu_idx"] = 0
             st.rerun()
         st.stop()
 
@@ -1738,12 +1755,12 @@ if menu == "🪵 Cotizador":
     idx_madera = lista_maderas.index(_v("mat_principal", lista_maderas[0])) if _v("mat_principal", lista_maderas[0]) in lista_maderas else 0
     idx_fondo  = lista_fondos.index(_v("mat_fondo_sel",  lista_fondos[0]))  if _v("mat_fondo_sel",  lista_fondos[0])  in lista_fondos  else 0
 
-    col_in, col_out = st.columns([1, 1.2])
+    col_ctrl, col_view, col_summary = st.columns([1, 2, 1])
 
     # ═══════════════════════════════════════════════════════════════════════
     # COLUMNA IZQUIERDA — inputs
     # ═══════════════════════════════════════════════════════════════════════
-    with col_in:
+    with col_ctrl:
       with st.expander("🛠️ Definición de estructura", expanded=True):
         _cliente_default = st.session_state["cliente_actual"]
         if modo == "editar_modulo_obra": _cliente_default = ctx.get("obra_cliente", "")
@@ -1797,6 +1814,19 @@ if menu == "🪵 Cotizador":
                 _warns.append(f"⚠️ Profundidad {int(prof_m)}mm puede ser muy pequeña")
             for w in _warns:
                 st.warning(w)
+
+        # TODO: Inyectar logica BRS de medidas desde motor/brs_bks.py.
+        _brs_warnings = validar_medidas_brs({
+            "tipo_modulo": tipo_modulo,
+            "ancho_m": ancho_m,
+            "alto_m": alto_m,
+            "prof_m": prof_m,
+            "esp_real": esp_real,
+            "mat_principal": mat_principal,
+            "mat_fondo_sel": mat_fondo_sel,
+        })
+        for _warning in _brs_warnings:
+            st.warning(_warning)
 
       _editando = modo in ("editar_modulo_obra", "editar_legacy")
       with st.expander("🏗️ Configuración del módulo", expanded=_editando):
@@ -2011,13 +2041,18 @@ Para piezas que no entran en ningún módulo automático:<br>
                   cant_h = col_h.number_input(f"Cant. {nm}", min_value=1, value=int(_herr_guard.get(clave, 1)), step=1, key=f"cant_{clave}")
                   herrajes_extra_sel[clave] = cant_h
 
+      # TODO: Inyectar logica BKS de herrajes desde motor/brs_bks.py.
+      for _warning in validar_herrajes_bks({"tipo_modulo": tipo_modulo, "herrajes_extra": herrajes_extra_sel}, config):
+          st.warning(_warning)
+
       with st.expander("🔨 Días de taller", expanded=_editando):
           dias_prod = st.number_input("Días de trabajo en taller", value=float(_v("dias_prod", 0.0)), step=0.5)
 
     # ═══════════════════════════════════════════════════════════════════════
     # COLUMNA DERECHA — preview + planilla + precio + botones
     # ═══════════════════════════════════════════════════════════════════════
-    with col_out:
+    with col_view:
+      st.subheader("Visor del módulo")
       if ancho_m > 0 and alto_m > 0:
           svg_prev = generar_svg_mueble(tipo_modulo, ancho_m, alto_m, prof_m, tipo_tapa,
                                          cant_puertas, cant_cajones, estantes_fijos, estantes_moviles,
@@ -2095,22 +2130,29 @@ Para piezas que no entran en ningún módulo automático:<br>
 
               st.write("---")
               with st.expander("⚙️ Terminal CNC — Este módulo"):
-                  import io as _io, ezdxf as _ezdxf
-                  _doc = _ezdxf.new("R2010"); _msp = _doc.modelspace(); _x = 0
-                  for _, _row in df_corte.iterrows():
-                      for _ in range(int(_row["Cant"])):
-                          _pts = [(_x,0),(_x+float(_row["L"]),0),(_x+float(_row["L"]),float(_row["A"])),(_x,float(_row["A"])),(_x,0)]
-                          _msp.add_lwpolyline(_pts, close=True)
-                          _msp.add_text(f"{_row['Pieza']}\n{int(_row['L'])}x{int(_row['A'])}", height=10).set_placement((_x+5,5))
-                          _x += float(_row["L"]) + 50
-                  _out = _io.StringIO(); _doc.write(_out)
-                  _dxf_b = _out.getvalue().encode("utf-8")
-                  _df_a  = df_corte.copy().rename(columns={"Pieza":"Name","L":"Length","A":"Width","Cant":"Quantity"})
-                  _df_a["Thickness"] = esp_real; _df_a["Material"] = mat_principal
-                  _csv_b = _df_a[["Name","Length","Width","Thickness","Quantity","Material"]].to_csv(index=False).encode("utf-8")
-                  cc1, cc2 = st.columns(2)
-                  cc1.download_button("📐 DXF", data=_dxf_b, file_name=f"BVM_{nombre_modulo}.dxf", mime="application/dxf", use_container_width=True)
-                  cc2.download_button("🤖 CSV Aspire", data=_csv_b, file_name=f"BVM_{nombre_modulo}.csv", mime="text/csv", use_container_width=True)
+                  _cnc_sig = json.dumps(_despiece_args, sort_keys=True)
+                  if st.button("Preparar archivos CNC", use_container_width=True, key="btn_preparar_cnc_mod"):
+                      import io as _io, ezdxf as _ezdxf
+                      _doc = _ezdxf.new("R2010"); _msp = _doc.modelspace(); _x = 0
+                      for _, _row in df_corte.iterrows():
+                          for _ in range(int(_row["Cant"])):
+                              _pts = [(_x,0),(_x+float(_row["L"]),0),(_x+float(_row["L"]),float(_row["A"])),(_x,float(_row["A"])),(_x,0)]
+                              _msp.add_lwpolyline(_pts, close=True)
+                              _msp.add_text(f"{_row['Pieza']}\n{int(_row['L'])}x{int(_row['A'])}", height=10).set_placement((_x+5,5))
+                              _x += float(_row["L"]) + 50
+                      _out = _io.StringIO(); _doc.write(_out)
+                      _df_a  = df_corte.copy().rename(columns={"Pieza":"Name","L":"Length","A":"Width","Cant":"Quantity"})
+                      _df_a["Thickness"] = esp_real; _df_a["Material"] = mat_principal
+                      st.session_state["_cnc_modulo_actual"] = {
+                          "sig": _cnc_sig,
+                          "dxf": _out.getvalue().encode("utf-8"),
+                          "csv": _df_a[["Name","Length","Width","Thickness","Quantity","Material"]].to_csv(index=False).encode("utf-8"),
+                      }
+                  _cnc_actual = st.session_state.get("_cnc_modulo_actual", {})
+                  if _cnc_actual.get("sig") == _cnc_sig:
+                      cc1, cc2 = st.columns(2)
+                      cc1.download_button("📐 DXF", data=_cnc_actual["dxf"], file_name=f"BVM_{nombre_modulo}.dxf", mime="application/dxf", use_container_width=True)
+                      cc2.download_button("🤖 CSV Aspire", data=_cnc_actual["csv"], file_name=f"BVM_{nombre_modulo}.csv", mime="text/csv", use_container_width=True)
       else:
           st.warning("Esperando medidas para calcular...")
 
@@ -2129,43 +2171,72 @@ Para piezas que no entran en ningún módulo automático:<br>
       _precio_guardado = float(_v("precio_guardado", 0))
       precio_a_usar = precio_final if precio_final > 0 else _precio_guardado
 
-      if precio_a_usar > 0:
-          _nota   = " (precio guardado — recalculá si cambiaste medidas)" if precio_final == 0 and _precio_guardado > 0 else ""
-          if es_empleado:
-              st.markdown(f'''<div style="background:#0F6E56;border-radius:10px;padding:20px 24px;margin:8px 0 16px 0;text-align:center;">
-              <div style="color:white;font-size:12px;opacity:0.8;margin-bottom:6px;">VALOR DEL MUEBLE{_nota}</div>
-              <div style="color:white;font-size:44px;font-weight:700;letter-spacing:-1px;">${precio_a_usar:,.0f}</div>
-              </div>''', unsafe_allow_html=True)
+      with col_summary:
+          st.subheader("Resumen del módulo")
+          if precio_a_usar > 0:
+              _nota = "guardado" if precio_final == 0 and _precio_guardado > 0 else "calculado"
+              st.metric("Valor", f"${precio_a_usar:,.0f}", _nota)
           else:
-              _color  = "#0F6E56" if pct_margen >= 12 else "#A32D2D"
-              _alerta = "Operación rentable" if pct_margen >= 12 else "Margen bajo — revisá los costos"
-              _icono  = "✅" if pct_margen >= 12 else "⚠️"
-              st.markdown(f'''<div style="background:{_color};border-radius:10px;padding:20px 24px;margin:8px 0 16px 0;text-align:center;">
-              <div style="color:white;font-size:12px;opacity:0.8;margin-bottom:6px;">VALOR DEL MUEBLE{_nota}</div>
-              <div style="color:white;font-size:44px;font-weight:700;letter-spacing:-1px;">${precio_a_usar:,.0f}</div>
-              <div style="color:white;font-size:12px;opacity:0.8;margin-top:8px;">{_icono} Margen: {pct_margen:.1f}% — {_alerta}</div>
-              </div>''', unsafe_allow_html=True)
+              st.metric("Valor", "$0", "faltan medidas")
 
-      c1, c2, c3 = st.columns(3)
-      if es_empleado:
-          c1.metric("M² de placa", f"{m2_18mm:.2f}")
-      else:
-          c1.metric("Costo real",    f"${total_costo_real:,.0f}")
-          c2.metric("M² de placa",   f"{m2_18mm:.2f}")
-          c3.metric("Ganancia neta", f"${utilidad:,.0f}")
+          st.metric("Ancho", f"{ancho_m:.0f} mm")
+          st.metric("Alto", f"{alto_m:.0f} mm")
+          st.metric("Profundidad", f"{prof_m:.0f} mm")
+          st.metric("M² placa", f"{m2_18mm:.2f}")
 
-      if matches and not es_empleado:
-          st.success(f"♻️ **¡Ahorro por retazos!** {len(matches)} pieza(s) — **${ahorro_madera:,.0f}**")
-          with st.expander("Ver detalle"):
-              for m_r in matches:
-                  st.write(f"• **{m_r['pieza']}** → Retazo ID-{m_r['retazo_id']} — ${m_r['ahorro']:,.0f}")
+          if not es_empleado:
+              st.metric("Costo real", f"${total_costo_real:,.0f}")
+              st.metric("Ganancia neta", f"${utilidad:,.0f}")
+              st.metric("Margen", f"{pct_margen:.1f}%")
 
-      if precio_final > 0 and not es_empleado:
-          with st.expander("📊 Desglose de costos"):
-              st.bar_chart(pd.DataFrame({
-                  "Categoría": ["Madera/Fondo","Herrajes","Operativo","Ganancia"],
-                  "Monto":     [costo_madera+costo_fondo, costo_herrajes, costo_operativo+costo_base, utilidad],
-              }), x="Categoría", y="Monto", color="#2e7d32")
+          st.write("Herrajes")
+          if herrajes_extra_sel:
+              _df_herrajes = pd.DataFrame([
+                  {"Herraje": k, "Cantidad": v}
+                  for k, v in herrajes_extra_sel.items()
+              ])
+              st.dataframe(_df_herrajes, hide_index=True, use_container_width=True)
+          else:
+              st.caption("Sin herrajes extra seleccionados.")
+
+          st.write("Salidas disponibles")
+          if not df_corte.empty:
+              _csv_despiece = df_corte.to_csv(index=False).encode("utf-8")
+              st.download_button(
+                  "Despiece CSV",
+                  data=_csv_despiece,
+                  file_name=f"Despiece_{nombre_modulo}.csv",
+                  mime="text/csv",
+                  use_container_width=True,
+                  key="dl_despiece_resumen",
+              )
+              _cnc_resumen = st.session_state.get("_cnc_modulo_actual", {})
+              if "_cnc_sig" in locals() and _cnc_resumen.get("sig") == _cnc_sig:
+                  st.download_button(
+                      "DXF",
+                      data=_cnc_resumen["dxf"],
+                      file_name=f"BVM_{nombre_modulo}.dxf",
+                      mime="application/dxf",
+                      use_container_width=True,
+                      key="dl_dxf_resumen",
+                  )
+              else:
+                  st.caption("Prepará el CNC desde el visor para habilitar DXF.")
+          else:
+              st.caption("Completá medidas y cliente para generar salidas.")
+
+          if matches and not es_empleado:
+              st.success(f"Retazos: {len(matches)} pieza(s), ahorro ${ahorro_madera:,.0f}")
+              with st.expander("Detalle de retazos"):
+                  for m_r in matches:
+                      st.write(f"{m_r['pieza']} -> Retazo ID-{m_r['retazo_id']} (${m_r['ahorro']:,.0f})")
+
+          if precio_final > 0 and not es_empleado:
+              with st.expander("Desglose de costos"):
+                  st.bar_chart(pd.DataFrame({
+                      "Categoría": ["Madera/Fondo","Herrajes","Operativo","Ganancia"],
+                      "Monto":     [costo_madera+costo_fondo, costo_herrajes, costo_operativo+costo_base, utilidad],
+                  }), x="Categoría", y="Monto", color="#2e7d32")
 
       st.write("---")
 
@@ -2219,7 +2290,7 @@ Para piezas que no entran en ningún módulo automático:<br>
                                             id_editar=ctx["id"])
                   _limpiar_edicion()
                   st.session_state["_tipo_modulo_sel"] = "Bajo Mesada"
-                  st.session_state["menu_idx"] = 2
+                  st.session_state["menu_idx"] = 0
                   st.rerun()
 
       # ── MODO: edición de un módulo cargado en la obra ──
@@ -2277,7 +2348,7 @@ Para piezas que no entran en ningún módulo automático:<br>
                           st.session_state["obra_modulos"] = []
                           st.session_state["cliente_actual"] = ""
                           _limpiar_edicion()
-                          st.session_state["menu_idx"] = 2  # Redirige a Historial
+                          st.session_state["menu_idx"] = 0  # Redirige a Proyectos
                           st.toast("✅ Presupuesto actualizado y guardado de forma definitiva.", icon="💾")
                           st.rerun()
                   else:
@@ -2390,15 +2461,29 @@ Para piezas que no entran en ningún módulo automático:<br>
         dias_entrega = col_d1.number_input("Días de entrega total", value=20, step=1, key="dias_obra")
         pct_seña     = col_d2.slider("% de Seña", 0, 100, 50, 5, key="sena_obra")
         cliente_obra = cliente or ""
+        _mods_pdf = _mods_obra
 
         col_g1, col_g2, col_g3 = st.columns(3)
         with col_g1:
-            _mods_pdf = _mods_obra
-            pdf_data = generar_pdf_obra(cliente_obra, _mods_pdf, dias_entrega, pct_seña,
-                                         costo_logistica=costo_flete, dias_colocacion=dias_col_obra,
-                                         costo_colocacion_dia=config.get("colocacion_dia",0))
-            st.download_button("📥 PDF Presupuesto", data=pdf_data,
-                                file_name=f"Obra_{cliente_obra}.pdf", mime="application/pdf", use_container_width=True)
+            _pdf_sig = json.dumps({
+                "mods": _serializar_obra_para_nube(_mods_pdf),
+                "dias_entrega": dias_entrega,
+                "pct_seña": pct_seña,
+                "costo_flete": costo_flete,
+                "dias_col": dias_col_obra,
+            }, sort_keys=True, default=str)
+            if st.button("Preparar PDF", use_container_width=True, key="btn_preparar_pdf_obra"):
+                with st.spinner("Preparando PDF..."):
+                    st.session_state["_pdf_obra_actual"] = {
+                        "sig": _pdf_sig,
+                        "data": generar_pdf_obra(cliente_obra, _mods_pdf, dias_entrega, pct_seña,
+                                                 costo_logistica=costo_flete, dias_colocacion=dias_col_obra,
+                                                 costo_colocacion_dia=config.get("colocacion_dia",0)),
+                    }
+            _pdf_actual = st.session_state.get("_pdf_obra_actual", {})
+            if _pdf_actual.get("sig") == _pdf_sig:
+                st.download_button("📥 PDF Presupuesto", data=_pdf_actual["data"],
+                                    file_name=f"Obra_{cliente_obra}.pdf", mime="application/pdf", use_container_width=True)
         with col_g2:
             link_wa = generar_link_whatsapp_obra(cliente_obra, _mods_pdf, dias_entrega, pct_seña,
                                                    costo_logistica=costo_flete, dias_colocacion=dias_col_obra,
@@ -2411,16 +2496,64 @@ Para piezas que no entran en ningún módulo automático:<br>
         with st.expander("⚙️ Terminal CNC — Obra completa"):
             _mods_cnc = [m for m in _mods_obra if m.get("df_corte") is not None]
             if _mods_cnc:
-                dxf_obra = generar_dxf_obra(_mods_cnc)
-                csv_obra = exportar_csv_obra(_mods_cnc, esp_real)
-                cc1, cc2 = st.columns(2)
-                cc1.download_button("📐 DXF Obra", data=dxf_obra, file_name=f"DXF_{cliente_obra}.dxf", mime="application/dxf", use_container_width=True)
-                cc2.download_button("🤖 CSV Obra", data=csv_obra, file_name=f"CNC_{cliente_obra}.csv", mime="text/csv", use_container_width=True)
+                _cnc_obra_sig = json.dumps(_serializar_obra_para_nube(_mods_cnc), sort_keys=True, default=str)
+                if st.button("Preparar CNC de obra", use_container_width=True, key="btn_preparar_cnc_obra"):
+                    with st.spinner("Preparando archivos CNC de la obra..."):
+                        st.session_state["_cnc_obra_actual"] = {
+                            "sig": _cnc_obra_sig,
+                            "dxf": generar_dxf_obra(_mods_cnc),
+                            "csv": exportar_csv_obra(_mods_cnc, esp_real),
+                        }
+                _cnc_obra_actual = st.session_state.get("_cnc_obra_actual", {})
+                if _cnc_obra_actual.get("sig") == _cnc_obra_sig:
+                    cc1, cc2 = st.columns(2)
+                    cc1.download_button("📐 DXF Obra", data=_cnc_obra_actual["dxf"], file_name=f"DXF_{cliente_obra}.dxf", mime="application/dxf", use_container_width=True)
+                    cc2.download_button("🤖 CSV Obra", data=_cnc_obra_actual["csv"], file_name=f"CNC_{cliente_obra}.csv", mime="text/csv", use_container_width=True)
             else:
                 st.warning("Calculá los módulos en esta sesión para exportar CNC.")
 
+        with st.expander("🏭 Orden de producción y etiquetas", expanded=False):
+            _prod_sig = json.dumps(_serializar_obra_para_nube(_mods_obra), sort_keys=True, default=str)
+            if st.button("Generar orden de producción", use_container_width=True, key="btn_generar_orden_prod"):
+                with st.spinner("Armando orden de producción..."):
+                    st.session_state["_orden_prod_actual"] = {
+                        "sig": _prod_sig,
+                        "df": _generar_orden_produccion(_mods_obra),
+                    }
+
+            _orden_prod = st.session_state.get("_orden_prod_actual", {})
+            if _orden_prod.get("sig") == _prod_sig and isinstance(_orden_prod.get("df"), pd.DataFrame):
+                df_prod = _orden_prod["df"]
+                if df_prod.empty:
+                    st.info("No hay piezas calculadas para producir.")
+                else:
+                    total_piezas = int(df_prod["Cantidad"].sum())
+                    c_p1, c_p2, c_p3 = st.columns(3)
+                    c_p1.metric("Módulos", len(_mods_obra))
+                    c_p2.metric("Piezas", total_piezas)
+                    c_p3.metric("Etiquetas", len(df_prod))
+                    st.dataframe(df_prod, use_container_width=True, hide_index=True)
+                    st.download_button(
+                        "Descargar orden CSV",
+                        data=df_prod.to_csv(index=False).encode("utf-8"),
+                        file_name=f"Orden_produccion_{cliente_obra}.csv",
+                        mime="text/csv",
+                        use_container_width=True,
+                    )
+
+                    st.write("Etiquetas preliminares")
+                    for _, row in df_prod.head(12).iterrows():
+                        c_code, c_piece, c_dim = st.columns([2, 4, 2])
+                        c_code.code(row["Codigo"])
+                        c_piece.markdown(f"**{row['Pieza']}**")
+                        c_piece.caption(f"{row['Modulo']} · {row['Material']} · {row['Veta']}")
+                        c_dim.markdown(f"**{int(row['Largo'])} x {int(row['Ancho'])}**")
+                        c_dim.caption(f"Cant: {int(row['Cantidad'])}")
+            else:
+                st.caption("Generá la orden cuando la obra ya tenga los módulos listos.")
+
         if _OPTIMIZADOR_DISPONIBLE:
-            with st.expander("📐 Optimización de Corte — ¿Cuántas placas necesito?", expanded=False):
+            with st.expander("📐 Optimización de Corte — ¿Cuántas placas necesito?", expanded=bool(st.session_state.get("_abrir_optimizacion_obra"))):
                 _mods_opt = [m for m in _mods_obra if m.get("df_corte") is not None]
                 if not _mods_opt:
                     st.info("Calculá los módulos en esta sesión para optimizar el corte.")
@@ -2663,7 +2796,7 @@ elif menu == "📋 Historial":
                                 st.session_state["cliente_actual"]          = cliente_h
                                 st.session_state.pop("_tipo_modulo_sel", None)
                                 st.session_state.pop("_ctx_sig_prev",    None)
-                                st.session_state["menu_idx"] = 0
+                                st.session_state["menu_idx"] = 1
 
                                 if len(mods_internos) == 1:
                                     st.session_state["edit_ctx"] = {
@@ -2690,7 +2823,7 @@ elif menu == "📋 Historial":
                                 st.session_state["cliente_actual"] = row.get('cliente','')
                                 st.session_state.pop("_tipo_modulo_sel", None)
                                 st.session_state.pop("_ctx_sig_prev",    None)
-                                st.session_state["menu_idx"] = 0
+                                st.session_state["menu_idx"] = 1
                             st.rerun()
                         except Exception as e:
                             st.error(f"Error: {e}")
@@ -2775,50 +2908,6 @@ elif menu == "♻️ Retazos":
 # ===========================================================================
 # CONFIGURACIÓN DE PRECIOS
 # ===========================================================================
-elif menu == "🏭 Producción":
-    st.title("🏭 Producción")
-    mods_prod = [m for m in st.session_state.get("obra_modulos", []) if m is not None]
-
-    if not mods_prod:
-        st.info("No hay una obra en curso para producir.")
-    else:
-        df_prod = _generar_orden_produccion(mods_prod)
-        total_piezas = int(df_prod["Cantidad"].sum()) if not df_prod.empty else 0
-        total_modulos = len(mods_prod)
-        m2_cuerpo = 0.0
-        if not df_prod.empty:
-            df_area = df_prod.copy()
-            df_area["Area"] = (df_area["Largo"] * df_area["Ancho"] * df_area["Cantidad"]) / 1_000_000
-            m2_cuerpo = float(df_area[~df_area["Tipo"].isin(["Fondo", "Piso"])]["Area"].sum())
-
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Modulos", total_modulos)
-        c2.metric("Piezas", total_piezas)
-        c3.metric("m2 cuerpo", f"{m2_cuerpo:.2f}")
-
-        st.write("---")
-        st.dataframe(df_prod, use_container_width=True, hide_index=True)
-
-        csv_prod = df_prod.to_csv(index=False).encode("utf-8")
-        st.download_button(
-            "Descargar orden de produccion CSV",
-            data=csv_prod,
-            file_name="BVM_orden_produccion.csv",
-            mime="text/csv",
-            use_container_width=True,
-        )
-
-        st.write("---")
-        st.subheader("Etiquetas preliminares")
-        for _, row in df_prod.head(24).iterrows():
-            c_code, c_piece, c_dim = st.columns([2, 4, 2])
-            c_code.code(row["Codigo"])
-            c_piece.markdown(f"**{row['Pieza']}**")
-            c_piece.caption(f"{row['Modulo']} · {row['Material']} · {row['Veta']}")
-            c_dim.markdown(f"**{int(row['Largo'])} x {int(row['Ancho'])}**")
-            c_dim.caption(f"Cantidad: {int(row['Cantidad'])}")
-
-
 elif menu == "⚙️ Precios":
     st.title("⚙️ Configuración de precios")
 
