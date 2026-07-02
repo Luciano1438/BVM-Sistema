@@ -190,52 +190,76 @@ else:
 # EXPORTADORES — DXF, CSV, PDF, WHATSAPP
 # ===========================================================================
 
-def generar_dxf_obra(modulos_con_df):
-    """Genera DXF con todos los módulos, separados por módulo, con material y espesor."""
+def _crear_doc_dxf_aspire():
     if ezdxf is None:
         raise RuntimeError("DXF no disponible: falta instalar ezdxf.")
-    doc = ezdxf.new('R2010')
+    doc = ezdxf.new("R2010", setup=True)
+    doc.header["$INSUNITS"] = 4  # milimetros
+    doc.layers.new("CUT", dxfattribs={"color": 7})
+    doc.layers.new("LABEL", dxfattribs={"color": 3})
+    doc.layers.new("MODULE", dxfattribs={"color": 5})
+    return doc
+
+def _agregar_despiece_dxf(msp, df, nombre_mod, material, x0=0, y0=0, max_width=2750, separacion=40):
+    """Dibuja piezas como polilineas cerradas en mm, listas para importar en Aspire."""
+    x = x0
+    y = y0
+    alto_fila = 0
+
+    msp.add_text(f"{nombre_mod} | {material}", height=18, dxfattribs={"layer": "MODULE"}).set_placement((x0, y + 18))
+    y += 45
+
+    for _, row in df.iterrows():
+        largo = float(row.get("L", 0))
+        ancho = float(row.get("A", 0))
+        cant = int(row.get("Cant", 1))
+        nombre = str(row.get("Pieza", "Pieza"))
+        if largo <= 0 or ancho <= 0 or cant <= 0:
+            continue
+
+        for _ in range(cant):
+            if x > x0 and x + largo > x0 + max_width:
+                x = x0
+                y += alto_fila + separacion
+                alto_fila = 0
+
+            puntos = [(x, y), (x + largo, y), (x + largo, y + ancho), (x, y + ancho)]
+            msp.add_lwpolyline(puntos, close=True, dxfattribs={"layer": "CUT"})
+            etiqueta = f"{nombre} {int(largo)}x{int(ancho)}"
+            msp.add_text(etiqueta, height=10, dxfattribs={"layer": "LABEL"}).set_placement((x + 6, y + 12))
+            x += largo + separacion
+            alto_fila = max(alto_fila, ancho)
+
+    return y + alto_fila + 90
+
+def generar_dxf_modulo(df, nombre_mod, material):
+    doc = _crear_doc_dxf_aspire()
+    _agregar_despiece_dxf(doc.modelspace(), df, nombre_mod, material)
+    out = io.StringIO()
+    doc.write(out)
+    return out.getvalue().encode("utf-8")
+
+def generar_dxf_obra(modulos_con_df):
+    """Genera DXF con todos los módulos, separados por módulo, con material y espesor."""
+    doc = _crear_doc_dxf_aspire()
     msp = doc.modelspace()
     y_offset = 0
-    margen_modulo = 100
 
     for mod in modulos_con_df:
         df = mod.get("df_corte")
-        nombre_mod = mod.get("nombre", "Modulo")
-        material = mod.get("material", "")
         if df is None or df.empty:
             continue
-
-        # Título del módulo
-        msp.add_text(f"=== {nombre_mod} | {material} ===", height=20).set_placement((0, y_offset + 10))
-        y_offset += 40
-
-        x_offset = 0
-        for _, row in df.iterrows():
-            largo  = float(row['L'])
-            ancho  = float(row['A'])
-            cant   = int(row['Cant'])
-            nombre = str(row['Pieza'])
-            tipo   = str(row.get('Tipo', ''))
-
-            for _ in range(cant):
-                puntos = [
-                    (x_offset, y_offset),
-                    (x_offset + largo, y_offset),
-                    (x_offset + largo, y_offset + ancho),
-                    (x_offset, y_offset + ancho),
-                    (x_offset, y_offset),
-                ]
-                msp.add_lwpolyline(puntos, close=True)
-                etiqueta = f"{nombre}\n{int(largo)}x{int(ancho)} | {material}"
-                msp.add_text(etiqueta, height=10).set_placement((x_offset + 5, y_offset + 5))
-                x_offset += largo + 50
-
-        y_offset += 600 + margen_modulo
+        y_offset = _agregar_despiece_dxf(
+            msp,
+            df,
+            mod.get("nombre", "Modulo"),
+            mod.get("material", ""),
+            y0=y_offset,
+        )
 
     out = io.StringIO()
     doc.write(out)
-    return out.getvalue().encode('utf-8')
+    return out.getvalue().encode("utf-8")
 
 
 def exportar_csv_obra(modulos_con_df, esp_real):
@@ -1486,9 +1510,8 @@ es_empleado = (_rol_actual is not None and _rol_actual != "dueño")
 
 _nav_principal = {
     "Proyectos": "📋 Historial",
-    "Módulos": "🪵 Cotizador",
+    "Cotizador": "🪵 Cotizador",
     "Materiales": "♻️ Retazos",
-    "Optimización": "🪵 Cotizador",
     "Ajustes": "⚙️ Precios",
 }
 _opciones_menu  = list(_nav_principal.keys())
@@ -1537,7 +1560,7 @@ else:
     _idx_nav = min(st.session_state.get("menu_idx", 1), len(_opciones_menu) - 1)
     _nav_seleccionada = st.sidebar.radio("Navegación", _opciones_menu, index=_idx_nav)
     st.session_state["menu_idx"] = _opciones_menu.index(_nav_seleccionada)
-    st.session_state["_abrir_optimizacion_obra"] = _nav_seleccionada == "Optimización"
+    st.session_state["_abrir_optimizacion_obra"] = False
     menu = _nav_principal[_nav_seleccionada]
 
 if menu in ["🪵 Cotizador", "♻️ Retazos", "⚙️ Precios"]:
@@ -1815,7 +1838,7 @@ if menu == "🪵 Cotizador":
     # COLUMNA IZQUIERDA — inputs
     # ═══════════════════════════════════════════════════════════════════════
     with col_ctrl:
-      tab_modulo, tab_config, tab_costos = st.tabs(["1. Módulo", "2. Config.", "3. Costos"])
+      tab_modulo, tab_config, tab_herrajes, tab_taller = st.tabs(["1. Módulo", "2. Config.", "3. Herrajes", "4. Taller"])
       with tab_modulo:
         _cliente_default = st.session_state["cliente_actual"]
         if modo == "editar_modulo_obra": _cliente_default = ctx.get("obra_cliente", "")
@@ -1825,21 +1848,37 @@ if menu == "🪵 Cotizador":
         st.session_state["cliente_actual"] = cliente
 
         _modulos_disponibles = ["Bajo Mesada", "Cajonera", "Alacena", "Placard", "Pieza Suelta"]
-        _modulo_label = {
-            "Bajo Mesada": "▤ Bajo Mesada",
-            "Cajonera": "▥ Cajonera",
-            "Alacena": "▣ Alacena",
-            "Placard": "▧ Placard",
-            "Pieza Suelta": "□ Pieza Suelta",
-        }
-        tipo_modulo = st.radio(
-            "Tipo de mueble",
-            _modulos_disponibles,
-            index=_modulos_disponibles.index(st.session_state["_tipo_modulo_sel"]) if st.session_state["_tipo_modulo_sel"] in _modulos_disponibles else 0,
-            format_func=lambda opt: _modulo_label.get(opt, opt),
-            key="radio_tipo_modulo",
-        )
-        st.session_state["_tipo_modulo_sel"] = tipo_modulo
+        def _svg_modulo_card(nombre, activo=False):
+            color = "#4F46E5" if activo else "#64748B"
+            fill = "#EEF2FF" if activo else "#F8FAFC"
+            if nombre == "Cajonera":
+                body = '<rect x="14" y="10" width="52" height="52" rx="3"/><line x1="18" y1="25" x2="62" y2="25"/><line x1="18" y1="40" x2="62" y2="40"/><line x1="18" y1="55" x2="62" y2="55"/><circle cx="40" cy="18" r="1.8"/><circle cx="40" cy="33" r="1.8"/><circle cx="40" cy="48" r="1.8"/>'
+            elif nombre == "Alacena":
+                body = '<rect x="10" y="8" width="60" height="48" rx="3"/><line x1="40" y1="8" x2="40" y2="56"/><rect x="15" y="14" width="20" height="36" rx="2"/><rect x="45" y="14" width="20" height="36" rx="2"/>'
+            elif nombre == "Placard":
+                body = '<rect x="9" y="6" width="62" height="58" rx="3"/><line x1="40" y1="6" x2="40" y2="64"/><rect x="14" y="14" width="21" height="4" rx="1"/><rect x="45" y="14" width="21" height="4" rx="1"/><line x1="22" y1="20" x2="22" y2="50"/><rect x="47" y="26" width="16" height="4" rx="1"/><rect x="47" y="38" width="16" height="4" rx="1"/>'
+            elif nombre == "Pieza Suelta":
+                body = '<rect x="14" y="10" width="52" height="44" rx="2" stroke-dasharray="4 3"/><text x="40" y="34" text-anchor="middle" font-size="13" font-weight="700">L x A</text>'
+            else:
+                body = '<rect x="8" y="18" width="64" height="40" rx="3"/><rect x="8" y="18" width="64" height="8" rx="2"/><line x1="40" y1="26" x2="40" y2="58"/><rect x="13" y="31" width="22" height="22" rx="2"/><rect x="45" y="31" width="22" height="22" rx="2"/>'
+            return f'<svg viewBox="0 0 80 72" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:58px;"><g fill="{fill}" stroke="{color}" stroke-width="2">{body}</g></svg>'
+
+        st.caption("Tipo de mueble")
+        for _fila in range(0, len(_modulos_disponibles), 2):
+            cols_mod = st.columns(2)
+            for col_mod, nombre_btn in zip(cols_mod, _modulos_disponibles[_fila:_fila + 2]):
+                with col_mod:
+                    activo = st.session_state["_tipo_modulo_sel"] == nombre_btn
+                    st.markdown(
+                        f'<div class="bvm-module-card{" is-active" if activo else ""}">{_svg_modulo_card(nombre_btn, activo)}<div class="bvm-module-card-label">{nombre_btn}</div></div>',
+                        unsafe_allow_html=True,
+                    )
+                    if st.button("Usar", key=f"sel_mod_{nombre_btn}", use_container_width=True, type="primary" if activo else "secondary"):
+                        st.session_state["_tipo_modulo_sel"] = nombre_btn
+                        st.session_state.pop("radio_tipo_modulo", None)
+                        st.rerun()
+
+        tipo_modulo = st.session_state["_tipo_modulo_sel"]
         c1, c2, c3 = st.columns(3)
         ancho_m = c1.number_input("Ancho total (mm)", min_value=0.0, max_value=5000.0, value=float(_v("ancho_m", 0.0)), step=0.5, key="inp_ancho")
         alto_m  = c2.number_input("Alto total (mm)",  min_value=0.0, max_value=5000.0, value=float(_v("alto_m",  0.0)), step=0.5, key="inp_alto")
@@ -1887,9 +1926,8 @@ if menu == "🪵 Cotizador":
             if cant_puertas == 3:
                 tiene_parante = True
                 st.info("3 puertas: Parante divisor incluido.")
-                c_p1, c_p2 = st.columns(2)
-                tipo_parante      = c_p1.selectbox("Tipo de Parante", ["Corto (100mm)", "Largo (Fondo Lateral)"])
-                distancia_parante = c_p2.number_input("Distancia desde lateral izq. (mm)", value=ancho_m/cant_puertas if ancho_m > 0 else 0.0, step=1.0)
+                tipo_parante      = st.selectbox("Tipo de Parante", ["Corto (100mm)", "Largo (Fondo Lateral)"])
+                distancia_parante = st.number_input("Distancia desde lateral izq. (mm)", value=ancho_m/cant_puertas if ancho_m > 0 else 0.0, step=1.0)
             tiene_parante_medio = st.checkbox("¿Lleva parante medio?", value=bool(_v("tiene_parante_medio", False)))
             st.markdown("---")
             st.markdown("#### Estantes")
@@ -2063,8 +2101,8 @@ Para piezas que no entran en ningún módulo automático:<br>
               costo_base = 5000 if tipo_base == "Patas Plásticas" else 0
           else:
               tipo_base = "Nada"; altura_base = 0.0; costo_base = 0
-      with tab_costos:
-          st.markdown("#### Herrajes y tiempos")
+      with tab_herrajes:
+          st.markdown("#### Herrajes")
           if tipo_modulo in ["Bajo Mesada","Alacena"] and cant_puertas > 0:
               st.info(f"Sugerencia: {cant_puertas * 2} bisagras.")
           elif tipo_modulo == "Cajonera" and cant_cajones > 0:
@@ -2095,6 +2133,8 @@ Para piezas que no entran en ningún módulo automático:<br>
           for _warning in validar_herrajes_bks({"tipo_modulo": tipo_modulo, "herrajes_extra": herrajes_extra_sel}, config):
               st.warning(_warning)
 
+      with tab_taller:
+          st.markdown("#### Tiempo operativo")
           dias_prod = st.number_input("Días de trabajo en taller", value=float(_v("dias_prod", 0.0)), step=0.5)
 
     # ═══════════════════════════════════════════════════════════════════════
@@ -2178,33 +2218,19 @@ Para piezas que no entran en ningún módulo automático:<br>
               total_costo     = costo_madera + costo_fondo + costo_herrajes + costo_operativo + costo_base
 
               st.write("---")
-              with st.expander("⚙️ Terminal CNC — Este módulo"):
+              with st.expander("⚙️ DXF Aspire — Este módulo"):
                   _cnc_sig = json.dumps(_despiece_args, sort_keys=True)
-                  if st.button("Preparar archivos CNC", use_container_width=True, key="btn_preparar_cnc_mod"):
+                  if st.button("Preparar DXF para Aspire", use_container_width=True, key="btn_preparar_cnc_mod"):
                       if ezdxf is None:
                           st.error("DXF no disponible: falta instalar ezdxf.")
                       else:
-                          import io as _io
-                          _doc = ezdxf.new("R2010"); _msp = _doc.modelspace(); _x = 0
-                          for _, _row in df_corte.iterrows():
-                              for _ in range(int(_row["Cant"])):
-                                  _pts = [(_x,0),(_x+float(_row["L"]),0),(_x+float(_row["L"]),float(_row["A"])),(_x,float(_row["A"])),(_x,0)]
-                                  _msp.add_lwpolyline(_pts, close=True)
-                                  _msp.add_text(f"{_row['Pieza']}\n{int(_row['L'])}x{int(_row['A'])}", height=10).set_placement((_x+5,5))
-                                  _x += float(_row["L"]) + 50
-                          _out = _io.StringIO(); _doc.write(_out)
-                          _df_a  = df_corte.copy().rename(columns={"Pieza":"Name","L":"Length","A":"Width","Cant":"Quantity"})
-                          _df_a["Thickness"] = esp_real; _df_a["Material"] = mat_principal
                           st.session_state["_cnc_modulo_actual"] = {
                               "sig": _cnc_sig,
-                              "dxf": _out.getvalue().encode("utf-8"),
-                              "csv": _df_a[["Name","Length","Width","Thickness","Quantity","Material"]].to_csv(index=False).encode("utf-8"),
+                              "dxf": generar_dxf_modulo(df_corte, nombre_modulo, mat_principal),
                           }
                   _cnc_actual = st.session_state.get("_cnc_modulo_actual", {})
                   if _cnc_actual.get("sig") == _cnc_sig:
-                      cc1, cc2 = st.columns(2)
-                      cc1.download_button("📐 DXF", data=_cnc_actual["dxf"], file_name=f"BVM_{nombre_modulo}.dxf", mime="application/dxf", use_container_width=True)
-                      cc2.download_button("🤖 CSV Aspire", data=_cnc_actual["csv"], file_name=f"BVM_{nombre_modulo}.csv", mime="text/csv", use_container_width=True)
+                      st.download_button("📐 Descargar DXF Aspire", data=_cnc_actual["dxf"], file_name=f"DXF_Aspire_{nombre_modulo}.dxf", mime="application/dxf", use_container_width=True)
       else:
           st.warning("Esperando medidas para calcular...")
 
@@ -2273,15 +2299,15 @@ Para piezas que no entran en ningún módulo automático:<br>
               _cnc_resumen = st.session_state.get("_cnc_modulo_actual", {})
               if "_cnc_sig" in locals() and _cnc_resumen.get("sig") == _cnc_sig:
                   st.download_button(
-                      "DXF",
+                      "DXF Aspire",
                       data=_cnc_resumen["dxf"],
-                      file_name=f"BVM_{nombre_modulo}.dxf",
+                      file_name=f"DXF_Aspire_{nombre_modulo}.dxf",
                       mime="application/dxf",
                       use_container_width=True,
                       key="dl_dxf_resumen",
                   )
               else:
-                  st.caption("Prepará el CNC desde el visor para habilitar DXF.")
+                  st.caption("Prepará el DXF desde el visor para habilitar la descarga.")
           else:
               st.caption("Completá medidas y cliente para generar salidas.")
 
@@ -2553,22 +2579,19 @@ Para piezas que no entran en ningún módulo automático:<br>
             if st.button("🗑️ Limpiar obra", use_container_width=True):
                 st.session_state["obra_modulos"] = []; st.rerun()
 
-        with st.expander("⚙️ Terminal CNC — Obra completa"):
+        with st.expander("⚙️ DXF Aspire — Obra completa"):
             _mods_cnc = [m for m in _mods_obra if m.get("df_corte") is not None]
             if _mods_cnc:
                 _cnc_obra_sig = json.dumps(_serializar_obra_para_nube(_mods_cnc), sort_keys=True, default=str)
-                if st.button("Preparar CNC de obra", use_container_width=True, key="btn_preparar_cnc_obra"):
-                    with st.spinner("Preparando archivos CNC de la obra..."):
+                if st.button("Preparar DXF de obra para Aspire", use_container_width=True, key="btn_preparar_cnc_obra"):
+                    with st.spinner("Preparando DXF de la obra..."):
                         st.session_state["_cnc_obra_actual"] = {
                             "sig": _cnc_obra_sig,
                             "dxf": generar_dxf_obra(_mods_cnc),
-                            "csv": exportar_csv_obra(_mods_cnc, esp_real),
                         }
                 _cnc_obra_actual = st.session_state.get("_cnc_obra_actual", {})
                 if _cnc_obra_actual.get("sig") == _cnc_obra_sig:
-                    cc1, cc2 = st.columns(2)
-                    cc1.download_button("📐 DXF Obra", data=_cnc_obra_actual["dxf"], file_name=f"DXF_{cliente_obra}.dxf", mime="application/dxf", use_container_width=True)
-                    cc2.download_button("🤖 CSV Obra", data=_cnc_obra_actual["csv"], file_name=f"CNC_{cliente_obra}.csv", mime="text/csv", use_container_width=True)
+                    st.download_button("📐 Descargar DXF Aspire", data=_cnc_obra_actual["dxf"], file_name=f"DXF_Aspire_{cliente_obra}.dxf", mime="application/dxf", use_container_width=True)
             else:
                 st.warning("Calculá los módulos en esta sesión para exportar CNC.")
 
@@ -2970,10 +2993,12 @@ elif menu == "♻️ Retazos":
 # ===========================================================================
 elif menu == "⚙️ Precios":
     st.title("⚙️ Configuración de precios")
+    st.caption("Administrá materiales, herrajes y parámetros comerciales del taller.")
 
     # 1. Gestión de Equipo o Taller (adaptado según rol del usuario)
     if es_empleado:
-        with st.expander("👥 Mi Equipo / Taller", expanded=True):
+        with st.container(border=True):
+            st.markdown("#### 👥 Mi Equipo / Taller")
             st.markdown(f"Formás parte del taller **{_info_taller['nombre_taller']}** como colaborador (🛠️ Rol: Empleado).")
             st.caption("No tenés permisos para invitar a otros usuarios ni editar tarifas de costo del taller.")
             st.write("")
@@ -2982,7 +3007,8 @@ elif menu == "⚙️ Precios":
                     st.toast("Has abandonado el taller. Volviendo al modo individual.", icon="🚪")
                     st.rerun()
     else:
-        with st.expander("👥 Mi Equipo / Taller", expanded=False):
+        with st.container(border=True):
+            st.markdown("#### 👥 Mi Equipo / Taller")
             st.caption("Compartí tu configuración de precios, historial y depósito de retazos con un empleado o socio. Ambos van a ver y editar los mismos datos.")
             col_inv1, col_inv2 = st.columns([3, 1])
             email_inv = col_inv1.text_input("Email del empleado/socio", placeholder="empleado@email.com", label_visibility="collapsed")
@@ -2995,8 +3021,15 @@ elif menu == "⚙️ Precios":
                     st.warning("Ingresá un email.")
             st.caption("⚠️ El invitado necesita tener cuenta creada en BVM (pestaña Registro) antes de invitarlo.")
 
+    st.write("")
+    if es_empleado:
+        tab_placas, tab_herrajes = st.tabs(["Placas", "Herrajes"])
+    else:
+        tab_placas, tab_herrajes, tab_logistica, tab_margen = st.tabs(["Placas", "Herrajes", "Logística", "Margen"])
+
     # 2. Precios de Placas (Modo Lectura para Empleados)
-    with st.expander("🪵 Precios de Placas (18mm)", expanded=True):
+    with tab_placas:
+        st.markdown("#### 🪵 Precios de Placas (18mm)")
         for madera, precio in list(maderas.items()):
             if es_empleado:
                 col_name, col_price = st.columns([7, 3])
@@ -3032,7 +3065,8 @@ elif menu == "⚙️ Precios":
     _todos_herrajes = {k: v for k, v in config.items()
                        if k not in ['gastos_fijos_diarios','flete_capital','flete_norte','colocacion_dia','ganancia_taller_pct']}
 
-    with st.expander("🔩 Herrajes, Cerraduras y Extras", expanded=False):
+    with tab_herrajes:
+        st.markdown("#### 🔩 Herrajes, Cerraduras y Extras")
         for h_clave, h_precio in list(_todos_herrajes.items()):
             if es_empleado:
                 col_name, col_price = st.columns([7, 3])
@@ -3065,14 +3099,16 @@ elif menu == "⚙️ Precios":
 
     # 4. Datos Financieros Sensibles (Ocultos por completo para Empleados)
     if not es_empleado:
-        with st.expander("🚛 Gastos Fijos y Logística", expanded=False):
+        with tab_logistica:
+            st.markdown("#### 🚛 Gastos Fijos y Logística")
             f1, f2 = st.columns(2)
             config['gastos_fijos_diarios'] = f1.number_input("Gasto Diario Taller", value=float(config.get('gastos_fijos_diarios', 25000)), step=5000.0)
             config['flete_capital']        = f2.number_input("Flete Capital", value=float(config.get('flete_capital', 15000)), step=1000.0)
             config['flete_norte']          = f1.number_input("Flete Zona Norte", value=float(config.get('flete_norte', 20000)), step=1000.0)
             config['colocacion_dia']       = f2.number_input("Costo Día de Colocación", value=float(config.get('colocacion_dia', 45000)), step=5000.0)
 
-        with st.expander("💰 Margen de Ganancia", expanded=False):
+        with tab_margen:
+            st.markdown("#### 💰 Margen de Ganancia")
             config['ganancia_taller_pct'] = st.slider("Porcentaje de Utilidad", 0.0, 1.0, float(config.get('ganancia_taller_pct', 0.3)), 0.05)
             st.write(f"Margen actual: {config.get('ganancia_taller_pct', 0.3)*100:.0f}%")
 
